@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+frontend/dist/
+worker/dist/
+
+# Cloudflare
+.wrangler/
+.dev.vars
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+
+# Temporary
+tmp/
+temp/
+
+# Debug/Testing output
+*.json
+!package.json
+!tsconfig.json
+!worker/data/*.json
+!frontend/package.json
+!worker/package.json
+debug_output.json
+week_*.json
+nbs_*.json
+dbnomics_*.json
+
+# Claude
+.claude/

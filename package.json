@@ -1,0 +1,21 @@
+{
+  "name": "daily-risk",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "worker"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:worker\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:worker": "cd worker && npm run dev",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:worker": "cd worker && npm run build",
+    "deploy": "npm run deploy:worker",
+    "deploy:worker": "cd worker && npx wrangler deploy"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

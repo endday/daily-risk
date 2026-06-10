@@ -1,0 +1,22 @@
+name = "daily-risk-worker"
+main = "src/index.ts"
+compatibility_date = "2025-05-01"
+
+# D1 数据库绑定
+[[d1_databases]]
+binding = "DB"
+database_name = "daily-risk"
+database_id = "e2772393-32af-42f2-aa2d-800d3b1b816f"
+
+# Cron Triggers
+[triggers]
+crons = [
+  "0 22 * * *",   # 北京时间 06:00，每日全量采集
+  "30 * * * *",   # 每小时 :30 分，更新实际值（只拉 FRED）
+]
+
+# 环境变量（通过 wrangler secret put 设置）
+# FRED_API_KEY
+# BLS_API_KEY
+# ALPHA_VANTAGE_KEY
+# ADMIN_TOKEN

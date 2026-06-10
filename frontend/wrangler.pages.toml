@@ -1,0 +1,6 @@
+name = "daily-risk-frontend"
+pages_build_output_dir = "dist"
+
+[vars]
+# 生产环境 API 地址（部署后修改）
+VITE_API_BASE = ""

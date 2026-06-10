@@ -1,0 +1,87 @@
+{
+  "year": 2026,
+  "source": "NBS release schedule + PBC announcements",
+  "timezone": "Asia/Shanghai",
+  "events": [
+    {
+      "event_key": "CN_CPI",
+      "title": "中国CPI",
+      "date": "2026-06-12",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 8,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI",
+      "title": "中国官方制造业PMI",
+      "date": "2026-06-30",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 7,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_M2",
+      "title": "中国M2货币供应",
+      "date": "2026-06-14",
+      "time": "10:00",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:PBC",
+      "official_source": "pbc.gov.cn"
+    },
+    {
+      "event_key": "CN_PPI",
+      "title": "中国PPI",
+      "date": "2026-06-12",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_GDP_Q2",
+      "title": "中国GDP (Q2)",
+      "date": "2026-07-15",
+      "time": "10:00",
+      "country": "CN",
+      "importance": 9,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_RETAIL_SALES",
+      "title": "中国社会消费品零售总额",
+      "date": "2026-06-15",
+      "time": "10:00",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_INDUSTRIAL_PRODUCTION",
+      "title": "中国规模以上工业增加值",
+      "date": "2026-06-15",
+      "time": "10:00",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_FIXED_ASSET_INVESTMENT",
+      "title": "中国固定资产投资",
+      "date": "2026-06-15",
+      "time": "10:00",
+      "country": "CN",
+      "importance": 5,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    }
+  ]
+}

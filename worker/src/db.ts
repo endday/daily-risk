@@ -8,28 +8,74 @@ import { format, addDays, startOfWeek } from 'date-fns';
 // Event 操作
 // ============================================
 
-export async function upsertEvent(db: D1Database, event: any): Promise<void> {
-  await db.prepare(`
-    INSERT OR REPLACE INTO events (
-      event_key, source, title, display_name,
-      event_date, event_time, timezone, event_datetime_utc,
-      country, importance, market_impact,
-      release_id, series_id, symbol, period, display_format,
-      previous_value, actual_value, actual_updated_at,
-      status, last_checked_at, last_fetch_error,
-      raw_json, raw_text
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    event.event_key, event.source, event.title, event.display_name,
+// UPSERT SQL：使用 ON CONFLICT DO UPDATE 而非 INSERT OR REPLACE，
+// 用 COALESCE 保护已有字段（actual_value、status 等）不被 null 覆盖。
+const UPSERT_COLUMNS = `
+  event_key, source, title, display_name, description,
+  event_date, event_time, timezone, event_datetime_utc,
+  country, importance, market_impact,
+  release_id, series_id, symbol, period, display_format,
+  previous_value, actual_value, forecast_value, actual_updated_at,
+  confidence, source_url,
+  status, last_checked_at, last_fetch_error,
+  raw_json, raw_text
+`;
+const UPSERT_PLACEHOLDERS = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+const UPSERT_CONFLICT = `
+  ON CONFLICT(event_key, event_date, IFNULL(symbol, ''), IFNULL(period, ''))
+  DO UPDATE SET
+    source = excluded.source,
+    title = excluded.title,
+    display_name = excluded.display_name,
+    description = COALESCE(excluded.description, events.description),
+    event_time = excluded.event_time,
+    timezone = excluded.timezone,
+    event_datetime_utc = excluded.event_datetime_utc,
+    country = excluded.country,
+    importance = excluded.importance,
+    market_impact = excluded.market_impact,
+    release_id = excluded.release_id,
+    series_id = excluded.series_id,
+    display_format = excluded.display_format,
+    previous_value = COALESCE(excluded.previous_value, events.previous_value),
+    actual_value = COALESCE(excluded.actual_value, events.actual_value),
+    forecast_value = COALESCE(excluded.forecast_value, events.forecast_value),
+    actual_updated_at = COALESCE(excluded.actual_updated_at, events.actual_updated_at),
+    confidence = excluded.confidence,
+    source_url = COALESCE(excluded.source_url, events.source_url),
+    status = CASE
+      WHEN events.actual_value IS NOT NULL AND excluded.actual_value IS NULL
+      THEN events.status
+      ELSE excluded.status
+    END,
+    last_checked_at = excluded.last_checked_at,
+    last_fetch_error = excluded.last_fetch_error,
+    raw_json = excluded.raw_json,
+    raw_text = excluded.raw_text,
+    updated_at = datetime('now')
+`;
+
+function bindUpsert(stmt: D1PreparedStatement, event: any): D1PreparedStatement {
+  return stmt.bind(
+    event.event_key, event.source, event.title, event.display_name, event.description || null,
     event.event_date, event.event_time || null, event.timezone || 'Asia/Shanghai',
     event.event_datetime_utc || null, event.country, event.importance,
     JSON.stringify(event.market_impact || []),
     event.release_id || null, event.series_id || null, event.symbol || null,
     event.period || null, event.display_format || null,
     event.previous_value || null, event.actual_value || null,
-    event.actual_updated_at || null, event.status || 'scheduled',
+    event.forecast_value || null, event.actual_updated_at || null,
+    event.confidence || 'estimated', event.source_url || null,
+    event.status || 'scheduled',
     event.last_checked_at || null, event.last_fetch_error || null,
     event.raw_json || null, event.raw_text || null
+  );
+}
+
+export async function upsertEvent(db: D1Database, event: any): Promise<void> {
+  await bindUpsert(
+    db.prepare(`INSERT INTO events (${UPSERT_COLUMNS}) VALUES ${UPSERT_PLACEHOLDERS} ${UPSERT_CONFLICT}`),
+    event
   ).run();
 }
 
@@ -37,27 +83,9 @@ export async function upsertEvents(db: D1Database, events: any[]): Promise<numbe
   if (events.length === 0) return 0;
 
   const stmts = events.map(event =>
-    db.prepare(`
-      INSERT OR REPLACE INTO events (
-        event_key, source, title, display_name,
-        event_date, event_time, timezone, event_datetime_utc,
-        country, importance, market_impact,
-        release_id, series_id, symbol, period, display_format,
-        previous_value, actual_value, actual_updated_at,
-        status, last_checked_at, last_fetch_error,
-        raw_json, raw_text
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      event.event_key, event.source, event.title, event.display_name,
-      event.event_date, event.event_time || null, event.timezone || 'Asia/Shanghai',
-      event.event_datetime_utc || null, event.country, event.importance,
-      JSON.stringify(event.market_impact || []),
-      event.release_id || null, event.series_id || null, event.symbol || null,
-      event.period || null, event.display_format || null,
-      event.previous_value || null, event.actual_value || null,
-      event.actual_updated_at || null, event.status || 'scheduled',
-      event.last_checked_at || null, event.last_fetch_error || null,
-      event.raw_json || null, event.raw_text || null
+    bindUpsert(
+      db.prepare(`INSERT INTO events (${UPSERT_COLUMNS}) VALUES ${UPSERT_PLACEHOLDERS} ${UPSERT_CONFLICT}`),
+      event
     )
   );
 
@@ -143,7 +171,7 @@ export async function getWeekEvents(db: D1Database, anyDate: string): Promise<{ 
   return days;
 }
 
-function calculateRiskIndex(events: any[]): number {
+export function calculateRiskIndex(events: any[]): number {
   if (events.length === 0) return 0;
   const scores = events.map(e => e.importance || 0);
   const sumScore = scores.reduce((a, b) => a + b, 0);
@@ -223,6 +251,8 @@ function parseEventRow(row: any): any {
 
 function getBeijingDate(offsetDays: number): string {
   const now = new Date();
-  const beijing = addDays(now, offsetDays);
-  return format(beijing, 'yyyy-MM-dd');
+  // 北京时间 = UTC+8，再加偏移天数（避免 date-fns 本地时区问题）
+  const ms = now.getTime() + (8 * 3600 + offsetDays * 86400) * 1000;
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }

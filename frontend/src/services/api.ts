@@ -3,38 +3,26 @@
  * 封装所有后端 API 调用
  */
 
+// 类型统一从 shared/types 导入，避免重复定义
+import type { DayResponse, TodayTomorrowResponse } from '../../../shared/types'
+
+export type {
+  RiskEvent,
+  CalendarDayStat,
+  CalendarToday,
+  CalendarThisMonth,
+  CalendarBannerData,
+  CalendarMonthStat,
+  IndexMonthlyData,
+  IndicesMonthlyData,
+  SpecialEffectStats,
+  CalendarEffects,
+  DayResponse,
+  TodayTomorrowResponse,
+} from '../../../shared/types'
+
+// API 路径：开发和生产都用相对路径（生产环境由 Cloudflare Route 转发）
 const API_BASE = '/api'
-
-export interface RiskEvent {
-  event_key: string
-  score: number
-  display_name: string
-  previous_value: string | null
-  actual_value: string | null
-  event_time: string | null
-  timezone: string
-  country: string
-  market_impact: string[]
-  status: string
-  source: string
-}
-
-export interface DayResponse {
-  date: string
-  timezone: string
-  risk_index: number
-  events: RiskEvent[]
-  updated_at: string
-}
-
-export interface TodayTomorrowResponse {
-  timezone: string
-  days: {
-    date: string
-    risk_index: number
-    events: RiskEvent[]
-  }[]
-}
 
 /** 查询单日事件 */
 export async function fetchEventsByDate(date: string): Promise<DayResponse> {

@@ -65,60 +65,62 @@ function formatValue(value: string, units: string, display_format: string): stri
 /**
  * 获取未来 30 天内该指标的下一个发布日期
  *
- * 简化规则（实际发布日可能因节假日调整）：
- * - CPI/PPI：每月 10-15 日之间
+ * 注意：这些是推算规则，实际发布日可能因节假日调整。
+ * 返回的事件会标记 confidence: 'estimated'。
+ *
+ * 简化规则：
+ * - CPI/PPI：每月第二周周三/周四
  * - 失业率/非农：每月第一个周五
- * - GDP：每季度末后一个月 25-30 日
+ * - GDP：每季度末后一个月 25 日
  */
+/** 获取指定年月的第二个周三（UTC） */
+function getSecondWednesday(year: number, month: number): Date {
+  const firstDay = new Date(Date.UTC(year, month, 1));
+  const dayOfWeek = firstDay.getUTCDay();
+  const daysToFirstWed = dayOfWeek <= 3 ? 3 - dayOfWeek : 3 - dayOfWeek + 7;
+  return new Date(Date.UTC(year, month, 1 + daysToFirstWed + 7));
+}
+
+/** 获取指定年月的第一个周五（UTC） */
+function getFirstFriday(year: number, month: number): Date {
+  const firstDay = new Date(Date.UTC(year, month, 1));
+  const dayOfWeek = firstDay.getUTCDay(); // 0=Sun, 5=Fri
+  const daysUntilFriday = dayOfWeek <= 5 ? 5 - dayOfWeek : 5 - dayOfWeek + 7;
+  return new Date(Date.UTC(year, month, 1 + daysUntilFriday));
+}
+
 function getNextReleaseDate(seriesId: string, fromDate: Date): string | null {
   const year = fromDate.getFullYear();
   const month = fromDate.getMonth(); // 0-based
 
   if (seriesId === 'CPIAUCSL') {
     // CPI：每月第二周周三（通常是 10-14 日之间）
-    const firstDay = new Date(year, month, 1);
-    const dayOfWeek = firstDay.getDay();
-    // 找到第二个周三
-    const daysToFirstWed = dayOfWeek <= 3 ? 3 - dayOfWeek : 3 - dayOfWeek + 7;
-    const secondWed = new Date(year, month, 1 + daysToFirstWed + 7);
-    if (secondWed < fromDate) secondWed.setMonth(month + 1);
-    return secondWed.toISOString().split('T')[0];
+    let cpiDate = getSecondWednesday(year, month);
+    if (cpiDate < fromDate) cpiDate = getSecondWednesday(year, month + 1);
+    return cpiDate.toISOString().split('T')[0];
   }
 
   if (seriesId === 'PPIACO') {
-    // PPI：CPI 后一天
-    const firstDay = new Date(year, month, 1);
-    const dayOfWeek = firstDay.getDay();
-    const daysToFirstWed = dayOfWeek <= 3 ? 3 - dayOfWeek : 3 - dayOfWeek + 7;
-    const secondWed = new Date(year, month, 1 + daysToFirstWed + 7);
-    const ppiDate = new Date(secondWed.getTime() + 24 * 60 * 60 * 1000);
-    if (ppiDate < fromDate) ppiDate.setMonth(ppiDate.getMonth() + 1);
+    // PPI：CPI 后一天（第二周周四）
+    let ppiDate = new Date(getSecondWednesday(year, month).getTime() + 24 * 60 * 60 * 1000);
+    if (ppiDate < fromDate) ppiDate = new Date(getSecondWednesday(year, month + 1).getTime() + 24 * 60 * 60 * 1000);
     return ppiDate.toISOString().split('T')[0];
   }
 
   if (seriesId === 'UNRATE' || seriesId === 'PAYEMS') {
-    // 失业率/非农：每月第一个周五
-    const firstDay = new Date(year, month, 1);
-    const dayOfWeek = firstDay.getDay(); // 0=Sun, 5=Fri
-    const daysUntilFriday = dayOfWeek <= 5 ? 5 - dayOfWeek : 5 - dayOfWeek + 7;
-    const releaseDate = new Date(year, month, 1 + daysUntilFriday);
-    if (releaseDate < fromDate) {
-      releaseDate.setMonth(month + 1);
-      const firstDayNext = new Date(releaseDate.getFullYear(), releaseDate.getMonth(), 1);
-      const dowNext = firstDayNext.getDay();
-      const daysUntilFriNext = dowNext <= 5 ? 5 - dowNext : 5 - dowNext + 7;
-      releaseDate.setDate(1 + daysUntilFriNext);
-    }
+    // 失业率/非农：每月第一个周五（UTC）
+    let releaseDate = getFirstFriday(year, month);
+    if (releaseDate < fromDate) releaseDate = getFirstFriday(year, month + 1);
     return releaseDate.toISOString().split('T')[0];
   }
 
   if (seriesId === 'GDP') {
-    // GDP：每季度末后一个月 25-30 日（1/4/7/10 月的 25 日）
+    // GDP：每季度末后一个月 25 日（1/4/7/10 月的 25 日，UTC）
     const quarterMonths = [1, 4, 7, 10]; // 1 月、4 月、7 月、10 月
     let releaseMonth = quarterMonths.find(m => m > month) || quarterMonths[0];
     let releaseYear = year;
     if (releaseMonth <= month) releaseYear++;
-    const releaseDate = new Date(releaseYear, releaseMonth - 1, 25);
+    const releaseDate = new Date(Date.UTC(releaseYear, releaseMonth - 1, 25));
     return releaseDate.toISOString().split('T')[0];
   }
 
@@ -140,11 +142,11 @@ export async function collectFredData(config: FredCollectorConfig): Promise<Norm
 
       if (observations.length === 0) continue;
 
-      // 最新值 = actual_value，前一个值 = previous_value
+      // 最新观测值作为 previous_value（未来事件还没有 actual_value）
       const latest = observations[0];
       const previous = observations.length > 1 ? observations[1] : null;
 
-      // 只生成下一个发布日期的事件
+      // 计算下一个发布日期（推算，非官方）
       const releaseDate = getNextReleaseDate(series.series_id, today);
       if (!releaseDate) continue;
 
@@ -162,9 +164,13 @@ export async function collectFredData(config: FredCollectorConfig): Promise<Norm
         market_impact: ['NASDAQ', 'GOLD', 'USD'],
         series_id: series.series_id,
         display_format: series.display_format,
-        previous_value: previous ? formatValue(previous.value, series.units, series.display_format) : null,
-        actual_value: formatValue(latest.value, series.units, series.display_format),
-        raw_json: JSON.stringify({ latest, previous }),
+        // 最新已公布值作为前值参考
+        previous_value: latest ? formatValue(latest.value, series.units, series.display_format) : null,
+        // 未来事件没有 actual_value，等发布后由 updater 填充
+        actual_value: null,
+        // 标记为推算日期
+        confidence: 'estimated',
+        raw_json: JSON.stringify({ latest, previous, note: 'release date is estimated' }),
       });
     } catch (error) {
       console.error(`[FRED] Failed to fetch ${series.series_id}:`, error);

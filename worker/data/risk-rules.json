@@ -6,13 +6,19 @@
       "country": "US",
       "time": "20:30",
       "timezone": "Asia/Shanghai",
-      "market_impact": ["NASDAQ", "GOLD", "USD", "US10Y"],
+      "market_impact": [
+        "NASDAQ",
+        "GOLD",
+        "USD",
+        "US10Y"
+      ],
       "calendar_source": "fred",
       "fred_release_id": 46,
       "value_source": "fred",
       "fred_series": "CPIAUCSL",
       "fred_units": "pc1",
-      "display_format": "percent"
+      "display_format": "percent",
+      "description": "消费者物价指数，衡量消费者支付的消费品和服务价格变动，是衡量通胀的关键指标"
     },
     "US_PPI": {
       "display_name": "美国PPI",
@@ -20,13 +26,17 @@
       "country": "US",
       "time": "20:30",
       "timezone": "Asia/Shanghai",
-      "market_impact": ["NASDAQ", "GOLD"],
+      "market_impact": [
+        "NASDAQ",
+        "GOLD"
+      ],
       "calendar_source": "fred",
       "fred_release_id": 130,
       "value_source": "fred",
       "fred_series": "PPIACO",
       "fred_units": "pc1",
-      "display_format": "percent"
+      "display_format": "percent",
+      "description": "生产者物价指数，衡量生产者在生产过程中采购品的物价状况，反映通胀压力"
     },
     "US_NONFARM": {
       "display_name": "美国非农就业",
@@ -34,7 +44,11 @@
       "country": "US",
       "time": "20:30",
       "timezone": "Asia/Shanghai",
-      "market_impact": ["NASDAQ", "GOLD", "USD"],
+      "market_impact": [
+        "NASDAQ",
+        "GOLD",
+        "USD"
+      ],
       "calendar_source": "fred",
       "fred_release_id": 130,
       "value_source": "bls",
@@ -47,7 +61,10 @@
       "country": "US",
       "time": "20:30",
       "timezone": "Asia/Shanghai",
-      "market_impact": ["NASDAQ", "USD"],
+      "market_impact": [
+        "NASDAQ",
+        "USD"
+      ],
       "calendar_source": "fred",
       "fred_release_id": 130,
       "value_source": "fred",
@@ -60,7 +77,10 @@
       "country": "US",
       "time": "20:30",
       "timezone": "Asia/Shanghai",
-      "market_impact": ["NASDAQ", "USD"],
+      "market_impact": [
+        "NASDAQ",
+        "USD"
+      ],
       "calendar_source": "fred",
       "fred_release_id": 130,
       "value_source": "fred",
@@ -73,7 +93,13 @@
       "country": "US",
       "time": "02:00",
       "timezone": "Asia/Shanghai",
-      "market_impact": ["NASDAQ", "GOLD", "USD", "US10Y", "全市场"],
+      "market_impact": [
+        "NASDAQ",
+        "GOLD",
+        "USD",
+        "US10Y",
+        "全市场"
+      ],
       "calendar_source": "fred",
       "fred_release_id": 130,
       "value_source": "manual",
@@ -85,10 +111,15 @@
       "country": "CN",
       "time": "09:30",
       "timezone": "Asia/Shanghai",
-      "market_impact": ["上证", "恒指", "CNY"],
+      "market_impact": [
+        "上证",
+        "恒指",
+        "CNY"
+      ],
       "calendar_source": "manual_nbs_schedule",
       "value_source": "dbnomics",
-      "display_format": "percent"
+      "display_format": "percent",
+      "description": "居民消费价格指数，衡量居民购买的消费品和服务价格水平的变动，是衡量通胀和购买力变化的关键指标"
     },
     "CN_PMI": {
       "display_name": "中国PMI",
@@ -96,10 +127,15 @@
       "country": "CN",
       "time": "09:30",
       "timezone": "Asia/Shanghai",
-      "market_impact": ["上证", "恒指", "铁矿石"],
+      "market_impact": [
+        "上证",
+        "恒指",
+        "铁矿石"
+      ],
       "calendar_source": "manual_nbs_schedule",
       "value_source": "dbnomics",
-      "display_format": "index"
+      "display_format": "index",
+      "description": "采购经理人指数，衡量制造业在生产、新订单、商品价格、存货、雇员、订单交货、新出口订单和进口等方面状况的指数，大于 50 表示扩张"
     },
     "CN_M2": {
       "display_name": "中国M2",
@@ -107,10 +143,14 @@
       "country": "CN",
       "time": "10:00",
       "timezone": "Asia/Shanghai",
-      "market_impact": ["上证", "CNY"],
+      "market_impact": [
+        "上证",
+        "CNY"
+      ],
       "calendar_source": "manual_pbc_schedule",
       "value_source": "dbnomics",
-      "display_format": "yoy_percent"
+      "display_format": "yoy_percent",
+      "description": "广义货币供应量，反映社会总需求变化和未来通胀压力的先行指标"
     },
     "NVDA_EARNINGS": {
       "display_name": "NVDA财报",
@@ -118,7 +158,11 @@
       "country": "US",
       "time": "after_market",
       "timezone": "America/New_York",
-      "market_impact": ["NASDAQ", "半导体", "TSM"],
+      "market_impact": [
+        "NASDAQ",
+        "半导体",
+        "TSM"
+      ],
       "calendar_source": "alpha_vantage",
       "symbol": "NVDA",
       "display_format": "eps"
@@ -129,7 +173,10 @@
       "country": "US",
       "time": "after_market",
       "timezone": "America/New_York",
-      "market_impact": ["NASDAQ", "消费电子"],
+      "market_impact": [
+        "NASDAQ",
+        "消费电子"
+      ],
       "calendar_source": "alpha_vantage",
       "symbol": "AAPL",
       "display_format": "eps"
@@ -140,7 +187,10 @@
       "country": "US",
       "time": "after_market",
       "timezone": "America/New_York",
-      "market_impact": ["NASDAQ", "云计算"],
+      "market_impact": [
+        "NASDAQ",
+        "云计算"
+      ],
       "calendar_source": "alpha_vantage",
       "symbol": "MSFT",
       "display_format": "eps"
@@ -151,7 +201,10 @@
       "country": "US",
       "time": "after_market",
       "timezone": "America/New_York",
-      "market_impact": ["NASDAQ", "社交媒体"],
+      "market_impact": [
+        "NASDAQ",
+        "社交媒体"
+      ],
       "calendar_source": "alpha_vantage",
       "symbol": "META",
       "display_format": "eps"
@@ -162,7 +215,10 @@
       "country": "US",
       "time": "after_market",
       "timezone": "America/New_York",
-      "market_impact": ["NASDAQ", "广告"],
+      "market_impact": [
+        "NASDAQ",
+        "广告"
+      ],
       "calendar_source": "alpha_vantage",
       "symbol": "GOOGL",
       "display_format": "eps"
@@ -173,7 +229,10 @@
       "country": "US",
       "time": "after_market",
       "timezone": "America/New_York",
-      "market_impact": ["NASDAQ", "电商"],
+      "market_impact": [
+        "NASDAQ",
+        "电商"
+      ],
       "calendar_source": "alpha_vantage",
       "symbol": "AMZN",
       "display_format": "eps"
@@ -184,7 +243,10 @@
       "country": "US",
       "time": "after_market",
       "timezone": "America/New_York",
-      "market_impact": ["NASDAQ", "电动车"],
+      "market_impact": [
+        "NASDAQ",
+        "电动车"
+      ],
       "calendar_source": "alpha_vantage",
       "symbol": "TSLA",
       "display_format": "eps"
@@ -195,7 +257,10 @@
       "country": "US",
       "time": "before_market",
       "timezone": "America/New_York",
-      "market_impact": ["NASDAQ", "半导体"],
+      "market_impact": [
+        "NASDAQ",
+        "半导体"
+      ],
       "calendar_source": "alpha_vantage",
       "symbol": "TSM",
       "display_format": "eps"

@@ -82,9 +82,9 @@ export function normalizeEvent(
     title: (raw.title as string) || normalizedKey,
     display_name: rule?.display_name || (raw.display_name as string) || normalizedKey,
     event_date: eventDate,
-    event_time: eventTime || null,
+    event_time: eventTime || undefined,
     timezone,
-    event_datetime_utc: eventDatetimeUtc,
+    event_datetime_utc: eventDatetimeUtc || undefined,
     country: (raw.country as string) || rule?.country || 'US',
     importance: rule?.score ?? (raw.importance as number) ?? 5,
     market_impact: (raw.market_impact as string[]) || rule?.market_impact || [],
@@ -107,7 +107,7 @@ export function normalizeEvent(
     logger.warn('event has no time (will display without time)', { event_key: normalizedKey });
   }
 
-  if (!normalized.market_impact.length) {
+  if (!normalized.market_impact?.length) {
     logger.warn('event has no market_impact', { event_key: normalizedKey });
   }
 
@@ -167,10 +167,10 @@ function findMatchingRule(
  * @param timezone - IANA 时区名
  * @returns ISO 8601 UTC 字符串，或 null（转换失败）
  */
-function toUTC(dateStr: string, timeStr?: string | null, timezone?: string): string | null {
+function toUTC(dateStr: string, timeStr?: string | null, _timezone?: string): string | null {
   try {
     const timePart = timeStr || '00:00';
-    const tz = timezone || 'Asia/Shanghai';
+    // timezone 参数预留，当前使用本地时区解析
 
     // 构建带时区的日期时间字符串
     const localDateTime = `${dateStr}T${timePart}:00`;

@@ -34,6 +34,7 @@ CREATE TABLE events (
 
   raw_json TEXT,
   raw_text TEXT,
+  description TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );

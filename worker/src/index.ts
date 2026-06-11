@@ -4,7 +4,8 @@
 
 import * as db from './db';
 import * as scheduler from './scheduler';
-import { addDays, format } from 'date-fns';
+import { getActiveCalendarEffects } from './calendar';
+import riskRulesData from '../data/risk-rules.json';
 
 export interface Env {
   DB: D1Database;
@@ -16,19 +17,8 @@ export interface Env {
 
 const EARNINGS_SYMBOLS = ['NVDA', 'AAPL', 'MSFT', 'META', 'GOOGL', 'AMZN', 'TSLA', 'TSM'];
 
-// 内联配置（避免 JSON import 问题）
-const RISK_RULES: Record<string, any> = {
-  US_CPI: { display_name: '美国CPI', score: 10, country: 'US', time: '20:30', timezone: 'Asia/Shanghai', market_impact: ['NASDAQ','GOLD','USD','US10Y'], calendar_source: 'fred', fred_release_id: 46, value_source: 'fred', fred_series: 'CPIAUCSL', display_format: 'percent' },
-  US_PPI: { display_name: '美国PPI', score: 7, country: 'US', time: '20:30', timezone: 'Asia/Shanghai', market_impact: ['NASDAQ','GOLD'], calendar_source: 'fred', fred_release_id: 130, value_source: 'fred', fred_series: 'PPIACO', display_format: 'percent' },
-  US_NONFARM: { display_name: '美国非农就业', score: 10, country: 'US', time: '20:30', timezone: 'Asia/Shanghai', market_impact: ['NASDAQ','GOLD','USD'], calendar_source: 'fred', fred_release_id: 130, value_source: 'bls', fred_series: 'PAYEMS', display_format: 'change_k' },
-  US_UNEMPLOYMENT: { display_name: '美国失业率', score: 9, country: 'US', time: '20:30', timezone: 'Asia/Shanghai', market_impact: ['NASDAQ','USD'], calendar_source: 'fred', fred_release_id: 130, value_source: 'fred', fred_series: 'UNRATE', display_format: 'percent' },
-  US_GDP: { display_name: '美国GDP', score: 8, country: 'US', time: '20:30', timezone: 'Asia/Shanghai', market_impact: ['NASDAQ','USD'], calendar_source: 'fred', fred_release_id: 130, value_source: 'fred', fred_series: 'GDP', display_format: 'trillion' },
-  US_FOMC_RATE: { display_name: 'FOMC利率决议', score: 10, country: 'US', time: '02:00', timezone: 'Asia/Shanghai', market_impact: ['NASDAQ','GOLD','USD','US10Y','全市场'], calendar_source: 'fred', fred_release_id: 130, value_source: 'manual', display_format: 'rate_range' },
-  CN_CPI: { display_name: '中国CPI', score: 8, country: 'CN', time: '09:30', timezone: 'Asia/Shanghai', market_impact: ['上证','恒指','CNY'], calendar_source: 'manual_nbs_schedule', value_source: 'dbnomics', display_format: 'percent' },
-  CN_PMI: { display_name: '中国PMI', score: 7, country: 'CN', time: '09:30', timezone: 'Asia/Shanghai', market_impact: ['上证','恒指','铁矿石'], calendar_source: 'manual_nbs_schedule', value_source: 'dbnomics', display_format: 'index' },
-  CN_M2: { display_name: '中国M2货币供应', score: 6, country: 'CN', time: '10:00', timezone: 'Asia/Shanghai', market_impact: ['上证','CNY'], calendar_source: 'manual_pbc_schedule', value_source: 'dbnomics', display_format: 'yoy_percent' },
-  CN_PPI: { display_name: '中国PPI', score: 6, country: 'CN', time: '09:30', timezone: 'Asia/Shanghai', market_impact: ['上证','商品'], calendar_source: 'manual_nbs_schedule', value_source: 'dbnomics', display_format: 'percent' },
-};
+// 从 JSON 文件加载风险规则（唯一数据源）
+const RISK_RULES: Record<string, any> = (riskRulesData as any).rules;
 
 const CHINA_EVENTS: any = {
   year: 2026,
@@ -135,6 +125,7 @@ async function handleEvents(request: Request, env: Env, headers: Record<string, 
           day_label: d.dayLabel,
           risk_index: d.risk_index,
           events: d.events.map(formatEventForAPI),
+          calendar_effects: getActiveCalendarEffects(d.date),
         })),
       }), {
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers },
@@ -148,8 +139,9 @@ async function handleEvents(request: Request, env: Env, headers: Record<string, 
         timezone: 'Asia/Shanghai',
         days: groups.map(g => ({
           date: g.date,
-          risk_index: calculateRiskIndex(g.events),
+          risk_index: db.calculateRiskIndex(g.events),
           events: g.events.map(formatEventForAPI),
+          calendar_effects: getActiveCalendarEffects(g.date),
         })),
       }), {
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers },
@@ -163,9 +155,10 @@ async function handleEvents(request: Request, env: Env, headers: Record<string, 
     return new Response(JSON.stringify({
       date: targetDate,
       timezone: 'Asia/Shanghai',
-      risk_index: calculateRiskIndex(results),
+      risk_index: db.calculateRiskIndex(results),
       events: results.map(formatEventForAPI),
       updated_at: new Date().toISOString(),
+      calendar_effects: getActiveCalendarEffects(targetDate),
     }), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers },
     });
@@ -179,9 +172,17 @@ async function handleEvents(request: Request, env: Env, headers: Record<string, 
 }
 
 async function handleCollect(request: Request, env: Env, ctx: ExecutionContext, headers: Record<string, string>): Promise<Response> {
-  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+  // 安全底线：必须配置 ADMIN_TOKEN 且请求携带有效 token
+  if (!env.ADMIN_TOKEN) {
+    console.error('[Admin] ADMIN_TOKEN not configured, rejecting request');
+    return new Response(JSON.stringify({ error: 'Admin endpoint not available' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
 
-  if (env.ADMIN_TOKEN && token !== env.ADMIN_TOKEN) {
+  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+  if (token !== env.ADMIN_TOKEN) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json', ...headers },
@@ -268,8 +269,12 @@ function formatEventForAPI(event: any): any {
     event_key: event.event_key,
     score: event.importance,
     display_name: event.display_name,
+    description: event.description || null,
     previous_value: event.previous_value || null,
     actual_value: event.actual_value || null,
+    forecast_value: event.forecast_value || null,
+    confidence: event.confidence || 'estimated',
+    source_url: event.source_url || null,
     event_time: event.event_time || null,
     timezone: event.timezone || 'Asia/Shanghai',
     country: event.country,
@@ -279,17 +284,10 @@ function formatEventForAPI(event: any): any {
   };
 }
 
-function calculateRiskIndex(events: any[]): number {
-  if (events.length === 0) return 0;
-  const scores = events.map(e => e.importance || 0);
-  const sumScore = scores.reduce((a, b) => a + b, 0);
-  const sumScoreSquared = scores.reduce((a, b) => a + b * b, 0);
-  if (sumScore === 0) return 0;
-  return Math.round((sumScoreSquared / sumScore) * 10) / 10;
-}
-
 function getBeijingDate(offsetDays: number): string {
   const now = new Date();
-  const beijing = addDays(now, offsetDays);
-  return format(beijing, 'yyyy-MM-dd');
+  // 北京时间 = UTC+8，再加偏移天数（避免 date-fns 本地时区问题）
+  const ms = now.getTime() + (8 * 3600 + offsetDays * 86400) * 1000;
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }

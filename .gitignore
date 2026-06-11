@@ -5,6 +5,8 @@ node_modules/
 dist/
 frontend/dist/
 worker/dist/
+*.tsbuildinfo
+frontend/components.d.ts
 
 # Cloudflare
 .wrangler/
@@ -21,6 +23,9 @@ worker/dist/
 .DS_Store
 Thumbs.db
 
+# Screenshots
+*.png
+
 # Environment
 .env
 .env.local
@@ -33,17 +38,19 @@ coverage/
 tmp/
 temp/
 
-# Debug/Testing output
-*.json
+# Debug/Testing output (root-level JSON)
+/*.json
 !package.json
-!tsconfig.json
-!worker/data/*.json
-!frontend/package.json
-!worker/package.json
-debug_output.json
-week_*.json
-nbs_*.json
-dbnomics_*.json
+!package-lock.json
+!skills-lock.json
+!/worker/data/*.json
+!/frontend/package.json
+!/worker/package.json
+!/frontend/tsconfig.json
+!/worker/tsconfig.json
 
 # Claude
 .claude/
+
+# OpenSpec
+openspec/

@@ -1,20 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import CalendarStatsView from '../components/CalendarStatsView.vue'
+import type { CalendarEffects, RiskEvent } from '../services/api'
+import { fetchEventsByDate } from '../services/api'
 
-interface EventItem {
-  event_key: string
-  score: number
-  display_name: string
-  previous_value: string | null
-  actual_value: string | null
-  event_time: string | null
-  market_impact: string[]
-  status: string
-}
+// Tab 切换
+const activeTab = ref<'events' | 'stats'>('events')
 
 // 日期缓存：date -> events
-const dateEventsMap = ref<Record<string, EventItem[]>>({})
+const dateEventsMap = ref<Record<string, RiskEvent[]>>({})
 const dateRiskMap = ref<Record<string, number>>({})
+const dateCalendarMap = ref<Record<string, CalendarEffects | null>>({})
 
 // 选中日期
 const selectedDate = ref('')
@@ -105,20 +101,24 @@ const selectedRisk = computed(() => {
   return dateRiskMap.value[selectedDate.value] || 0
 })
 
+const selectedCalendar = computed(() => {
+  return dateCalendarMap.value[selectedDate.value] || null
+})
+
 
 // 加载某天的数据
 async function fetchDateEvents(date: string) {
   if (dateEventsMap.value[date] !== undefined) return // 已缓存
   try {
-    const res = await fetch(`/api/events?date=${date}`)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json()
+    const data = await fetchEventsByDate(date)
     dateEventsMap.value[date] = data.events || []
     dateRiskMap.value[date] = data.risk_index || 0
+    dateCalendarMap.value[date] = data.calendar_effects || null
   } catch (e) {
     console.error(`Failed to fetch ${date}:`, e)
     dateEventsMap.value[date] = []
     dateRiskMap.value[date] = 0
+    dateCalendarMap.value[date] = null
   }
 }
 
@@ -128,6 +128,11 @@ async function selectDate(date: string) {
   loadingDay.value = true
   await fetchDateEvents(date)
   loadingDay.value = false
+}
+
+// 处理日历点击选择日期
+async function handleCalendarDateSelect(date: string) {
+  await selectDate(date)
 }
 
 // 预加载前后各一周（方便快速切换）
@@ -187,50 +192,89 @@ onMounted(async () => {
       <button class="nav-btn nav-next" @click="changeWeek(1)">▶</button>
     </div>
 
-    <!-- 选中日期的风险指数 -->
-    <div class="risk-section" v-if="selectedEvents.length > 0">
-      <div class="risk-header">
-        <span class="risk-title">{{ dateLabel(selectedDate) }} {{ dateShort(selectedDate) }} 风险指数</span>
-        <span class="risk-value" :class="scoreColor(selectedRisk)">{{ selectedRisk.toFixed(1) }} / 10</span>
+    <!-- Tab 栏 -->
+    <div class="tab-bar">
+      <div
+        class="tab-item"
+        :class="{ active: activeTab === 'events' }"
+        @click="activeTab = 'events'"
+      >
+        事件
+        <span v-if="selectedEvents.length > 0" class="tab-badge">{{ selectedEvents.length }}</span>
       </div>
-      <div class="risk-bar">
-        <div class="risk-fill" :class="scoreColor(selectedRisk)" :style="{ width: selectedRisk * 10 + '%' }"></div>
+      <div
+        class="tab-item"
+        :class="{ active: activeTab === 'stats' }"
+        @click="activeTab = 'stats'"
+      >
+        历史统计
       </div>
     </div>
 
-    <!-- 加载 -->
-    <div v-if="loadingDay" class="loading">加载中...</div>
+    <!-- 事件 Tab -->
+    <div v-show="activeTab === 'events'">
+      <!-- 风险指数 -->
+      <div class="risk-section" v-if="selectedEvents.length > 0">
+        <div class="risk-header">
+          <span class="risk-title">{{ dateLabel(selectedDate) }} {{ dateShort(selectedDate) }} 风险指数</span>
+          <span class="risk-value" :class="scoreColor(selectedRisk)">{{ selectedRisk.toFixed(1) }} / 10</span>
+        </div>
+        <div class="risk-bar">
+          <div class="risk-fill" :class="scoreColor(selectedRisk)" :style="{ width: selectedRisk * 10 + '%' }"></div>
+        </div>
+      </div>
 
-    <!-- 事件列表 -->
-    <div v-else-if="selectedEvents.length === 0" class="empty">
-      <div class="empty-icon">📭</div>
-      <div>{{ dateLabel(selectedDate) }} {{ dateShort(selectedDate) }} 无重大风险事件</div>
+      <!-- 加载 -->
+      <div v-if="loadingDay" class="loading">加载中...</div>
+
+      <!-- 事件列表 -->
+      <div v-else-if="selectedEvents.length === 0" class="empty">
+        <div class="empty-icon">📭</div>
+        <div>{{ dateLabel(selectedDate) }} {{ dateShort(selectedDate) }} 无重大风险事件</div>
+      </div>
+
+      <div v-else class="event-list">
+        <div v-for="event in selectedEvents" :key="event.event_key" class="event-card" :class="{ estimated: event.confidence === 'estimated' }">
+          <div class="event-top">
+            <span class="event-name">
+              {{ event.display_name }}
+              <span v-if="event.confidence === 'estimated'" class="confidence-badge" title="发布日期为推算，可能与实际不符">推算</span>
+            </span>
+            <span class="event-score" :class="scoreColor(event.score)">{{ event.score }}</span>
+          </div>
+          <div class="event-values">
+            <div class="val">
+              <span class="val-label">前值</span>
+              <span class="val-num">{{ event.previous_value || '--' }}</span>
+            </div>
+            <div class="val">
+              <span class="val-label">预测值</span>
+              <span class="val-num">{{ event.forecast_value || '--' }}</span>
+            </div>
+            <div class="val">
+              <span class="val-label">公布值</span>
+              <span class="val-num">{{ event.actual_value || '--' }}</span>
+            </div>
+          </div>
+          <div class="event-bottom">
+            <span v-if="event.event_time" class="event-time">🕐 {{ event.event_time }}</span>
+            <span v-if="event.market_impact?.length" class="event-impact">影响: {{ event.market_impact.join(' / ') }}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div v-else class="event-list">
-      <div v-for="event in selectedEvents" :key="event.event_key" class="event-card">
-        <div class="event-top">
-          <span class="event-name">{{ event.display_name }}</span>
-          <span class="event-score" :class="scoreColor(event.score)">{{ event.score }}</span>
-        </div>
-        <div class="event-values">
-          <div class="val">
-            <span class="val-label">前值</span>
-            <span class="val-num">{{ event.previous_value || '--' }}</span>
-          </div>
-          <div class="val">
-            <span class="val-label">预测值</span>
-            <span class="val-num">--</span>
-          </div>
-          <div class="val">
-            <span class="val-label">公布值</span>
-            <span class="val-num">{{ event.actual_value || '--' }}</span>
-          </div>
-        </div>
-        <div class="event-bottom">
-          <span v-if="event.event_time" class="event-time">🕐 {{ event.event_time }}</span>
-          <span v-if="event.market_impact?.length" class="event-impact">影响: {{ event.market_impact.join(' / ') }}</span>
-        </div>
+    <!-- 统计 Tab -->
+    <div v-show="activeTab === 'stats'">
+      <CalendarStatsView
+        v-if="selectedCalendar"
+        :calendarEffects="selectedCalendar"
+        :date="selectedDate"
+        @selectDate="handleCalendarDateSelect"
+      />
+      <div v-else class="empty">
+        <div class="empty-icon">📊</div>
+        <div>暂无历史统计数据</div>
       </div>
     </div>
   </div>
@@ -261,11 +305,52 @@ onMounted(async () => {
 /* 日期条 */
 .date-strip-wrapper {
   position: relative;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   background: #fff;
   border-radius: 12px;
   padding: 8px 24px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* Tab 栏 */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #888;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.tab-item.active {
+  background: #1a1a2e;
+  color: #fff;
+}
+
+.tab-badge {
+  display: inline-block;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-left: 4px;
+  vertical-align: middle;
 }
 
 .nav-btn {
@@ -428,6 +513,24 @@ onMounted(async () => {
   border-radius: 12px;
   padding: 14px 16px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.event-card.estimated {
+  opacity: 0.75;
+  border-left: 3px solid #faad14;
+}
+
+.confidence-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  color: #faad14;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 .event-top {

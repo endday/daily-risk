@@ -16,6 +16,7 @@ const EM_SERIES = [
     report_name: 'RPT_ECONOMY_CPI',
     event_key: 'CN_CPI',
     display_name: '中国 CPI',
+    description: '居民消费价格指数，衡量居民购买的消费品和服务价格水平的变动，是衡量通胀和购买力变化的关键指标',
     importance: 8,
     display_format: 'percent',
     market_impact: ['上证', '恒指', 'CNY'],
@@ -25,6 +26,7 @@ const EM_SERIES = [
     report_name: 'RPT_ECONOMY_PPI',
     event_key: 'CN_PPI',
     display_name: '中国 PPI',
+    description: '工业生产者出厂价格指数，衡量生产者在生产过程中所需采购品的物价状况，是衡量商品通胀压力的重要指标',
     importance: 6,
     display_format: 'percent',
     market_impact: ['上证', '商品'],
@@ -81,6 +83,9 @@ async function fetchEastMoneyData(reportName: string, valueField: string) {
 
 /**
  * 东方财富主采集函数
+ *
+ * 注意：东方财富 API 返回的是已公布数据，不是未来事件。
+ * 我们不生成"今日事件"来避免陈旧数据包装，只记录最新已公布值。
  */
 export async function collectEastMoneyData(): Promise<NormalizedEvent[]> {
   const events: NormalizedEvent[] = [];
@@ -98,33 +103,54 @@ export async function collectEastMoneyData(): Promise<NormalizedEvent[]> {
       }
       console.log(`[EastMoney] Got data:`, data);
 
-      // 计算下一个发布日期（每月 10 日）
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      const day = 10;
-
-      const releaseDate = new Date(year, month, day);
-      if (releaseDate < today) {
-        releaseDate.setMonth(month + 1);
+      // 从 period 字段提取月份（如"2026年05月份" → "五月"）
+      let monthName = '';
+      let dataPeriod = '';
+      if (data.latest.period) {
+        dataPeriod = data.latest.period;
+        const match = data.latest.period.match(/(\d{2})月/);
+        if (match) {
+          const months = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+          monthName = ` (${months[parseInt(match[1]) - 1]}月)`;
+        }
       }
 
-      const dateStr = releaseDate.toISOString().split('T')[0];
+      // 使用数据实际发布日期（从 API 获取），而非推算日期
+      // 如果没有确切日期，标记为 estimated
+      let eventDate: string;
+      let confidence: 'confirmed' | 'estimated';
+
+      if (data.latest.date) {
+        // API 返回的 REPORT_DATE 是实际公布日期
+        eventDate = data.latest.date.split(' ')[0]; // "2026-06-10 00:00:00" → "2026-06-10"
+        confidence = 'confirmed';
+      } else {
+        // 没有确切日期，使用推算（本月 10 号）
+        const year = today.getFullYear();
+        const month = today.getMonth();
+        eventDate = new Date(Date.UTC(year, month, 10)).toISOString().split('T')[0];
+        confidence = 'estimated';
+      }
 
       events.push({
-        event_key: `${item.event_key}_${dateStr}`,
+        event_key: `${item.event_key}_${eventDate}`,
         source: 'eastmoney',
         title: item.display_name,
-        display_name: item.display_name,
-        event_date: dateStr,
+        display_name: `${item.display_name}${monthName}`,
+        description: item.description,
+        event_date: eventDate,
         event_time: '09:30',
         timezone: 'Asia/Shanghai',
-        event_datetime_utc: new Date(`${dateStr}T01:30:00Z`).toISOString(),
+        event_datetime_utc: new Date(`${eventDate}T01:30:00Z`).toISOString(),
         country: 'CN',
         importance: item.importance,
         market_impact: item.market_impact,
         display_format: item.display_format,
+        // 已公布数据：前值 = previous，本次公布值 = actual
         previous_value: data.previous ? `${data.previous.value}%` : null,
         actual_value: `${data.latest.value}%`,
+        confidence,
+        period: dataPeriod,
         raw_json: JSON.stringify(data),
       });
     } catch (error) {

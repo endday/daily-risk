@@ -2,6 +2,11 @@ name = "daily-risk-worker"
 main = "src/index.ts"
 compatibility_date = "2025-05-01"
 
+# 路由配置：daily-risk.endday.top/api/* 请求转发到 Worker
+routes = [
+  { pattern = "daily-risk.endday.top/api/*", zone_name = "endday.top" }
+]
+
 # D1 数据库绑定
 [[d1_databases]]
 binding = "DB"

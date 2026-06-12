@@ -51,6 +51,10 @@ temp/
 
 # Claude
 .claude/
+.agents/
 
 # OpenSpec
 openspec/
+
+# Environment
+.env.remote

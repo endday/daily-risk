@@ -25,40 +25,40 @@ function bannerClass(key: string): string {
 .banner {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px 8px 0 0;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.4;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  line-height: var(--leading-normal);
 }
 
 .banner-icon {
-  font-size: 16px;
+  font-size: var(--text-lg);
   flex-shrink: 0;
 }
 
 .banner-text {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .banner-red {
-  background: linear-gradient(135deg, #fff5f5, #ffe8e8);
-  border-bottom: 1px solid #ffd4d4;
+  background: linear-gradient(135deg, var(--color-up-light), rgba(232, 71, 76, 0.06));
+  border-bottom: 1px solid rgba(232, 71, 76, 0.15);
 }
 
 .banner-yellow {
-  background: linear-gradient(135deg, #fffbf0, #fff3d4);
-  border-bottom: 1px solid #ffe8b0;
+  background: linear-gradient(135deg, var(--color-warn-light), rgba(245, 166, 35, 0.06));
+  border-bottom: 1px solid rgba(245, 166, 35, 0.15);
 }
 
 .banner-blue {
-  background: linear-gradient(135deg, #f0f7ff, #e3f0ff);
-  border-bottom: 1px solid #c8e0ff;
+  background: linear-gradient(135deg, rgba(74, 144, 217, 0.08), rgba(74, 144, 217, 0.03));
+  border-bottom: 1px solid rgba(74, 144, 217, 0.12);
 }
 
 .banner-orange {
-  background: linear-gradient(135deg, #fff8f0, #ffeed4);
-  border-bottom: 1px solid #ffe0b0;
+  background: linear-gradient(135deg, var(--color-warn-light), rgba(245, 166, 35, 0.06));
+  border-bottom: 1px solid rgba(245, 166, 35, 0.15);
 }
 </style>

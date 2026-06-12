@@ -1,0 +1,101 @@
+/* Daily Risk Design System */
+
+:root {
+  /* === 语义色（A股标准：红涨绿跌）=== */
+  --color-up: #E8474C;
+  --color-up-dark: #C41E3A;
+  --color-up-light: #FBE9E9;
+  --color-up-muted: rgba(232, 71, 76, 0.12);
+
+  --color-down: #2EAF7D;
+  --color-down-dark: #1A7A42;
+  --color-down-light: #E6F7F0;
+  --color-down-muted: rgba(46, 175, 125, 0.12);
+
+  --color-neutral: #8C8C8C;
+  --color-neutral-light: #D1D5DB;
+
+  /* === 功能色 === */
+  --color-warn: #F5A623;
+  --color-warn-light: #FFF8E1;
+  --color-accent: #E8474C;
+  --color-info: #4A90D9;
+
+  /* === 文字层级 === */
+  --text-primary: #1A1A2E;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --text-disabled: #D1D5DB;
+
+  /* === 背景 === */
+  --bg-page: #F7F8FA;
+  --bg-card: #FFFFFF;
+  --bg-muted: #F3F4F6;
+  --bg-hover: #F9FAFB;
+
+  /* === 边框 === */
+  --border: #E5E7EB;
+  --border-light: #F0F0F0;
+
+  /* === 阴影 === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* === 圆角 === */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* === 字号（5级） === */
+  --text-sm: 12px;    /* 注释/标签/最小文字 */
+  --text-md: 14px;    /* 正文/副标题/卡片标题 */
+  --text-lg: 16px;    /* 重要数字/事件名 */
+  --text-xl: 20px;    /* 页面标题/大评分 */
+  --text-2xl: 22px;   /* 核心评分数字 */
+
+  /* === 行高 === */
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  /* === 字重 === */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* === 间距 === */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  /* === 评分热力图色阶（5级）=== */
+  --rating-5: rgba(232, 71, 76, 0.25);   /* 极强利好 >=8 */
+  --rating-4: rgba(232, 71, 76, 0.12);   /* 利好 6-8 */
+  --rating-3: rgba(156, 163, 175, 0.08); /* 中性 4-6 */
+  --rating-2: rgba(46, 175, 125, 0.12);  /* 利空 2-4 */
+  --rating-1: rgba(46, 175, 125, 0.25);  /* 极强利空 <2 */
+
+  /* === 动效 === */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+
+  /* === 字体 === */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Menlo', monospace;
+}
+
+/* 数字等宽 */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}

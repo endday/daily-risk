@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import CalendarStatsView from '../components/CalendarStatsView.vue'
 import type { CalendarEffects, RiskEvent } from '../services/api'
 import { fetchEventsByDate } from '../services/api'
+import { getToday } from '../../../shared/date-utils'
 
 // Tab 切换
 const activeTab = ref<'events' | 'stats'>('events')
@@ -22,12 +23,6 @@ const baseMonday = ref('')
 // 加载状态
 const loadingDay = ref(false)
 
-// 获取今天
-function getToday(): string {
-  const now = new Date()
-  const beijing = new Date(now.getTime() + 8 * 60 * 60 * 1000)
-  return `${beijing.getUTCFullYear()}-${String(beijing.getUTCMonth() + 1).padStart(2, '0')}-${String(beijing.getUTCDate()).padStart(2, '0')}`
-}
 
 // 获取某天的周一（蔡勒公式）
 function getMonday(anyDate: string): string {
@@ -86,10 +81,7 @@ function changeWeek(offset: number) {
   const [y, m, d] = baseMonday.value.split('-').map(Number)
   const dt = new Date(Date.UTC(y, m - 1, d + offset * 7))
   baseMonday.value = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
-  // 预加载新一周的数据
-  const dates: string[] = []
-  for (let i = 0; i < 7; i++) dates.push(offsetDate(baseMonday.value, i))
-  Promise.all(dates.map(d => fetchDateEvents(d)))
+  // 不再预加载，选中时再加载
 }
 
 // 选中日期的事件
@@ -101,8 +93,11 @@ const selectedRisk = computed(() => {
   return dateRiskMap.value[selectedDate.value] || 0
 })
 
+// 切换月份时保留上次数据，避免组件卸载导致页面跳动
+const lastCalendar = ref<CalendarEffects | null>(null)
+
 const selectedCalendar = computed(() => {
-  return dateCalendarMap.value[selectedDate.value] || null
+  return dateCalendarMap.value[selectedDate.value] ?? lastCalendar.value
 })
 
 
@@ -113,12 +108,14 @@ async function fetchDateEvents(date: string) {
     const data = await fetchEventsByDate(date)
     dateEventsMap.value[date] = data.events || []
     dateRiskMap.value[date] = data.risk_index || 0
-    dateCalendarMap.value[date] = data.calendar_effects || null
+    if (data.calendar_effects) {
+      dateCalendarMap.value[date] = data.calendar_effects
+      lastCalendar.value = data.calendar_effects
+    }
   } catch (e) {
     console.error(`Failed to fetch ${date}:`, e)
     dateEventsMap.value[date] = []
     dateRiskMap.value[date] = 0
-    dateCalendarMap.value[date] = null
   }
 }
 
@@ -135,20 +132,7 @@ async function handleCalendarDateSelect(date: string) {
   await selectDate(date)
 }
 
-// 预加载前后各一周（方便快速切换）
-async function preloadAdjacentWeeks() {
-  const dates: string[] = []
-  for (let w = -1; w <= 1; w++) {
-    for (let i = 0; i < 7; i++) {
-      const [y, m, d] = baseMonday.value.split('-').map(Number)
-      const dt = new Date(Date.UTC(y, m - 1, d + w * 7 + i))
-      dates.push(`${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`)
-    }
-  }
-  await Promise.all(dates.map(d => fetchDateEvents(d)))
-}
-
-// 颜色
+// 风险评分颜色
 function scoreColor(score: number): string {
   if (score >= 9) return 'red'
   if (score >= 7) return 'orange'
@@ -156,13 +140,15 @@ function scoreColor(score: number): string {
   return 'gray'
 }
 
-// 初始化
+// 初始化 — 只加载今天的数据
 onMounted(async () => {
   const today = getToday()
   baseMonday.value = getMonday(today)
   selectedDate.value = today
-  // 预加载前后各一周
-  await preloadAdjacentWeeks()
+  await fetchDateEvents(today)
+  if (dateCalendarMap.value[today]) {
+    lastCalendar.value = dateCalendarMap.value[today]
+  }
 })
 </script>
 
@@ -284,72 +270,70 @@ onMounted(async () => {
 .page {
   max-width: 600px;
   margin: 0 auto;
-  padding: 16px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #f5f5f5;
+  padding: var(--space-lg);
   min-height: 100vh;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-md);
 }
 
 .title {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
   margin: 0;
-  color: #1a1a1a;
+  color: var(--text-primary);
 }
 
 /* 日期条 */
 .date-strip-wrapper {
   position: relative;
-  margin-bottom: 8px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 8px 24px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  margin-bottom: var(--space-sm);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-xl);
+  box-shadow: var(--shadow-md);
 }
 
 /* Tab 栏 */
 .tab-bar {
   display: flex;
   gap: 0;
-  margin-bottom: 16px;
-  background: #fff;
-  border-radius: 10px;
-  padding: 4px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  margin-bottom: var(--space-lg);
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs);
+  box-shadow: var(--shadow-md);
 }
 
 .tab-item {
   flex: 1;
   text-align: center;
-  padding: 8px 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: #888;
+  padding: var(--space-sm) 0;
+  font-size: var(--text-md);
+  font-weight: var(--font-medium);
+  color: var(--text-tertiary);
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s;
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) var(--ease-out);
   position: relative;
 }
 
 .tab-item.active {
-  background: #1a1a2e;
+  background: var(--text-primary);
   color: #fff;
 }
 
 .tab-badge {
   display: inline-block;
-  background: #ff4d4f;
+  background: var(--color-up);
   color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 8px;
-  margin-left: 4px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: var(--space-xs);
   vertical-align: middle;
 }
 
@@ -359,30 +343,22 @@ onMounted(async () => {
   transform: translateY(-50%);
   background: none;
   border: none;
-  font-size: 16px;
-  color: #666;
+  font-size: var(--text-lg);
+  color: var(--text-secondary);
   cursor: pointer;
-  padding: 8px 6px;
+  padding: var(--space-sm) var(--space-xs);
   line-height: 1;
   z-index: 10;
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
 .nav-btn:active {
-  color: #333;
+  color: var(--text-primary);
+  background: var(--bg-muted);
 }
 
-.nav-prev {
-  left: 4px;
-}
-
-.nav-next {
-  right: 4px;
-}
-
-.nav-btn:active {
-  background: #f0f0f0;
-  color: #333;
-}
+.nav-prev { left: var(--space-xs); }
+.nav-next { right: var(--space-xs); }
 
 .date-strip {
   display: flex;
@@ -394,142 +370,135 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 6px;
-  border-radius: 8px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   min-width: 40px;
   position: relative;
-  transition: all 0.2s;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .date-item:active {
-  background: #f0f0f0;
+  background: var(--bg-muted);
+  transform: scale(0.95);
 }
 
 .date-item.active {
-  background: #1a1a2e;
+  background: var(--text-primary);
   color: #fff;
 }
 
 .date-day {
-  font-size: 9px;
-  color: #999;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
   margin-bottom: 1px;
   white-space: nowrap;
-  line-height: 1.2;
+  line-height: var(--leading-tight);
 }
 
-.date-item.active .date-day {
-  color: rgba(255,255,255,0.7);
-}
-
-.date-item.today .date-day {
-  color: #ff6b6b;
-}
-
-.date-item.active.today .date-day {
-  color: #ff8a8a;
-}
+.date-item.active .date-day { color: rgba(255,255,255,0.65); }
+.date-item.today .date-day { color: var(--color-up); }
+.date-item.active.today .date-day { color: rgba(232, 71, 76, 0.8); }
 
 .date-num {
-  font-size: 12px;
-  font-weight: 700;
-  color: #333;
-  line-height: 1.2;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+  font-variant-numeric: tabular-nums;
 }
 
-.date-item.active .date-num {
-  color: #fff;
-}
+.date-item.active .date-num { color: #fff; }
 
 .date-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  margin-top: 4px;
+  margin-top: var(--space-xs);
 }
 
-.date-dot.red { background: #ff4d4f; }
-.date-dot.orange { background: #fa8c16; }
-.date-dot.yellow { background: #fadb14; }
+.date-dot.red { background: var(--color-up); }
+.date-dot.orange { background: var(--color-warn); }
+.date-dot.yellow { background: #E8C847; }
 
 /* 风险指数 */
 .risk-section {
-  background: #fff;
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .risk-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-sm);
 }
 
 .risk-title {
-  font-size: 13px;
-  color: #888;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 .risk-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
-.risk-value.red { color: #ff4d4f; }
-.risk-value.orange { color: #fa8c16; }
-.risk-value.yellow { color: #d4a800; }
+.risk-value.red { color: var(--color-up); }
+.risk-value.orange { color: var(--color-warn); }
+.risk-value.yellow { color: #C4980A; }
 
 .risk-bar {
-  height: 6px;
-  background: #e8e8e8;
-  border-radius: 3px;
+  height: 5px;
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .risk-fill {
   height: 100%;
-  border-radius: 3px;
-  transition: width 0.3s;
+  border-radius: var(--radius-sm);
+  transition: width var(--duration-normal) var(--ease-out);
 }
 
-.risk-fill.red { background: #ff4d4f; }
-.risk-fill.orange { background: #fa8c16; }
-.risk-fill.yellow { background: #fadb14; }
+.risk-fill.red { background: var(--color-up); }
+.risk-fill.orange { background: var(--color-warn); }
+.risk-fill.yellow { background: #E8C847; }
 
 /* 事件卡片 */
 .event-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-sm);
 }
 
 .event-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 14px 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .event-card.estimated {
-  opacity: 0.75;
-  border-left: 3px solid #faad14;
+  opacity: 0.8;
+  border-left: 3px solid var(--color-warn);
 }
 
 .confidence-badge {
   display: inline-block;
-  font-size: 10px;
-  font-weight: 500;
-  color: #faad14;
-  background: #fffbe6;
-  border: 1px solid #ffe58f;
-  border-radius: 4px;
-  padding: 1px 5px;
-  margin-left: 6px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-warn);
+  background: var(--color-warn-light);
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  margin-left: var(--space-sm);
   vertical-align: middle;
 }
 
@@ -537,37 +506,38 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-md);
 }
 
 .event-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
 }
 
 .event-score {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
   padding: 3px 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-full);
   color: #fff;
   min-width: 32px;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
-.event-score.red { background: #ff4d4f; }
-.event-score.orange { background: #fa8c16; }
-.event-score.yellow { background: #fadb14; color: #333; }
-.event-score.gray { background: #d9d9d9; color: #666; }
+.event-score.red { background: var(--color-up); }
+.event-score.orange { background: var(--color-warn); }
+.event-score.yellow { background: #E8C847; color: var(--text-primary); }
+.event-score.gray { background: var(--color-neutral-light); color: var(--text-secondary); }
 
 .event-values {
   display: flex;
   gap: 0;
-  margin-bottom: 12px;
-  border-top: 1px solid #f0f0f0;
-  border-bottom: 1px solid #f0f0f0;
-  padding: 10px 0;
+  margin-bottom: var(--space-md);
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  padding: var(--space-sm) 0;
 }
 
 .val {
@@ -575,48 +545,50 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-xs);
 }
 
 .val-label {
-  font-size: 11px;
-  color: #bbb;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
 }
 
 .val-num {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-size: var(--text-md);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .event-bottom {
   display: flex;
-  gap: 16px;
-  font-size: 12px;
-  color: #999;
+  gap: var(--space-lg);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
   flex-wrap: wrap;
 }
 
 .event-time {
-  font-weight: 500;
-  color: #666;
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
 }
 
 /* 空状态 */
 .empty {
   text-align: center;
   padding: 60px 0;
-  color: #ccc;
+  color: var(--text-disabled);
 }
 
 .empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
+  font-size: 40px;
+  margin-bottom: var(--space-md);
+  opacity: 0.4;
 }
 
 .loading {
   text-align: center;
   padding: 48px 0;
-  color: #999;
+  color: var(--text-tertiary);
 }
 </style>

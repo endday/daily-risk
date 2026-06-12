@@ -3,6 +3,7 @@
  */
 
 import { format, addDays, startOfWeek } from 'date-fns';
+import { getBeijingDate } from '../../shared/date-utils';
 
 // ============================================
 // Event 操作
@@ -249,10 +250,3 @@ function parseEventRow(row: any): any {
   };
 }
 
-function getBeijingDate(offsetDays: number): string {
-  const now = new Date();
-  // 北京时间 = UTC+8，再加偏移天数（避免 date-fns 本地时区问题）
-  const ms = now.getTime() + (8 * 3600 + offsetDays * 86400) * 1000;
-  const d = new Date(ms);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-}

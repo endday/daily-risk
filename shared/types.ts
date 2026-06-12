@@ -204,9 +204,66 @@ export interface SpecialEffectStats {
   };
 }
 
+export interface NextTradingDay {
+  date: string;
+  day_of_month: number;
+  up_probability: number;
+  avg_change_pct: number;
+  rating: number;
+  sample_count: number;
+}
+
+export interface ActionSignal {
+  action: 'strong_buy' | 'buy' | 'hold' | 'caution' | 'sell';
+  label: string;
+  description: string;
+  basis_rating: number;
+  basis_date: string;
+}
+
+export interface AlmanacSignal {
+  action: 'add' | 'hold' | 'reduce';
+  label: string;
+  description: string;
+}
+
+export interface AlmanacDimension {
+  rating: number;
+  signal: AlmanacSignal;
+}
+
+export interface Almanac {
+  short_term: AlmanacDimension;  // 短线：明日评分 → 今日操作
+  swing: AlmanacDimension;       // 波段：下月评分 → 本月操作
+  advice: string;                // 综合操作建议
+}
+
+export interface IndexAlmanacData {
+  name: string;
+  almanac: Almanac;
+  today_prob: number;
+  today_sample_count: number;
+  next_day_prob: number;
+  next_day_sample_count: number;
+  this_month_prob: number;
+  this_month_sample_count: number;
+  next_month_prob: number;
+  next_month_sample_count: number;
+}
+
+export interface AlmanacByIndex {
+  '000001'?: IndexAlmanacData;
+  '000300'?: IndexAlmanacData;
+  '000905'?: IndexAlmanacData;
+}
+
 export interface CalendarEffects {
   today: CalendarToday;
   this_month: CalendarThisMonth;
+  next_trading_day: NextTradingDay;
+  action_signal: ActionSignal;
+  almanac: Almanac;
+  almanac_by_index?: AlmanacByIndex;
   daily_calendar: CalendarDayStat[];
   all_months: CalendarMonthStat[];
   indices_monthly?: IndicesMonthlyData;

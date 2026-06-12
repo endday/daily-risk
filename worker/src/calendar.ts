@@ -10,7 +10,7 @@
  */
 
 import calendarData from '../data/calendar-effects.json';
-import type { CalendarEffects, CalendarBannerData, CalendarDayStat } from '../../shared/types';
+import type { CalendarEffects, CalendarBannerData, CalendarDayStat, CalendarToday, NextTradingDay, ActionSignal, Almanac, AlmanacSignal } from '../../shared/types';
 
 // Default index: Shanghai Composite
 const DEFAULT_INDEX = '000001';
@@ -59,6 +59,184 @@ function zScore(value: number, m: number, s: number): number {
 function zScoreToRating(z: number): number {
   const score = 5 + z * 2.5;
   return Math.round(Math.max(0, Math.min(10, score)) * 10) / 10; // Round to 1 decimal
+}
+
+/**
+ * Calculate next trading day (skip weekends)
+ */
+function getNextTradingDayStr(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  // Skip to next weekday
+  const dayOfWeek = date.getUTCDay();
+  let skip = 1;
+  if (dayOfWeek === 5) skip = 3; // Friday → Monday
+  else if (dayOfWeek === 6) skip = 2; // Saturday → Monday
+  date.setUTCDate(date.getUTCDate() + skip);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Generate action signal based on next trading day's rating
+ */
+function generateActionSignal(rating: number, basisDate: string): ActionSignal {
+  if (rating >= 8) {
+    return {
+      action: 'strong_buy',
+      label: '加仓窗口',
+      description: '明日历史评分极高，上涨概率显著偏大，今日可考虑逢低加仓',
+      basis_rating: rating,
+      basis_date: basisDate,
+    };
+  }
+  if (rating >= 6) {
+    return {
+      action: 'buy',
+      label: '轻仓布局',
+      description: '明日偏利好，今日可适度布局，控制仓位',
+      basis_rating: rating,
+      basis_date: basisDate,
+    };
+  }
+  if (rating >= 4) {
+    return {
+      action: 'hold',
+      label: '观望为主',
+      description: '明日走势中性，建议持仓观望，不急于操作',
+      basis_rating: rating,
+      basis_date: basisDate,
+    };
+  }
+  if (rating >= 2) {
+    return {
+      action: 'caution',
+      label: '谨慎操作',
+      description: '明日偏利空，下跌风险偏大，建议控制仓位或减仓',
+      basis_rating: rating,
+      basis_date: basisDate,
+    };
+  }
+  return {
+    action: 'sell',
+    label: '减仓回避',
+    description: '明日历史评分极低，下跌概率显著偏大，建议今日减仓或回避',
+    basis_rating: rating,
+    basis_date: basisDate,
+  };
+}
+
+/**
+ * Lightweight: compute only "today" fields for a date (used for next trading day lookup)
+ */
+function getActiveCalendarEffectsInner(dateStr: string): { today: CalendarToday } {
+  const [year, month, dayOfMonth] = dateStr.split('-').map(Number);
+
+  const dailyMonthData = (calendarData as any).daily_by_month?.[DEFAULT_INDEX]?.data?.[String(month)] || [];
+  const todayStat = dailyMonthData.find((d: CalendarDayStat) => d.day === dayOfMonth);
+
+  const allDayProbs = dailyMonthData.map((d: CalendarDayStat) => d.up_probability);
+  const dayMean = mean(allDayProbs);
+  const dayStd = std(allDayProbs);
+  const todayZScore = todayStat ? zScore(todayStat.up_probability, dayMean, dayStd) : 0;
+
+  return {
+    today: {
+      day_of_month: dayOfMonth,
+      up_probability: todayStat?.up_probability ?? 0.5,
+      avg_change_pct: todayStat?.avg_change_pct ?? 0,
+      sample_count: todayStat?.sample_count ?? 0,
+      z_score: Math.round(todayZScore * 100) / 100,
+      rating: zScoreToRating(todayZScore),
+    },
+  };
+}
+
+/**
+ * Generate a single almanac signal from a rating score.
+ * 3 zones: add (>=6), hold (>=4), reduce (<4).
+ */
+function generateAlmanacSignal(rating: number, dimension: 'short_term' | 'swing'): AlmanacSignal {
+  const isShort = dimension === 'short_term';
+  if (rating >= 6) {
+    return {
+      action: 'add',
+      label: '宜加仓',
+      description: isShort
+        ? '明日上涨概率偏大，今日适合逢低买入'
+        : '下月上涨概率偏大，本月适合逐步加仓',
+    };
+  }
+  if (rating >= 4) {
+    return {
+      action: 'hold',
+      label: '宜观望',
+      description: isShort
+        ? '明日走势偏中性，建议持仓观望'
+        : '下月方向不明，本月维持当前仓位',
+    };
+  }
+  return {
+    action: 'reduce',
+    label: '宜减仓',
+    description: isShort
+      ? '明日下跌风险偏大，不宜加仓'
+      : '下月下跌风险偏大，本月应逐步降低仓位',
+  };
+}
+
+/**
+ * Generate combined advice from short-term and swing signals.
+ */
+function generateAlmanacAdvice(short: AlmanacSignal, swing: AlmanacSignal): string {
+  if (short.action === 'add' && swing.action === 'add') {
+    return '短线和中周期均偏利好，可积极加仓';
+  }
+  if (short.action === 'reduce' && swing.action === 'reduce') {
+    return '短线和中周期均偏利空，建议减仓或切换到债券/现金';
+  }
+  if (short.action === 'add' && swing.action === 'reduce') {
+    return '短线可逢低买入，但中周期偏弱，建议轻仓快进快出';
+  }
+  if (short.action === 'reduce' && swing.action === 'add') {
+    return '短线偏谨慎，但中周期偏强，可小仓位试错';
+  }
+  if (short.action === 'add') {
+    return '短线偏利好，可适度买入，中周期方向不明注意仓位';
+  }
+  if (short.action === 'reduce') {
+    return '短线偏谨慎，不宜加仓，中周期方向不明保持观望';
+  }
+  // short === hold
+  if (swing.action === 'add') {
+    return '中周期偏利好可布局，短线偏中性不必急于操作';
+  }
+  if (swing.action === 'reduce') {
+    return '中周期偏弱应控制仓位，短线中性可持仓观望';
+  }
+  return '短线与中周期均中性，建议持仓观望，不急于操作';
+}
+
+/**
+ * Compute almanac (黄历) with two independent dimensions:
+ * - Short-term: next trading day rating → today's action
+ * - Swing: next month rating → this month's action
+ */
+function computeAlmanac(nextDayRating: number, nextMonthRating: number): Almanac {
+  const shortTermSignal = generateAlmanacSignal(nextDayRating, 'short_term');
+  const swingSignal = generateAlmanacSignal(nextMonthRating, 'swing');
+  const advice = generateAlmanacAdvice(shortTermSignal, swingSignal);
+
+  return {
+    short_term: {
+      rating: nextDayRating,
+      signal: shortTermSignal,
+    },
+    swing: {
+      rating: nextMonthRating,
+      signal: swingSignal,
+    },
+    advice,
+  };
 }
 
 /**
@@ -153,9 +331,46 @@ export function getActiveCalendarEffects(dateStr: string): CalendarEffects {
   const bestMonth = sorted[0];
   const worstMonth = sorted[sorted.length - 1];
 
+  // 6. Next trading day & action signal
+  const nextDateStr = getNextTradingDayStr(dateStr);
+  const nextEffects = getActiveCalendarEffectsInner(nextDateStr);
+  const nextTradingDay = {
+    date: nextDateStr,
+    day_of_month: nextEffects.today.day_of_month,
+    up_probability: nextEffects.today.up_probability,
+    avg_change_pct: nextEffects.today.avg_change_pct,
+    rating: nextEffects.today.rating ?? 5,
+    sample_count: nextEffects.today.sample_count ?? 0,
+  };
+  const actionSignal = generateActionSignal(nextTradingDay.rating, nextDateStr);
+
+  // 7. 黄历 — 组合评分（逢低买入逻辑）
+  // 短线：明日评分 + 今日弱日的入场加分（今日弱=低价入场点，增强买入信号）
+  // 波段：下月评分 + 本月弱势的入场加分
+  const nextMonthNum = month % 12 + 1;
+  const nextMonthStat = allMonths.find((m: any) => m.month === nextMonthNum);
+  const nextMonthRating = nextMonthStat?.rating ?? thisMonth.rating ?? 5;
+
+  const shortTermBase = nextTradingDay.rating ?? 5;
+  const shortTermEntryBonus = Math.max(0, (5 - (today.rating ?? 5)) * 0.5);
+  const shortTermScore = Math.round(Math.min(10, Math.max(0, shortTermBase + shortTermEntryBonus)) * 10) / 10;
+
+  const swingBase = nextMonthRating;
+  const swingEntryBonus = Math.max(0, (5 - (thisMonth.rating ?? 5)) * 0.5);
+  const swingScore = Math.round(Math.min(10, Math.max(0, swingBase + swingEntryBonus)) * 10) / 10;
+
+  const almanac = computeAlmanac(shortTermScore, swingScore);
+
+  // 8. Almanac by index (三大指数各自的黄历)
+  const almanacByIndex = buildAlmanacByIndex(dateStr, month, allIndicesData);
+
   return {
     today,
     this_month: thisMonth,
+    next_trading_day: nextTradingDay,
+    action_signal: actionSignal,
+    almanac,
+    almanac_by_index: almanacByIndex,
     daily_calendar: dailyCalendar,
     all_months: allMonths,
     indices_monthly: allIndicesData,
@@ -201,10 +416,108 @@ function buildAllIndicesMonthlyData(): any {
           up_probability: m.up_probability,
           avg_change_pct: m.avg_change_pct,
           label: m.label ?? null,
+          sample_count: m.sample_count ?? 0,
           z_score: Math.round(z * 100) / 100,
           rating: zScoreToRating(z),
         };
       }),
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Compute daily stats (today + next trading day) for a specific index.
+ */
+function getDailyStatsForIndex(dateStr: string, indexCode: string): {
+  today: { up_probability: number; sample_count: number; rating: number };
+  next_day: { up_probability: number; sample_count: number; rating: number };
+} {
+  const [year, month, dayOfMonth] = dateStr.split('-').map(Number);
+
+  const dailyMonthData = (calendarData as any).daily_by_month?.[indexCode]?.data?.[String(month)] || [];
+
+  // Today's stats
+  const todayStat = dailyMonthData.find((d: CalendarDayStat) => d.day === dayOfMonth);
+  const allDayProbs = dailyMonthData.map((d: CalendarDayStat) => d.up_probability);
+  const dayMean = mean(allDayProbs);
+  const dayStd = std(allDayProbs);
+  const todayZ = todayStat ? zScore(todayStat.up_probability, dayMean, dayStd) : 0;
+
+  // Next trading day's stats
+  const nextDateStr = getNextTradingDayStr(dateStr);
+  const [, nextMonth, nextDay] = nextDateStr.split('-').map(Number);
+  const nextDailyMonthData = (calendarData as any).daily_by_month?.[indexCode]?.data?.[String(nextMonth)] || [];
+  const nextStat = nextDailyMonthData.find((d: CalendarDayStat) => d.day === nextDay);
+  const nextAllProbs = nextDailyMonthData.map((d: CalendarDayStat) => d.up_probability);
+  const nextMean = mean(nextAllProbs);
+  const nextStdVal = std(nextAllProbs);
+  const nextZ = nextStat ? zScore(nextStat.up_probability, nextMean, nextStdVal) : 0;
+
+  return {
+    today: {
+      up_probability: todayStat?.up_probability ?? 0.5,
+      sample_count: todayStat?.sample_count ?? 0,
+      rating: zScoreToRating(todayZ),
+    },
+    next_day: {
+      up_probability: nextStat?.up_probability ?? 0.5,
+      sample_count: nextStat?.sample_count ?? 0,
+      rating: zScoreToRating(nextZ),
+    },
+  };
+}
+
+/**
+ * Build almanac data for all three indices.
+ */
+function buildAlmanacByIndex(dateStr: string, currentMonth: number, allIndicesData: any): any {
+  const indices = ['000001', '000300', '000905'];
+  const nextMonthNum = currentMonth % 12 + 1;
+  const result: any = {};
+
+  for (const code of indices) {
+    const indexInfo = (calendarData as any).indices?.find((i: any) => i.code === code);
+    const indexMonthData = allIndicesData[code];
+    if (!indexMonthData) continue;
+
+    // Daily stats for this index
+    const daily = getDailyStatsForIndex(dateStr, code);
+
+    // Monthly stats for this index
+    const thisMonthData = indexMonthData.data.find((m: any) => m.month === currentMonth);
+    const nextMonthData = indexMonthData.data.find((m: any) => m.month === nextMonthNum);
+
+    const thisMonthRating = thisMonthData?.rating ?? 5;
+    const nextMonthRating = nextMonthData?.rating ?? 5;
+    const thisMonthProb = thisMonthData?.up_probability ?? 0.5;
+    const nextMonthProb = nextMonthData?.up_probability ?? 0.5;
+    const thisMonthSampleCount = thisMonthData?.sample_count ?? 0;
+    const nextMonthSampleCount = nextMonthData?.sample_count ?? 0;
+
+    // Compute combined scores (dip-buying bonus)
+    const shortTermBase = daily.next_day.rating;
+    const shortTermEntryBonus = Math.max(0, (5 - daily.today.rating) * 0.5);
+    const shortTermScore = Math.round(Math.min(10, Math.max(0, shortTermBase + shortTermEntryBonus)) * 10) / 10;
+
+    const swingBase = nextMonthRating;
+    const swingEntryBonus = Math.max(0, (5 - thisMonthRating) * 0.5);
+    const swingScore = Math.round(Math.min(10, Math.max(0, swingBase + swingEntryBonus)) * 10) / 10;
+
+    const almanac = computeAlmanac(shortTermScore, swingScore);
+
+    result[code] = {
+      name: indexInfo?.name ?? code,
+      almanac,
+      today_prob: daily.today.up_probability,
+      today_sample_count: daily.today.sample_count,
+      next_day_prob: daily.next_day.up_probability,
+      next_day_sample_count: daily.next_day.sample_count,
+      this_month_prob: thisMonthProb,
+      this_month_sample_count: thisMonthSampleCount,
+      next_month_prob: nextMonthProb,
+      next_month_sample_count: nextMonthSampleCount,
     };
   }
 

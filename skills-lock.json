@@ -7,6 +7,12 @@
       "skillPath": "skills/brainstorming/SKILL.md",
       "computedHash": "8df9b47092524833138b58682d03f2e153a242e550d1693657afdbee0cc9cdb0"
     },
+    "product-analysis": {
+      "source": "daymade/claude-code-skills",
+      "sourceType": "github",
+      "skillPath": "product-analysis/SKILL.md",
+      "computedHash": "e2021b48c9426a2917eb32629145d963448ee1f08422c793f99ce1ee95baf812"
+    },
     "using-superpowers": {
       "source": "obra/superpowers",
       "sourceType": "github",

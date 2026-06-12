@@ -152,6 +152,86 @@
       "display_format": "yoy_percent",
       "description": "广义货币供应量，反映社会总需求变化和未来通胀压力的先行指标"
     },
+    "CN_LPR": {
+      "display_name": "中国LPR",
+      "score": 9,
+      "country": "CN",
+      "time": "09:15",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "上证",
+        "地产",
+        "银行",
+        "CNY"
+      ],
+      "calendar_source": "manual_lpr_schedule",
+      "value_source": "manual",
+      "display_format": "percent",
+      "description": "贷款市场报价利率，每月20日公布，直接影响房贷和企业贷款成本，是央行最重要的货币政策工具之一"
+    },
+    "CN_PMI_NM": {
+      "display_name": "中国非制造业PMI",
+      "score": 6,
+      "country": "CN",
+      "time": "09:30",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "上证",
+        "服务业"
+      ],
+      "calendar_source": "manual_nbs_schedule",
+      "value_source": "dbnomics",
+      "display_format": "index",
+      "description": "非制造业商务活动指数，衡量服务业和建筑业的景气度，与制造业PMI互补，大于50表示扩张"
+    },
+    "CN_TRADE_BALANCE": {
+      "display_name": "中国贸易差额",
+      "score": 7,
+      "country": "CN",
+      "time": "11:00",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "上证",
+        "出口链",
+        "CNY"
+      ],
+      "calendar_source": "manual_customs_schedule",
+      "value_source": "manual",
+      "display_format": "billion_usd",
+      "description": "进出口贸易差额，反映外贸状况，影响出口链板块和人民币汇率预期"
+    },
+    "CN_TSF": {
+      "display_name": "中国社会融资规模",
+      "score": 8,
+      "country": "CN",
+      "time": "10:00",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "上证",
+        "银行",
+        "CNY"
+      ],
+      "calendar_source": "manual_pbc_schedule",
+      "value_source": "manual",
+      "display_format": "billion_cny",
+      "description": "社会融资规模增量，比M2更直接反映实体经济信用扩张，是A股最敏感的流动性指标"
+    },
+    "CN_NORTHBOUND_FLOW": {
+      "display_name": "北向资金",
+      "score": 7,
+      "country": "CN",
+      "time": "15:30",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "上证",
+        "深证",
+        "全市场"
+      ],
+      "calendar_source": "daily_eastmoney",
+      "value_source": "eastmoney",
+      "display_format": "billion_cny",
+      "description": "沪深港通北向资金成交额，反映外资参与A股的活跃程度（自2024年10月起不再公布净买额数据）"
+    },
     "NVDA_EARNINGS": {
       "display_name": "NVDA财报",
       "score": 8,

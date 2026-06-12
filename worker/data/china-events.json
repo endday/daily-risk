@@ -82,6 +82,226 @@
       "importance": 5,
       "value_source": "dbnomics:NBS",
       "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI_NM",
+      "title": "中国非制造业PMI",
+      "date": "2026-06-30",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_LPR",
+      "title": "中国LPR",
+      "date": "2026-06-20",
+      "time": "09:15",
+      "country": "CN",
+      "importance": 9,
+      "value_source": "manual:PBOC",
+      "official_source": "pbc.gov.cn"
+    },
+    {
+      "event_key": "CN_TRADE_BALANCE",
+      "title": "中国贸易差额",
+      "date": "2026-06-13",
+      "time": "11:00",
+      "country": "CN",
+      "importance": 7,
+      "value_source": "manual:Customs",
+      "official_source": "customs.gov.cn"
+    },
+    {
+      "event_key": "CN_TSF",
+      "title": "中国社会融资规模",
+      "date": "2026-06-14",
+      "time": "10:00",
+      "country": "CN",
+      "importance": 8,
+      "value_source": "manual:PBOC",
+      "official_source": "pbc.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI",
+      "title": "中国官方制造业PMI",
+      "date": "2026-07-31",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 7,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI_NM",
+      "title": "中国非制造业PMI",
+      "date": "2026-07-31",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_LPR",
+      "title": "中国LPR",
+      "date": "2026-07-20",
+      "time": "09:15",
+      "country": "CN",
+      "importance": 9,
+      "value_source": "manual:PBOC",
+      "official_source": "pbc.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI",
+      "title": "中国官方制造业PMI",
+      "date": "2026-08-31",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 7,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI_NM",
+      "title": "中国非制造业PMI",
+      "date": "2026-08-31",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_LPR",
+      "title": "中国LPR",
+      "date": "2026-08-20",
+      "time": "09:15",
+      "country": "CN",
+      "importance": 9,
+      "value_source": "manual:PBOC",
+      "official_source": "pbc.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI",
+      "title": "中国官方制造业PMI",
+      "date": "2026-09-30",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 7,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI_NM",
+      "title": "中国非制造业PMI",
+      "date": "2026-09-30",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_LPR",
+      "title": "中国LPR",
+      "date": "2026-09-20",
+      "time": "09:15",
+      "country": "CN",
+      "importance": 9,
+      "value_source": "manual:PBOC",
+      "official_source": "pbc.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI",
+      "title": "中国官方制造业PMI",
+      "date": "2026-10-31",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 7,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI_NM",
+      "title": "中国非制造业PMI",
+      "date": "2026-10-31",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_LPR",
+      "title": "中国LPR",
+      "date": "2026-10-20",
+      "time": "09:15",
+      "country": "CN",
+      "importance": 9,
+      "value_source": "manual:PBOC",
+      "official_source": "pbc.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI",
+      "title": "中国官方制造业PMI",
+      "date": "2026-11-30",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 7,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI_NM",
+      "title": "中国非制造业PMI",
+      "date": "2026-11-30",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_LPR",
+      "title": "中国LPR",
+      "date": "2026-11-20",
+      "time": "09:15",
+      "country": "CN",
+      "importance": 9,
+      "value_source": "manual:PBOC",
+      "official_source": "pbc.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI",
+      "title": "中国官方制造业PMI",
+      "date": "2026-12-31",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 7,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_PMI_NM",
+      "title": "中国非制造业PMI",
+      "date": "2026-12-31",
+      "time": "09:30",
+      "country": "CN",
+      "importance": 6,
+      "value_source": "dbnomics:NBS",
+      "official_source": "stats.gov.cn"
+    },
+    {
+      "event_key": "CN_LPR",
+      "title": "中国LPR",
+      "date": "2026-12-20",
+      "time": "09:15",
+      "country": "CN",
+      "importance": 9,
+      "value_source": "manual:PBOC",
+      "official_source": "pbc.gov.cn"
     }
   ]
 }

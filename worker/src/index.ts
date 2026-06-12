@@ -5,6 +5,7 @@
 import * as db from './db';
 import * as scheduler from './scheduler';
 import { getActiveCalendarEffects } from './calendar';
+import { getBeijingDate } from '../../shared/date-utils';
 import riskRulesData from '../data/risk-rules.json';
 
 export interface Env {
@@ -108,7 +109,8 @@ async function handleEvents(request: Request, env: Env, headers: Record<string, 
       });
     }
 
-    // 周查询：?week=YYYY-MM-DD (该周任意一天)
+    // 周批量查询：?week=YYYY-MM-DD (该周任意一天)
+    // 预留接口：前端当前按天逐个请求 + 客户端预加载，未来可切换为周批量查询减少请求数
     if (week) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(week)) {
         return new Response(JSON.stringify({ error: 'Invalid week format, expected YYYY-MM-DD' }), {
@@ -128,11 +130,12 @@ async function handleEvents(request: Request, env: Env, headers: Record<string, 
           calendar_effects: getActiveCalendarEffects(d.date),
         })),
       }), {
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers },
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...headers },
       });
     }
 
-    // 今日+明日
+    // 今日+明日批量查询：?range=today_tomorrow
+    // 预留接口：前端当前未使用，可用于"明日风险榜"首页同时展示今明两天
     if (range === 'today_tomorrow') {
       const groups = await db.getTodayTomorrowEvents(env.DB);
       return new Response(JSON.stringify({
@@ -144,7 +147,7 @@ async function handleEvents(request: Request, env: Env, headers: Record<string, 
           calendar_effects: getActiveCalendarEffects(g.date),
         })),
       }), {
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers },
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...headers },
       });
     }
 
@@ -160,11 +163,11 @@ async function handleEvents(request: Request, env: Env, headers: Record<string, 
       updated_at: new Date().toISOString(),
       calendar_effects: getActiveCalendarEffects(targetDate),
     }), {
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers },
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...headers },
     });
   } catch (error) {
     console.error('[API] Error:', error);
-    return new Response(JSON.stringify({ error: 'Internal Server Error', detail: String(error) }), {
+    return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...headers },
     });
@@ -284,10 +287,3 @@ function formatEventForAPI(event: any): any {
   };
 }
 
-function getBeijingDate(offsetDays: number): string {
-  const now = new Date();
-  // 北京时间 = UTC+8，再加偏移天数（避免 date-fns 本地时区问题）
-  const ms = now.getTime() + (8 * 3600 + offsetDays * 86400) * 1000;
-  const d = new Date(ms);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-}

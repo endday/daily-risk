@@ -160,3 +160,100 @@ export async function collectEastMoneyData(): Promise<NormalizedEvent[]> {
 
   return events;
 }
+
+/**
+ * 北向资金采集器
+ *
+ * 数据源：东方财富 RPT_MUTUAL_DEAL_HISTORY
+ * MUTUAL_TYPE: 005=北向资金(沪股通+深股通汇总)
+ *
+ * 注意：自 2024 年 10 月起，交易所不再公布北向资金实时净买额和资金流入数据。
+ * 目前可用字段：
+ * - DEAL_AMT: 当日成交金额(万元)
+ * - DEAL_NUM: 当日成交笔数
+ * - INDEX_CLOSE_PRICE: 沪深300收盘价
+ * - INDEX_CHANGE_RATE: 沪深300涨跌幅
+ */
+export async function collectNorthboundFlow(): Promise<NormalizedEvent[]> {
+  const events: NormalizedEvent[] = [];
+  console.log('[EastMoney] Fetching northbound flow...');
+
+  try {
+    const url = `https://datacenter-web.eastmoney.com/api/data/v1/get` +
+      `?reportName=RPT_MUTUAL_DEAL_HISTORY` +
+      `&columns=ALL` +
+      `&pageNumber=1` +
+      `&pageSize=3` +
+      `&sortTypes=-1` +
+      `&sortColumns=TRADE_DATE` +
+      `&source=WEB` +
+      `&client=WEB` +
+      `&filter=(MUTUAL_TYPE%3D%22005%22)`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Northbound flow API error: ${res.status}`);
+
+    const data = await res.json();
+    const records = data.result?.data || [];
+
+    if (records.length === 0) {
+      console.warn('[EastMoney] No northbound flow data');
+      return events;
+    }
+
+    // 取最新一条（今日或最近交易日）
+    const latest = records[0];
+    const previous = records.length > 1 ? records[1] : null;
+
+    const tradeDate = latest.TRADE_DATE?.split(' ')[0];
+    if (!tradeDate) {
+      console.warn('[EastMoney] No trade date in northbound data');
+      return events;
+    }
+
+    // 成交额(万元 → 亿元)
+    const dealAmt = latest.DEAL_AMT != null ? (latest.DEAL_AMT / 10000).toFixed(2) : null;
+    const dealNum = latest.DEAL_NUM ?? null;
+    const prevDealAmt = previous?.DEAL_AMT != null ? (previous.DEAL_AMT / 10000).toFixed(2) : null;
+    const indexChange = latest.INDEX_CHANGE_RATE ?? null;
+
+    // 显示值
+    const displayValue = dealAmt ? `${dealAmt}亿` : '--';
+    const prevDisplayValue = prevDealAmt ? `${prevDealAmt}亿` : null;
+
+    events.push({
+      event_key: `CN_NORTHBOUND_FLOW_${tradeDate}`,
+      source: 'eastmoney',
+      title: '北向资金',
+      display_name: `北向资金 (${tradeDate.slice(5)})`,
+      description: '沪深港通北向资金成交额，反映外资参与A股的活跃程度',
+      event_date: tradeDate,
+      event_time: '15:30',
+      timezone: 'Asia/Shanghai',
+      event_datetime_utc: new Date(`${tradeDate}T07:30:00Z`).toISOString(),
+      country: 'CN',
+      importance: 7,
+      market_impact: ['上证', '深证', '全市场'],
+      display_format: 'billion_cny',
+      previous_value: prevDisplayValue,
+      actual_value: displayValue,
+      forecast_value: null,
+      confidence: 'confirmed',
+      period: tradeDate,
+      raw_json: JSON.stringify({
+        deal_amt_wan: latest.DEAL_AMT,
+        deal_amt_yi: dealAmt,
+        deal_num: dealNum,
+        index_close: latest.INDEX_CLOSE_PRICE,
+        index_change_rate: indexChange,
+        prev_deal_amt_yi: prevDealAmt,
+      }),
+    });
+
+    console.log(`[EastMoney] Northbound flow: ${tradeDate} → 成交${displayValue}, 沪深300 ${indexChange}%`);
+  } catch (error) {
+    console.error('[EastMoney] Failed to fetch northbound flow:', error);
+  }
+
+  return events;
+}

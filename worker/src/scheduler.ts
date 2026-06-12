@@ -5,7 +5,7 @@
 import { upsertEvents, logProviderRun } from './db';
 import { collectFredData } from './collectors/fred';
 import { collectChinaData } from './collectors/dbnomics';
-import { collectEastMoneyData } from './collectors/eastmoney';
+import { collectEastMoneyData, collectNorthboundFlow } from './collectors/eastmoney';
 import { fetchEarningsCalendar } from './collectors/alpha-vantage';
 import { loadManualEvents } from './collectors/manual';
 
@@ -52,6 +52,15 @@ export async function runDailyCollection(env: CollectorEnv): Promise<void> {
     totalUpserted += count;
   } catch (error) {
     errors.push(`EastMoney: ${(error as Error).message}`);
+  }
+
+  // 3.5 Northbound Flow (EastMoney - 北向资金)
+  try {
+    const nbEvents = await collectNorthboundFlow();
+    const count = await upsertEvents(env.DB, nbEvents);
+    totalUpserted += count;
+  } catch (error) {
+    errors.push(`NorthboundFlow: ${(error as Error).message}`);
   }
 
   // 4. Alpha Vantage Earnings

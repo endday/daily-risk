@@ -38,6 +38,15 @@ const CN_SERIES = [
     display_format: 'yoy_percent',
     market_impact: ['上证', 'CNY'],
   },
+  {
+    dataset_code: 'M_A0B02',
+    series_code: null,
+    event_key: 'CN_PMI_NM',
+    display_name: '中国非制造业PMI',
+    importance: 6,
+    display_format: 'index',
+    market_impact: ['上证', '服务业'],
+  },
 ];
 
 /**
@@ -92,14 +101,30 @@ export async function collectChinaData(): Promise<NormalizedEvent[]> {
       const latestValue = values[latestIdx];
       const previousValue = prevIdx >= 0 ? values[prevIdx] : null;
 
-      // 计算下一个发布日期（每月 10 日，M2 是 15 日）
+      // 计算下一个发布日期
+      // CPI/PPI: 每月 10 日左右
+      // M2: 每月 10-15 日
+      // PMI (制造业+非制造业): 每月最后一天
       const year = today.getFullYear();
       const month = today.getMonth();
-      const day = item.event_key === 'CN_M2' ? 15 : 10;
+      let releaseDate: Date;
 
-      const releaseDate = new Date(year, month, day);
-      if (releaseDate < today) {
-        releaseDate.setMonth(month + 1);
+      if (item.event_key === 'CN_PMI' || item.event_key === 'CN_PMI_NM') {
+        // PMI: 月末最后一天
+        releaseDate = new Date(year, month + 1, 0);
+        if (releaseDate < today) {
+          releaseDate = new Date(year, month + 2, 0);
+        }
+      } else if (item.event_key === 'CN_M2') {
+        releaseDate = new Date(year, month, 15);
+        if (releaseDate < today) {
+          releaseDate.setMonth(month + 1);
+        }
+      } else {
+        releaseDate = new Date(year, month, 10);
+        if (releaseDate < today) {
+          releaseDate.setMonth(month + 1);
+        }
       }
 
       const dateStr = releaseDate.toISOString().split('T')[0];

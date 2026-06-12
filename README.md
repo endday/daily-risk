@@ -4,7 +4,7 @@
 
 ## 技术栈
 
-- **前端**: Vue 3 + Vite + Vant 4 (Cloudflare Pages)
+- **前端**: Vue 3 + Vite (Cloudflare Pages)
 - **后端**: Cloudflare Worker (TypeScript)
 - **数据库**: Cloudflare D1 (SQLite)
 - **数据源**: FRED, BLS, Alpha Vantage, DBnomics
@@ -64,9 +64,9 @@ npm run deploy:worker
 | 数据源 | 用途 | 成本 |
 |--------|------|------|
 | FRED API | 美国宏观日历 + 前值 | 免费 |
-| BLS API | 美国劳工数据 | 免费 |
+| EastMoney | 中国 CPI/PPI 前值 | 免费 |
 | Alpha Vantage | 财报日历 | 免费 (25 req/天) |
-| DBnomics | 中国宏观前值 | 免费 |
+| DBnomics | 中国 PMI/M2 前值 | 免费 |
 
 ## 功能
 
@@ -75,10 +75,8 @@ npm run deploy:worker
 - [x] 共享类型定义
 - [x] Worker 基础路由
 - [x] 前端基础页面
-- [ ] 数据采集器实现 (Phase 2)
-- [ ] 风险评分算法 (Phase 3)
-- [ ] 完整前端页面 (Phase 4)
+- [x] 数据采集器实现 (FRED, EastMoney, DBnomics, Alpha Vantage, Manual)
+- [x] 风险评分算法 (Z-Score 归一化 + 操作信号生成)
+- [x] 完整前端页面 (日历热力图 + 历史统计 + 特殊窗口)
+- [x] Service Worker 离线缓存
 
-## 文档
-
-详细技术方案见 [DESIGN.md](./DESIGN.md)

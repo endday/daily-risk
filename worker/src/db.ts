@@ -174,11 +174,18 @@ export async function getWeekEvents(db: D1Database, anyDate: string): Promise<{ 
 
 export function calculateRiskIndex(events: any[]): number {
   if (events.length === 0) return 0;
-  const scores = events.map(e => e.importance || 0);
-  const sumScore = scores.reduce((a, b) => a + b, 0);
-  const sumScoreSquared = scores.reduce((a, b) => a + b * b, 0);
-  if (sumScore === 0) return 0;
-  return Math.round((sumScoreSquared / sumScore) * 10) / 10;
+  const scores = events.map(e => e.importance || 0).filter(s => s > 0);
+  if (scores.length === 0) return 0;
+
+  // 单事件直接使用其评分
+  if (scores.length === 1) return Math.round(scores[0] * 10) / 10;
+
+  // 多事件：最高分主导(70%) + 其余衰减叠加(30%)
+  const sorted = [...scores].sort((a, b) => b - a);
+  const maxScore = sorted[0];
+  const restSum = sorted.slice(1).reduce((a, b) => a + b, 0);
+  const index = maxScore * 0.7 + Math.min(restSum * 0.3, maxScore * 0.3);
+  return Math.round(Math.min(10, index) * 10) / 10;
 }
 
 export async function getEventsForActualValueUpdate(db: D1Database, replayWindowDays: number = 7): Promise<any[]> {

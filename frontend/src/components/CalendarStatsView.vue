@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { CalendarEffects } from '../services/api'
 import CalendarBanner from './CalendarBanner.vue'
 import MonthlyCalendarGrid from './MonthlyCalendarGrid.vue'
@@ -13,6 +13,17 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'selectDate', date: string): void
 }>()
+
+// 折叠状态（默认折叠）
+const collapsed = ref({
+  features: true,
+  indices: true,
+  specialWindows: true,
+})
+
+function toggleCollapse(key: keyof typeof collapsed.value) {
+  collapsed.value[key] = !collapsed.value[key]
+}
 
 const dateParts = computed(() => {
   const [y, m, d] = props.date.split('-').map(Number)
@@ -176,9 +187,13 @@ const nextDayShort = computed(() => {
       />
     </div>
 
-    <!-- 本月特征：波动率 + 效应衰减 + 连涨跌 -->
-    <div class="card">
-      <div class="card-title">📊 {{ monthNames[dateParts.month] }}特征</div>
+    <!-- 本月特征：波动率 + 效应衰减 + 连涨跌（可折叠） -->
+    <div class="card collapsible">
+      <div class="card-title collapsible-header" @click="toggleCollapse('features')">
+        <span>📊 {{ monthNames[dateParts.month] }}特征</span>
+        <span class="collapse-icon">{{ collapsed.features ? '▼' : '▲' }}</span>
+      </div>
+      <div v-show="!collapsed.features">
 
       <!-- 波动率 -->
       <div class="feature-section">
@@ -260,6 +275,7 @@ const nextDayShort = computed(() => {
           </template>
         </div>
       </div>
+      </div>
     </div>
 
     <!-- 年度最佳/最差月 -->
@@ -268,27 +284,39 @@ const nextDayShort = computed(() => {
       <span class="summary-worst">⚠️ 最差: {{ monthNames[calendarEffects.yearly_overview.worst_month.month] }} {{ formatPct(calendarEffects.yearly_overview.worst_month.up_probability) }}</span>
     </div>
 
-    <!-- 三大指数评分图 -->
-    <template v-for="idxCode in indexCodes" :key="idxCode">
-      <div class="card" v-if="getIndexData(idxCode)">
-        <div class="card-title">📊 {{ getIndexData(idxCode)!.name }} · 全年月度评分</div>
-        <div class="v-chart">
-          <div v-for="m in 12" :key="m" class="v-bar-item" :class="{ 'is-current': m === dateParts.month }"
-            :style="{ backgroundColor: getIndexMonthRating(idxCode, m) !== undefined ? heatmapBg(getIndexMonthRating(idxCode, m)) : 'transparent' }">
-            <div class="v-bar-rating" :class="ratingClass(getIndexMonthRating(idxCode, m))">
-              {{ formatRating(getIndexMonthRating(idxCode, m)) }}
-            </div>
-            <div class="v-bar-emoji">{{ ratingEmoji(getIndexMonthRating(idxCode, m)) }}</div>
-            <div class="v-bar-pct">{{ formatPct(getIndexMonthProb(idxCode, m)) }}</div>
-            <div class="v-bar-label">{{ m }}月</div>
-          </div>
-        </div>
+    <!-- 三大指数评分图（可折叠） -->
+    <div class="card collapsible">
+      <div class="card-title collapsible-header" @click="toggleCollapse('indices')">
+        <span>📊 三大指数 · 全年月度评分</span>
+        <span class="collapse-icon">{{ collapsed.indices ? '▼' : '▲' }}</span>
       </div>
-    </template>
+      <div v-show="!collapsed.indices">
+        <template v-for="idxCode in indexCodes" :key="idxCode">
+          <div class="index-section" v-if="getIndexData(idxCode)">
+            <div class="index-name">{{ getIndexData(idxCode)!.name }}</div>
+            <div class="v-chart">
+              <div v-for="m in 12" :key="m" class="v-bar-item" :class="{ 'is-current': m === dateParts.month }"
+                :style="{ backgroundColor: getIndexMonthRating(idxCode, m) !== undefined ? heatmapBg(getIndexMonthRating(idxCode, m)) : 'transparent' }">
+                <div class="v-bar-rating" :class="ratingClass(getIndexMonthRating(idxCode, m))">
+                  {{ formatRating(getIndexMonthRating(idxCode, m)) }}
+                </div>
+                <div class="v-bar-emoji">{{ ratingEmoji(getIndexMonthRating(idxCode, m)) }}</div>
+                <div class="v-bar-pct">{{ formatPct(getIndexMonthProb(idxCode, m)) }}</div>
+                <div class="v-bar-label">{{ m }}月</div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
 
-    <!-- 卡片10: 窗口效应详情 -->
-    <div class="card" v-if="calendarEffects.special_effect_stats">
-      <div class="card-title">🎯 特殊窗口统计</div>
+    <!-- 窗口效应详情（可折叠） -->
+    <div class="card collapsible" v-if="calendarEffects.special_effect_stats">
+      <div class="card-title collapsible-header" @click="toggleCollapse('specialWindows')">
+        <span>🎯 特殊窗口统计</span>
+        <span class="collapse-icon">{{ collapsed.specialWindows ? '▼' : '▲' }}</span>
+      </div>
+      <div v-show="!collapsed.specialWindows">
       <div class="effect-details">
         <div class="effect-item" v-if="calendarEffects.special_effect_stats.spring_festival">
           <span class="effect-icon">🧧</span>
@@ -334,6 +362,7 @@ const nextDayShort = computed(() => {
           </div>
         </div>
       </div>
+      </div>
     </div>
 
     <!-- 免责 -->
@@ -341,200 +370,246 @@ const nextDayShort = computed(() => {
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '../styles/theme' as *;
+@use '../styles/mixins' as *;
+
 .stats-view {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
 }
 
 .card {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  box-shadow: var(--shadow-md);
+  background: $bg-card;
+  border-radius: 0;
+  padding: $space-lg 0;
+  border-bottom: $rule-thin;
 }
 
 .card-title {
-  font-size: var(--text-md);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-  margin-bottom: var(--space-md);
+  font-family: $font-serif;
+  font-size: $text-md;
+  font-weight: $weight-bold;
+  color: $text-primary;
+  margin-bottom: $space-md;
+  letter-spacing: 1px;
 }
 
 .calendar-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-sm);
+  gap: $space-sm;
 }
 
 .month-nav-btn {
   background: none;
   border: none;
-  font-size: var(--text-md);
-  color: var(--text-secondary);
+  font-size: $text-md;
+  color: $text-secondary;
   cursor: pointer;
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
-  transition: all var(--duration-fast) var(--ease-out);
+  padding: $space-xs $space-sm;
+  border-radius: 0;
   line-height: 1;
+
+  &:active { color: $text-primary; }
 }
 
-.month-nav-btn:active {
-  background: var(--bg-muted);
-  color: var(--text-primary);
-  transform: scale(0.9);
-}
-
-/* 本月特征 */
+// === 本月特征 ===
 .feature-section { margin: 0; }
 .feature-divider {
   height: 1px;
-  background: var(--border-light);
-  margin: var(--space-md) 0;
+  background: $border;
+  margin: $space-md 0;
 }
 .feature-row {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-xs);
+  gap: $space-sm;
+  margin-bottom: $space-xs;
 }
 .feature-label {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  font-weight: var(--font-medium);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-secondary;
+  font-weight: $weight-medium;
 }
 .feature-value {
-  font-size: var(--text-lg);
-  font-weight: var(--font-bold);
-  font-variant-numeric: tabular-nums;
+  font-family: $font-serif;
+  font-size: $text-lg;
+  font-weight: $weight-bold;
+  @include tabular-nums;
 }
 .feature-tag {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
 }
 .feature-trend {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-semibold;
 }
-.vol-high { color: var(--color-up); }
-.vol-medium { color: var(--color-warn); }
-.vol-low { color: var(--color-down); }
+.vol-high { color: $color-up; }
+.vol-medium { color: $color-warn; }
+.vol-low { color: $color-down; }
 
-.decay-mini-bars { display: flex; flex-direction: column; gap: var(--space-xs); }
+.decay-mini-bars { display: flex; flex-direction: column; gap: $space-xs; }
 .decay-mini-row {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: $space-sm;
 }
 .decay-mini-label {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
   width: 36px;
   flex-shrink: 0;
 }
 .decay-mini-value {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
+  font-size: $text-sm;
+  font-weight: $weight-semibold;
   width: 32px;
   text-align: right;
   flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
+  @include tabular-nums;
 }
 
-.bar-wrapper { flex: 1; height: 5px; background: var(--bg-muted); border-radius: var(--radius-sm); overflow: hidden; }
-.bar-fill { height: 100%; border-radius: var(--radius-sm); transition: width var(--duration-normal) var(--ease-out); }
-.bar-up { background: var(--color-up); }
-.bar-down { background: var(--color-down); }
-.bar-neutral { background: var(--color-neutral); }
+.bar-wrapper { flex: 1; height: 4px; background: $bg-muted; border-radius: 0; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 0; transition: width $duration-normal $ease-out; }
+.bar-up { background: $color-up; }
+.bar-down { background: $color-down; }
+.bar-neutral { background: $border; }
 
-.streak-up { color: var(--color-up); font-size: var(--text-sm); font-weight: var(--font-semibold); }
-.streak-down { color: var(--color-down); font-size: var(--text-sm); font-weight: var(--font-semibold); }
-.streak-sep { color: var(--text-disabled); font-size: var(--text-sm); }
+.streak-up { color: $color-up; font-size: $text-sm; font-weight: $weight-semibold; font-family: $font-sans; }
+.streak-down { color: $color-down; font-size: $text-sm; font-weight: $weight-semibold; font-family: $font-sans; }
+.streak-sep { color: $text-disabled; font-size: $text-sm; }
 .streak-extremes {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
-  margin-bottom: var(--space-xs);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
+  margin-bottom: $space-xs;
 }
 
-/* 年度概览 */
+// === 年度概览 ===
 .yearly-overview {
   display: flex;
   justify-content: space-between;
-  font-size: var(--text-sm);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-card);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  padding: $space-sm 0;
+  background: $bg-card;
+  border-bottom: $rule-thin;
 }
-.summary-best { color: var(--color-up); font-weight: var(--font-medium); }
-.summary-worst { color: var(--color-down); font-weight: var(--font-medium); }
+.summary-best { color: $color-up; font-weight: $weight-medium; }
+.summary-worst { color: $color-down; font-weight: $weight-medium; }
 
-/* 解释文字 */
+// === 解释文字 ===
 .stat-explain {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: var(--leading-relaxed);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-muted);
-  border-radius: var(--radius-sm);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-secondary;
+  line-height: $leading-relaxed;
+  padding: $space-sm $space-md;
+  background: $bg-muted;
+  border-radius: 0;
 }
-.trend-up { color: var(--color-up); font-weight: var(--font-semibold); }
-.trend-down { color: var(--color-down); font-weight: var(--font-semibold); }
-.trend-stable { color: var(--text-secondary); font-weight: var(--font-semibold); }
+.trend-up { color: $color-up; font-weight: $weight-semibold; }
+.trend-down { color: $color-down; font-weight: $weight-semibold; }
+.trend-stable { color: $text-secondary; font-weight: $weight-semibold; }
 
-/* 三大指数评分图 — 6列×2行网格 */
+// === 三大指数评分图 ===
 .v-chart {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: var(--space-xs);
-  padding: var(--space-xs);
-  background: var(--bg-muted);
-  border-radius: var(--radius-md);
+  gap: 1px;
+  background: $border;
+  border: 1px solid $border;
 }
 .v-bar-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--space-sm) var(--space-xs);
-  border-radius: var(--radius-sm);
+  padding: $space-sm $space-xs;
+  border-radius: 0;
   min-height: 62px;
-  transition: background-color var(--duration-fast) var(--ease-out);
+  background: $bg-card;
 }
 .v-bar-item.is-current {
-  border: 2px solid var(--color-warn);
+  border: 2px solid $border-heavy;
 }
 .v-bar-rating {
-  font-size: var(--text-lg);
-  font-weight: var(--font-bold);
+  font-family: $font-serif;
+  font-size: $text-lg;
+  font-weight: $weight-bold;
   line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.v-bar-rating.rating-excellent { color: var(--color-up-dark); }
-.v-bar-rating.rating-good { color: var(--color-up); }
-.v-bar-rating.rating-neutral { color: var(--text-secondary); }
-.v-bar-rating.rating-poor { color: var(--color-down); }
-.v-bar-rating.rating-terrible { color: var(--color-down-dark); }
-.v-bar-emoji { font-size: var(--text-sm); margin: 3px 0; }
-.v-bar-pct { font-size: var(--text-sm); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-.v-bar-label { font-size: var(--text-sm); color: var(--text-tertiary); margin-top: 2px; }
-.v-bar-item.is-current .v-bar-label { color: var(--color-warn); font-weight: var(--font-bold); }
+  @include tabular-nums;
 
-/* 特殊窗口 */
-.effect-details { display: flex; flex-direction: column; gap: var(--space-sm); }
+  &.rating-excellent { color: $color-up-dark; }
+  &.rating-good { color: $color-up; }
+  &.rating-neutral { color: $text-secondary; }
+  &.rating-poor { color: $color-down; }
+  &.rating-terrible { color: $color-down-dark; }
+}
+.v-bar-emoji { font-size: $text-sm; margin: 3px 0; }
+.v-bar-pct { font-size: $text-sm; color: $text-tertiary; font-family: $font-sans; @include tabular-nums; }
+.v-bar-label { font-size: $text-sm; color: $text-tertiary; font-family: $font-sans; margin-top: 2px; }
+.v-bar-item.is-current .v-bar-label { color: $text-primary; font-weight: $weight-bold; }
+
+// === 特殊窗口 ===
+.effect-details { display: flex; flex-direction: column; }
 .effect-item {
   display: flex;
-  gap: var(--space-sm);
-  padding: var(--space-sm);
-  background: var(--bg-muted);
-  border-radius: var(--radius-md);
-}
-.effect-icon { font-size: var(--text-xl); flex-shrink: 0; }
-.effect-content { flex: 1; }
-.effect-name { font-size: var(--text-sm); font-weight: var(--font-semibold); color: var(--text-primary); margin-bottom: var(--space-xs); }
-.effect-data { font-size: var(--text-sm); color: var(--text-secondary); line-height: var(--leading-normal); }
+  gap: $space-sm;
+  padding: $space-sm 0;
+  border-bottom: $rule-thin;
 
-.disclaimer { text-align: center; font-size: var(--text-sm); color: var(--text-tertiary); padding: var(--space-sm) 0; }
+  &:last-child { border-bottom: none; }
+}
+.effect-icon { font-size: $text-xl; flex-shrink: 0; }
+.effect-content { flex: 1; }
+.effect-name { font-family: $font-sans; font-size: $text-sm; font-weight: $weight-semibold; color: $text-primary; margin-bottom: $space-xs; }
+.effect-data { font-family: $font-sans; font-size: $text-sm; color: $text-secondary; line-height: $leading-normal; }
+
+// === 折叠区块 ===
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+
+  &:active { opacity: 0.7; }
+}
+
+.collapse-icon {
+  font-size: $text-sm;
+  color: $text-tertiary;
+}
+
+.index-section {
+  margin-bottom: $space-md;
+  padding-bottom: $space-md;
+  border-bottom: $rule-thin;
+
+  &:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+}
+
+.index-name {
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-semibold;
+  color: $text-secondary;
+  margin-bottom: $space-sm;
+}
+
+.disclaimer {
+  text-align: center;
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
+  padding: $space-sm 0;
+}
 </style>

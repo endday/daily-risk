@@ -344,6 +344,91 @@
       "calendar_source": "alpha_vantage",
       "symbol": "TSM",
       "display_format": "eps"
+    },
+    "CN_MLF": {
+      "display_name": "中国MLF操作",
+      "score": 7,
+      "country": "CN",
+      "time": "10:00",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "上证",
+        "银行",
+        "CNY"
+      ],
+      "calendar_source": "manual_pbc_schedule",
+      "value_source": "manual",
+      "display_format": "billion_cny",
+      "description": "中期借贷便利操作，央行向商业银行注入中期流动性，利率变动直接影响市场利率预期"
+    },
+    "US_ISM_MANUFACTURING": {
+      "display_name": "ISM制造业PMI",
+      "score": 8,
+      "country": "US",
+      "time": "22:00",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "NASDAQ",
+        "USD",
+        "大宗商品"
+      ],
+      "calendar_source": "fred",
+      "fred_release_id": 130,
+      "value_source": "fred",
+      "fred_series": "MANEMP",
+      "display_format": "index",
+      "description": "ISM制造业采购经理人指数，50以上为扩张，是美国制造业最及时的景气指标"
+    },
+    "US_ISM_SERVICES": {
+      "display_name": "ISM服务业PMI",
+      "score": 7,
+      "country": "US",
+      "time": "22:00",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "NASDAQ",
+        "USD"
+      ],
+      "calendar_source": "fred",
+      "fred_release_id": 130,
+      "value_source": "fred",
+      "fred_series": "NMFCI",
+      "display_format": "index",
+      "description": "ISM服务业采购经理人指数，美国服务业占GDP约70%，是经济健康度的核心指标"
+    },
+    "US_CONSUMER_SENTIMENT": {
+      "display_name": "密歇根消费者信心",
+      "score": 6,
+      "country": "US",
+      "time": "22:00",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "NASDAQ",
+        "USD"
+      ],
+      "calendar_source": "fred",
+      "fred_release_id": 130,
+      "value_source": "fred",
+      "fred_series": "UMCSENT",
+      "display_format": "index",
+      "description": "密歇根大学消费者信心指数，反映消费者对经济前景的预期，影响消费支出和市场情绪"
+    },
+    "US_FOMC_MINUTES": {
+      "display_name": "FOMC会议纪要",
+      "score": 8,
+      "country": "US",
+      "time": "02:00",
+      "timezone": "Asia/Shanghai",
+      "market_impact": [
+        "NASDAQ",
+        "GOLD",
+        "USD",
+        "US10Y"
+      ],
+      "calendar_source": "manual_fed_schedule",
+      "value_source": "manual",
+      "display_format": "text",
+      "description": "美联储会议纪要，揭示利率决策的内部分歧和讨论细节，常引发市场对政策路径的重新定价"
     }
   }
 }

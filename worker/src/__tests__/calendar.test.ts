@@ -15,7 +15,7 @@ describe('getActiveCalendarEffects', () => {
     expect(result.today).toBeDefined()
     expect(result.this_month).toBeDefined()
     expect(result.next_trading_day).toBeDefined()
-    expect(result.action_signal).toBeDefined()
+    expect(result.almanac).toBeDefined()
     expect(result.daily_calendar).toBeDefined()
     expect(result.all_months).toBeDefined()
     expect(result.yearly_overview).toBeDefined()
@@ -92,20 +92,29 @@ describe('next_trading_day', () => {
   })
 })
 
-describe('action_signal', () => {
-  it('should return valid action signal with all required fields', () => {
+describe('almanac', () => {
+  it('should return valid almanac with short_term and swing dimensions', () => {
     const result = getActiveCalendarEffects('2026-06-11')
-    const signal = result.action_signal
+    const almanac = result.almanac
 
-    expect(['strong_buy', 'buy', 'hold', 'caution', 'sell']).toContain(signal.action)
-    expect(typeof signal.label).toBe('string')
-    expect(typeof signal.description).toBe('string')
-    expect(typeof signal.basis_rating).toBe('number')
-    expect(signal.basis_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(almanac.short_term).toBeDefined()
+    expect(almanac.swing).toBeDefined()
+    expect(typeof almanac.advice).toBe('string')
+
+    // Short term signal
+    expect(['add', 'hold', 'reduce']).toContain(almanac.short_term.signal.action)
+    expect(typeof almanac.short_term.signal.label).toBe('string')
+    expect(typeof almanac.short_term.rating).toBe('number')
+    expect(almanac.short_term.rating).toBeGreaterThanOrEqual(0)
+    expect(almanac.short_term.rating).toBeLessThanOrEqual(10)
+
+    // Swing signal
+    expect(['add', 'hold', 'reduce']).toContain(almanac.swing.signal.action)
+    expect(typeof almanac.swing.signal.label).toBe('string')
+    expect(typeof almanac.swing.rating).toBe('number')
   })
 
-  it('should match rating thresholds to correct action', () => {
-    // Test multiple dates to verify rating→action mapping consistency
+  it('should match rating thresholds to correct signal', () => {
     const dates = [
       '2026-01-15', '2026-03-15', '2026-06-11',
       '2026-09-15', '2026-11-15',
@@ -113,13 +122,14 @@ describe('action_signal', () => {
 
     for (const date of dates) {
       const result = getActiveCalendarEffects(date)
-      const { action, basis_rating } = result.action_signal
+      const { short_term, swing } = result.almanac
 
-      if (basis_rating >= 8) expect(action).toBe('strong_buy')
-      else if (basis_rating >= 6) expect(action).toBe('buy')
-      else if (basis_rating >= 4) expect(action).toBe('hold')
-      else if (basis_rating >= 2) expect(action).toBe('caution')
-      else expect(action).toBe('sell')
+      // Verify rating → signal mapping for both dimensions
+      for (const dim of [short_term, swing]) {
+        if (dim.rating >= 6) expect(dim.signal.action).toBe('add')
+        else if (dim.rating >= 4) expect(dim.signal.action).toBe('hold')
+        else expect(dim.signal.action).toBe('reduce')
+      }
     }
   })
 })

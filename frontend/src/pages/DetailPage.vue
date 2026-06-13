@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
+const route = useRoute()
+const router = useRouter()
 import CalendarStatsView from '../components/CalendarStatsView.vue'
 import type { CalendarEffects, RiskEvent } from '../services/api'
 import { fetchEventsByDate } from '../services/api'
@@ -84,6 +88,13 @@ function changeWeek(offset: number) {
   // 不再预加载，选中时再加载
 }
 
+// 回到今天
+function goToday() {
+  const today = getToday()
+  baseMonday.value = getMonday(today)
+  selectDate(today)
+}
+
 // 选中日期的事件
 const selectedEvents = computed(() => {
   return dateEventsMap.value[selectedDate.value] || []
@@ -140,23 +151,35 @@ function scoreColor(score: number): string {
   return 'gray'
 }
 
-// 初始化 — 只加载今天的数据
-onMounted(async () => {
-  const today = getToday()
-  baseMonday.value = getMonday(today)
-  selectedDate.value = today
-  await fetchDateEvents(today)
-  if (dateCalendarMap.value[today]) {
-    lastCalendar.value = dateCalendarMap.value[today]
+// 初始化 — 从路由参数或今天开始
+async function initDate(dateStr?: string) {
+  const target = dateStr || getToday()
+  baseMonday.value = getMonday(target)
+  selectedDate.value = target
+  await fetchDateEvents(target)
+  if (dateCalendarMap.value[target]) {
+    lastCalendar.value = dateCalendarMap.value[target]
   }
+}
+
+onMounted(() => {
+  const dateParam = route.params.date as string | undefined
+  initDate(dateParam)
+})
+
+// 路由参数变化时切换日期
+watch(() => route.params.date, (newDate) => {
+  if (newDate) initDate(newDate as string)
 })
 </script>
 
 <template>
   <div class="page">
-    <!-- 标题 -->
-    <div class="header">
-      <h1 class="title">明日风险榜</h1>
+    <!-- 顶部导航 -->
+    <div class="nav-bar">
+      <button class="back-btn" @click="router.push('/')">← 首页</button>
+      <span class="nav-title">明日风险榜</span>
+      <span class="nav-spacer"></span>
     </div>
 
     <!-- 日期条 + 左右箭头 -->
@@ -176,6 +199,7 @@ onMounted(async () => {
         </div>
       </div>
       <button class="nav-btn nav-next" @click="changeWeek(1)">▶</button>
+      <button v-if="selectedDate !== getToday()" class="today-btn" @click="goToday">今天</button>
     </div>
 
     <!-- Tab 栏 -->
@@ -210,8 +234,38 @@ onMounted(async () => {
         </div>
       </div>
 
+      <!-- 操作信号摘要 -->
+      <div class="signal-summary" v-if="selectedCalendar?.almanac">
+        <div class="signal-item">
+          <span class="signal-label">短线</span>
+          <span class="signal-badge" :class="'signal-' + selectedCalendar.almanac.short_term.signal.action">
+            {{ selectedCalendar.almanac.short_term.signal.label }}
+          </span>
+          <span class="signal-rating">{{ selectedCalendar.almanac.short_term.rating.toFixed(1) }}</span>
+        </div>
+        <div class="signal-divider"></div>
+        <div class="signal-item">
+          <span class="signal-label">波段</span>
+          <span class="signal-badge" :class="'signal-' + selectedCalendar.almanac.swing.signal.action">
+            {{ selectedCalendar.almanac.swing.signal.label }}
+          </span>
+          <span class="signal-rating">{{ selectedCalendar.almanac.swing.rating.toFixed(1) }}</span>
+        </div>
+      </div>
+
       <!-- 加载 -->
-      <div v-if="loadingDay" class="loading">加载中...</div>
+      <div v-if="loadingDay" class="skeleton-list">
+        <div class="skeleton-card">
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line medium"></div>
+          <div class="skeleton-line"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line medium"></div>
+          <div class="skeleton-line"></div>
+        </div>
+      </div>
 
       <!-- 事件列表 -->
       <div v-else-if="selectedEvents.length === 0" class="empty">
@@ -245,6 +299,7 @@ onMounted(async () => {
           <div class="event-bottom">
             <span v-if="event.event_time" class="event-time">🕐 {{ event.event_time }}</span>
             <span v-if="event.market_impact?.length" class="event-impact">影响: {{ event.market_impact.join(' / ') }}</span>
+            <span class="event-history-link" @click="activeTab = 'stats'">📊 历史</span>
           </div>
         </div>
       </div>
@@ -266,74 +321,127 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '../styles/theme' as *;
+@use '../styles/mixins' as *;
+
 .page {
   max-width: 600px;
   margin: 0 auto;
-  padding: var(--space-lg);
+  padding: 0 $space-lg $space-lg;
   min-height: 100vh;
+  background: $bg-page;
+}
+
+// === 顶部导航 ===
+.nav-bar {
+  display: flex;
+  align-items: center;
+  padding: $space-md 0;
+  border-bottom: $rule-heavy;
+  margin-bottom: $space-md;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-semibold;
+  color: $text-secondary;
+  cursor: pointer;
+  padding: $space-xs $space-sm;
+
+  &:active { color: $text-primary; }
+}
+
+.nav-title {
+  flex: 1;
+  text-align: center;
+  font-family: $font-serif;
+  font-size: $text-md;
+  font-weight: $weight-bold;
+  color: $text-primary;
+  letter-spacing: 2px;
+}
+
+.nav-spacer {
+  width: 60px; // balance the back button
 }
 
 .header {
   text-align: center;
-  margin-bottom: var(--space-md);
+  margin-bottom: $space-md;
 }
 
 .title {
-  font-size: var(--text-xl);
-  font-weight: var(--font-bold);
+  font-family: $font-serif;
+  font-size: $text-xl;
+  font-weight: $weight-bold;
   margin: 0;
-  color: var(--text-primary);
+  color: $text-primary;
+  letter-spacing: 2px;
 }
 
-/* 日期条 */
+// === 日期条 ===
 .date-strip-wrapper {
   position: relative;
-  margin-bottom: var(--space-sm);
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: var(--space-sm) var(--space-xl);
-  box-shadow: var(--shadow-md);
+  margin-bottom: $space-sm;
+  background: $bg-card;
+  border-radius: 0;
+  padding: $space-sm $space-xl;
+  border-bottom: $rule-thin;
 }
 
-/* Tab 栏 */
+// === Tab 栏（报纸风：底部横线式）===
 .tab-bar {
   display: flex;
   gap: 0;
-  margin-bottom: var(--space-lg);
-  background: var(--bg-card);
-  border-radius: var(--radius-md);
-  padding: var(--space-xs);
-  box-shadow: var(--shadow-md);
+  margin-bottom: $space-lg;
+  background: $bg-card;
+  border-radius: 0;
+  padding: 0;
+  border-bottom: 2px solid $border-heavy;
 }
 
 .tab-item {
   flex: 1;
   text-align: center;
-  padding: var(--space-sm) 0;
-  font-size: var(--text-md);
-  font-weight: var(--font-medium);
-  color: var(--text-tertiary);
+  padding: $space-sm 0;
+  font-family: $font-sans;
+  font-size: $text-md;
+  font-weight: $weight-semibold;
+  color: $text-tertiary;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: all var(--duration-fast) var(--ease-out);
+  border-radius: 0;
+  transition: color $duration-fast $ease-out;
   position: relative;
-}
 
-.tab-item.active {
-  background: var(--text-primary);
-  color: #fff;
+  &.active {
+    background: transparent;
+    color: $text-primary;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: $text-primary;
+    }
+  }
 }
 
 .tab-badge {
   display: inline-block;
-  background: var(--color-up);
-  color: #fff;
-  font-size: var(--text-sm);
-  font-weight: var(--font-bold);
+  background: $color-up;
+  color: $text-inverse;
+  font-size: $text-sm - 1;
+  font-weight: $weight-bold;
   padding: 1px 6px;
-  border-radius: var(--radius-full);
-  margin-left: var(--space-xs);
+  border-radius: $radius-sm;
+  margin-left: $space-xs;
   vertical-align: middle;
 }
 
@@ -343,22 +451,35 @@ onMounted(async () => {
   transform: translateY(-50%);
   background: none;
   border: none;
-  font-size: var(--text-lg);
-  color: var(--text-secondary);
+  font-size: $text-lg;
+  color: $text-secondary;
   cursor: pointer;
-  padding: var(--space-sm) var(--space-xs);
+  padding: $space-sm $space-xs;
   line-height: 1;
   z-index: 10;
-  transition: color var(--duration-fast) var(--ease-out);
+
+  &:active { color: $text-primary; }
 }
 
-.nav-btn:active {
-  color: var(--text-primary);
-  background: var(--bg-muted);
-}
+.nav-prev { left: $space-xs; }
+.nav-next { right: $space-xs; }
 
-.nav-prev { left: var(--space-xs); }
-.nav-next { right: var(--space-xs); }
+.today-btn {
+  position: absolute;
+  top: -6px;
+  right: $space-sm;
+  background: $text-primary;
+  color: $text-inverse;
+  border: none;
+  font-size: $text-sm;
+  font-weight: $weight-medium;
+  padding: 2px $space-sm;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  z-index: 10;
+
+  &:active { opacity: 0.7; }
+}
 
 .date-strip {
   display: flex;
@@ -370,174 +491,221 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
+  padding: $space-xs $space-sm;
+  border-radius: 0;
   cursor: pointer;
   min-width: 40px;
   position: relative;
-  transition: all var(--duration-fast) var(--ease-out);
-}
 
-.date-item:active {
-  background: var(--bg-muted);
-  transform: scale(0.95);
-}
-
-.date-item.active {
-  background: var(--text-primary);
-  color: #fff;
+  &:active { background: $bg-muted; }
+  &.active { background: $text-primary; color: $text-inverse; }
 }
 
 .date-day {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  font-size: $text-sm;
+  font-family: $font-sans;
+  color: $text-tertiary;
   margin-bottom: 1px;
   white-space: nowrap;
-  line-height: var(--leading-tight);
-}
+  line-height: $leading-tight;
 
-.date-item.active .date-day { color: rgba(255,255,255,0.65); }
-.date-item.today .date-day { color: var(--color-up); }
-.date-item.active.today .date-day { color: rgba(232, 71, 76, 0.8); }
+  .date-item.active & { color: rgba(255, 255, 255, 0.65); }
+  .date-item.today & { color: $color-up; }
+  .date-item.active.today & { color: rgba(232, 71, 76, 0.8); }
+}
 
 .date-num {
-  font-size: var(--text-sm);
-  font-weight: var(--font-bold);
-  color: var(--text-primary);
-  line-height: var(--leading-tight);
-  font-variant-numeric: tabular-nums;
-}
+  font-size: $text-sm;
+  font-weight: $weight-bold;
+  color: $text-primary;
+  line-height: $leading-tight;
+  @include tabular-nums;
 
-.date-item.active .date-num { color: #fff; }
+  .date-item.active & { color: $text-inverse; }
+}
 
 .date-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  margin-top: var(--space-xs);
+  margin-top: $space-xs;
+
+  &.red { background: $color-up; }
+  &.orange { background: $color-warn; }
+  &.yellow { background: $color-neutral; }
 }
 
-.date-dot.red { background: var(--color-up); }
-.date-dot.orange { background: var(--color-warn); }
-.date-dot.yellow { background: #E8C847; }
-
-/* 风险指数 */
+// === 风险指数 ===
 .risk-section {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  margin-bottom: var(--space-lg);
-  box-shadow: var(--shadow-md);
+  background: $bg-card;
+  border-radius: 0;
+  padding: $space-lg 0;
+  margin-bottom: 0;
+  border-bottom: $rule-thin;
 }
 
 .risk-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-sm);
+  margin-bottom: $space-sm;
 }
 
 .risk-title {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-secondary;
 }
 
 .risk-value {
-  font-size: var(--text-xl);
-  font-weight: var(--font-bold);
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  font-family: $font-serif;
+  font-size: $text-xl;
+  font-weight: $weight-bold;
+  color: $text-primary;
+  @include tabular-nums;
+
+  &.red { color: $color-up; }
+  &.orange { color: $color-warn; }
+  &.yellow { color: $color-neutral; }
 }
 
-.risk-value.red { color: var(--color-up); }
-.risk-value.orange { color: var(--color-warn); }
-.risk-value.yellow { color: #C4980A; }
-
 .risk-bar {
-  height: 5px;
-  background: var(--bg-muted);
-  border-radius: var(--radius-sm);
+  height: 4px;
+  background: $bg-muted;
+  border-radius: 0;
   overflow: hidden;
 }
 
 .risk-fill {
   height: 100%;
-  border-radius: var(--radius-sm);
-  transition: width var(--duration-normal) var(--ease-out);
+  border-radius: 0;
+  transition: width $duration-normal $ease-out;
+
+  &.red { background: $color-up; }
+  &.orange { background: $color-warn; }
+  &.yellow { background: $color-neutral; }
 }
 
-.risk-fill.red { background: var(--color-up); }
-.risk-fill.orange { background: var(--color-warn); }
-.risk-fill.yellow { background: #E8C847; }
+// === 操作信号摘要 ===
+.signal-summary {
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  background: $bg-card;
+  border-radius: 0;
+  padding: $space-md 0;
+  margin-bottom: 0;
+  border-bottom: $rule-thin;
+}
 
-/* 事件卡片 */
+.signal-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+}
+
+.signal-label {
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
+  font-weight: $weight-medium;
+}
+
+.signal-badge {
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-semibold;
+  padding: 2px $space-sm;
+  border-radius: $radius-sm;
+
+  &.signal-add { background: $color-up-light; color: $color-up-dark; }
+  &.signal-hold { background: $color-neutral-light; color: $color-neutral; }
+  &.signal-reduce { background: $color-down-light; color: $color-down-dark; }
+}
+
+.signal-rating {
+  font-family: $font-serif;
+  font-size: $text-md;
+  font-weight: $weight-bold;
+  color: $text-primary;
+  @include tabular-nums;
+}
+
+.signal-divider {
+  width: 1px;
+  height: 20px;
+  background: $border;
+}
+
+// === 事件卡片（报纸列表式）===
 .event-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
 }
 
 .event-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  box-shadow: var(--shadow-md);
-}
+  background: $bg-card;
+  border-radius: 0;
+  padding: $space-lg 0;
+  border-bottom: $rule-thin;
 
-.event-card.estimated {
-  opacity: 0.8;
-  border-left: 3px solid var(--color-warn);
+  &:last-child { border-bottom: none; }
+  &.estimated { opacity: 0.75; border-left: 3px solid $color-warn; padding-left: $space-md; }
 }
 
 .confidence-badge {
   display: inline-block;
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--color-warn);
-  background: var(--color-warn-light);
-  border: 1px solid rgba(245, 166, 35, 0.3);
-  border-radius: var(--radius-sm);
+  font-size: $text-sm - 1;
+  font-weight: $weight-medium;
+  color: $color-warn;
+  background: $color-neutral-light;
+  border: 1px solid rgba(184, 134, 11, 0.2);
+  border-radius: $radius-sm;
   padding: 1px 6px;
-  margin-left: var(--space-sm);
+  margin-left: $space-sm;
   vertical-align: middle;
+  font-family: $font-sans;
 }
 
 .event-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-md);
+  margin-bottom: $space-md;
 }
 
 .event-name {
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  font-family: $font-serif;
+  font-size: $text-lg;
+  font-weight: $weight-semibold;
+  color: $text-primary;
 }
 
 .event-score {
-  font-size: var(--text-lg);
-  font-weight: var(--font-bold);
+  font-family: $font-serif;
+  font-size: $text-lg;
+  font-weight: $weight-bold;
   padding: 3px 12px;
-  border-radius: var(--radius-full);
-  color: #fff;
+  border-radius: $radius-sm;
+  color: $text-inverse;
   min-width: 32px;
   text-align: center;
-  font-variant-numeric: tabular-nums;
-}
+  @include tabular-nums;
 
-.event-score.red { background: var(--color-up); }
-.event-score.orange { background: var(--color-warn); }
-.event-score.yellow { background: #E8C847; color: var(--text-primary); }
-.event-score.gray { background: var(--color-neutral-light); color: var(--text-secondary); }
+  &.red { background: $color-up; }
+  &.orange { background: $color-warn; }
+  &.yellow { background: $color-neutral; color: $text-primary; }
+  &.gray { background: $text-disabled; color: $text-secondary; }
+}
 
 .event-values {
   display: flex;
   gap: 0;
-  margin-bottom: var(--space-md);
-  border-top: 1px solid var(--border-light);
-  border-bottom: 1px solid var(--border-light);
-  padding: var(--space-sm) 0;
+  margin-bottom: $space-md;
+  border-top: $rule-thin;
+  border-bottom: $rule-thin;
+  padding: $space-sm 0;
 }
 
 .val {
@@ -545,50 +713,93 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-xs);
+  gap: $space-xs;
 }
 
 .val-label {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  font-size: $text-sm;
+  color: $text-tertiary;
+  font-family: $font-sans;
 }
 
 .val-num {
-  font-size: var(--text-md);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  font-size: $text-md;
+  font-weight: $weight-semibold;
+  color: $text-primary;
+  @include tabular-nums;
 }
 
 .event-bottom {
   display: flex;
-  gap: var(--space-lg);
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  gap: $space-lg;
+  font-size: $text-sm;
+  font-family: $font-sans;
+  color: $text-tertiary;
   flex-wrap: wrap;
 }
 
 .event-time {
-  font-weight: var(--font-medium);
-  color: var(--text-secondary);
+  font-weight: $weight-medium;
+  color: $text-secondary;
 }
 
-/* 空状态 */
+.event-history-link {
+  margin-left: auto;
+  color: $color-info;
+  cursor: pointer;
+  font-weight: $weight-medium;
+
+  &:active { opacity: 0.6; }
+}
+
+// === Skeleton ===
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-card {
+  background: $bg-card;
+  border-radius: 0;
+  padding: $space-lg 0;
+  border-bottom: $rule-thin;
+}
+
+.skeleton-line {
+  height: 14px;
+  background: linear-gradient(90deg, $bg-muted 25%, $bg-hover 50%, $bg-muted 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0;
+  margin-bottom: $space-sm;
+
+  &.short { width: 60%; }
+  &.medium { width: 80%; }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// === 空状态 ===
 .empty {
   text-align: center;
   padding: 60px 0;
-  color: var(--text-disabled);
+  color: $text-disabled;
+  font-family: $font-sans;
 }
 
 .empty-icon {
   font-size: 40px;
-  margin-bottom: var(--space-md);
+  margin-bottom: $space-md;
   opacity: 0.4;
 }
 
 .loading {
   text-align: center;
   padding: 48px 0;
-  color: var(--text-tertiary);
+  color: $text-tertiary;
+  font-family: $font-sans;
 }
 </style>

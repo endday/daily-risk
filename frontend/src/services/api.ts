@@ -18,7 +18,6 @@ export type {
   SpecialEffectStats,
   CalendarEffects,
   NextTradingDay,
-  ActionSignal,
   Almanac,
   AlmanacSignal,
   IndexAlmanacData,

@@ -8,7 +8,8 @@
 
 const CACHE_NAME = 'daily-risk-v1'
 const API_CACHE_NAME = 'daily-risk-api-v1'
-const API_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const API_CACHE_TTL = 5 * 60 * 1000 // 5 minutes (stale-while-revalidate window)
+const API_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000 // 7 days (max offline fallback age)
 
 // Install: cache essential assets
 self.addEventListener('install', (event) => {
@@ -60,25 +61,48 @@ async function handleApiRequest(request) {
 
   if (cached) {
     const cachedTime = cached.headers.get('x-cache-time')
-    if (cachedTime && Date.now() - parseInt(cachedTime) < API_CACHE_TTL) {
-      // Return cached, fetch in background
+    const age = cachedTime ? Date.now() - parseInt(cachedTime) : Infinity
+
+    if (age < API_CACHE_TTL) {
+      // Fresh cache: return immediately, revalidate in background
       fetchAndCache(request, cache)
+      return cached
+    }
+
+    if (age < API_CACHE_MAX_AGE) {
+      // Stale but usable: return cached, try network
+      try {
+        const response = await fetch(request)
+        if (response.ok) {
+          const headers = new Headers(response.headers)
+          headers.set('x-cache-time', Date.now().toString())
+          cache.put(request, new Response(response.clone().body, { headers }))
+          return response
+        }
+      } catch {
+        // Offline: return stale cache
+      }
       return cached
     }
   }
 
-  // No valid cache, fetch fresh
-  const response = await fetch(request)
-  if (response.ok) {
-    const responseToCache = response.clone()
-    const headers = new Headers(responseToCache.headers)
-    headers.set('x-cache-time', Date.now().toString())
-    const cachedResponse = new Response(responseToCache.body, {
-      headers,
+  // No cache or expired: fetch fresh
+  try {
+    const response = await fetch(request)
+    if (response.ok) {
+      const headers = new Headers(response.headers)
+      headers.set('x-cache-time', Date.now().toString())
+      cache.put(request, new Response(response.clone().body, { headers }))
+    }
+    return response
+  } catch {
+    // Offline with no cache
+    if (cached) return cached
+    return new Response(JSON.stringify({ error: 'offline' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
     })
-    cache.put(request, cachedResponse)
   }
-  return response
 }
 
 async function fetchAndCache(request, cache) {

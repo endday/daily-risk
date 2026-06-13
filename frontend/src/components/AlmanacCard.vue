@@ -11,7 +11,6 @@ const props = defineProps<{
 const indexCodes = ['000001', '000300', '000905'] as const
 const activeIndex = ref<string>('000001')
 
-// 当前选中指数的黄历数据
 const currentData = computed(() => {
   if (props.almanacByIndex) {
     return props.almanacByIndex[activeIndex.value as keyof AlmanacByIndex] ?? null
@@ -23,10 +22,6 @@ const currentAlmanac = computed<Almanac | null>(() => {
   return currentData.value?.almanac ?? null
 })
 
-const indexName = computed(() => {
-  return currentData.value?.name ?? ''
-})
-
 function formatPct(prob: number): string {
   return `${Math.round(prob * 100)}%`
 }
@@ -34,23 +29,7 @@ function formatPct(prob: number): string {
 function probColor(prob: number): string {
   if (prob > 0.55) return '#E8474C'
   if (prob < 0.45) return '#2EAF7D'
-  return '#8C8C8C'
-}
-
-function scenarioLabel(currentProb: number, nextProb: number): string {
-  const delta = nextProb - currentProb
-  if (currentProb < 0.48 && delta > 0.05) return '逢低入场'
-  if (currentProb > 0.52 && delta < -0.05) return '冲高回落'
-  if (currentProb > 0.52 && nextProb > 0.52) return '多头延续'
-  if (currentProb < 0.48 && nextProb < 0.48) return '空头延续'
-  return '方向不明'
-}
-
-function scenarioColor(currentProb: number, nextProb: number): string {
-  const label = scenarioLabel(currentProb, nextProb)
-  if (label === '逢低入场' || label === '多头延续') return '#E8474C'
-  if (label === '冲高回落' || label === '空头延续') return '#2EAF7D'
-  return '#8C8C8C'
+  return '#6B7280'
 }
 
 function signalColor(action: string): string {
@@ -64,20 +43,18 @@ function scoreClass(score: number): string {
   if (score >= 4) return 'score-hold'
   return 'score-reduce'
 }
-
 </script>
 
 <template>
   <div class="almanac-card">
     <div class="almanac-header">
-      <span class="almanac-icon">📅</span>
       <div class="almanac-title-group">
         <span class="almanac-title">黄历</span>
         <span class="almanac-subtitle">近20年历史统计</span>
       </div>
     </div>
 
-    <!-- 指数 Tab 切换 -->
+    <!-- 指数 Tab -->
     <div class="index-tabs">
       <div
         v-for="code in indexCodes"
@@ -107,11 +84,11 @@ function scoreClass(score: number): string {
         </div>
         <div class="dim-desc">{{ currentAlmanac.short_term.signal.description }}</div>
         <div class="dim-stats">
-          今日上涨概率 <span :style="{ color: probColor(currentData.today_prob) }">{{ formatPct(currentData.today_prob) }}</span>
-          · 明日 <span :style="{ color: probColor(currentData.next_day_prob) }">{{ formatPct(currentData.next_day_prob) }}</span>
-          <span class="dim-scenario" :style="{ color: scenarioColor(currentData.today_prob, currentData.next_day_prob) }">
-            {{ scenarioLabel(currentData.today_prob, currentData.next_day_prob) }}
-          </span>
+          今日 <span :style="{ color: probColor(currentData.today_prob) }">{{ formatPct(currentData.today_prob) }}</span><span class="dim-sample">(n={{ currentData.today_sample_count }})</span>
+          · 明日 <span :style="{ color: probColor(currentData.next_day_prob) }">{{ formatPct(currentData.next_day_prob) }}</span><span class="dim-sample">(n={{ currentData.next_day_sample_count }})</span>
+        </div>
+        <div class="dim-confidence-warn" v-if="currentData.next_day_sample_count < 10">
+          ⚠️ 样本量较少，评分仅供参考
         </div>
       </div>
 
@@ -131,11 +108,11 @@ function scoreClass(score: number): string {
         </div>
         <div class="dim-desc">{{ currentAlmanac.swing.signal.description }}</div>
         <div class="dim-stats">
-          本月上涨概率 <span :style="{ color: probColor(currentData.this_month_prob) }">{{ formatPct(currentData.this_month_prob) }}</span>
-          · 下月 <span :style="{ color: probColor(currentData.next_month_prob) }">{{ formatPct(currentData.next_month_prob) }}</span>
-          <span class="dim-scenario" :style="{ color: scenarioColor(currentData.this_month_prob, currentData.next_month_prob) }">
-            {{ scenarioLabel(currentData.this_month_prob, currentData.next_month_prob) }}
-          </span>
+          本月 <span :style="{ color: probColor(currentData.this_month_prob) }">{{ formatPct(currentData.this_month_prob) }}</span><span class="dim-sample">(n={{ currentData.this_month_sample_count }})</span>
+          · 下月 <span :style="{ color: probColor(currentData.next_month_prob) }">{{ formatPct(currentData.next_month_prob) }}</span><span class="dim-sample">(n={{ currentData.next_month_sample_count }})</span>
+        </div>
+        <div class="dim-confidence-warn" v-if="currentData.next_month_sample_count < 10">
+          ⚠️ 样本量较少，评分仅供参考
         </div>
       </div>
 
@@ -149,22 +126,25 @@ function scoreClass(score: number): string {
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '../styles/theme' as *;
+@use '../styles/mixins' as *;
+
 .almanac-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  box-shadow: var(--shadow-md);
+  background: $bg-card;
+  border-radius: 0;
+  padding: $space-lg 0;
+  border-bottom: $rule-thin;
 }
 
 .almanac-header {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-sm);
+  gap: $space-sm;
+  margin-bottom: $space-sm;
+  padding-bottom: $space-sm;
+  border-bottom: $rule-heavy;
 }
-
-.almanac-icon { font-size: var(--text-lg); }
 
 .almanac-title-group {
   display: flex;
@@ -173,164 +153,176 @@ function scoreClass(score: number): string {
 }
 
 .almanac-title {
-  font-size: var(--text-md);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-  letter-spacing: 0.5px;
+  font-family: $font-serif;
+  font-size: $text-md;
+  font-weight: $weight-bold;
+  color: $text-primary;
+  letter-spacing: 2px;
 }
 
 .almanac-subtitle {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
-  font-weight: var(--font-normal);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
+  font-weight: $weight-normal;
 }
 
-/* 指数 Tab */
+// === 指数 Tab ===
 .index-tabs {
   display: flex;
   gap: 0;
-  background: var(--bg-muted);
-  border-radius: var(--radius-md);
-  padding: 3px;
-  margin-bottom: var(--space-md);
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: $space-md;
+  border-bottom: 1px solid $border;
 }
 
 .index-tab {
   flex: 1;
   text-align: center;
-  padding: var(--space-xs) 0;
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--text-tertiary);
-  border-radius: var(--radius-sm);
+  padding: $space-xs 0;
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-medium;
+  color: $text-tertiary;
+  border-radius: 0;
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: color $duration-fast $ease-out;
+  position: relative;
+
+  &.active {
+    background: transparent;
+    color: $text-primary;
+    font-weight: $weight-semibold;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 20%;
+      right: 20%;
+      height: 2px;
+      background: $text-primary;
+    }
+  }
+
+  &:active { transform: scale(0.97); }
 }
 
-.index-tab.active {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
-}
-
-.index-tab:active {
-  transform: scale(0.97);
-}
-
-/* 维度卡片 */
+// === 维度 ===
 .dimension {
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-  margin-bottom: var(--space-sm);
-}
+  border-radius: 0;
+  padding: $space-sm 0;
+  margin-bottom: $space-sm;
+  border-left: 3px solid transparent;
+  padding-left: $space-md;
 
-.dimension.signal-add {
-  background: var(--color-up-light);
-  border-left: 3px solid var(--color-up);
-}
-
-.dimension.signal-hold {
-  background: var(--bg-muted);
-  border-left: 3px solid var(--color-neutral-light);
-}
-
-.dimension.signal-reduce {
-  background: var(--color-down-light);
-  border-left: 3px solid var(--color-down);
+  &.signal-add { border-left-color: $color-up; }
+  &.signal-hold { border-left-color: $border; }
+  &.signal-reduce { border-left-color: $color-down; }
 }
 
 .dim-header {
   display: flex;
   align-items: baseline;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-xs);
+  gap: $space-sm;
+  margin-bottom: $space-xs;
 }
 
 .dim-label {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--text-secondary);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-semibold;
+  color: $text-secondary;
 }
 
 .dim-sub {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
 }
 
 .dim-body {
   display: flex;
   align-items: baseline;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-xs);
+  gap: $space-sm;
+  margin-bottom: $space-xs;
 }
 
 .dim-score {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
+  font-family: $font-serif;
+  font-size: $text-2xl;
+  font-weight: $weight-bold;
   line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
+  @include tabular-nums;
 
-.dim-score.score-add { color: var(--color-up); }
-.dim-score.score-hold { color: var(--color-neutral); }
-.dim-score.score-reduce { color: var(--color-down); }
+  &.score-add { color: $color-up; }
+  &.score-hold { color: $color-neutral; }
+  &.score-reduce { color: $color-down; }
+}
 
 .dim-signal {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-sm);
-}
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-semibold;
+  padding: 2px $space-sm;
+  border-radius: $radius-sm;
 
-.dim-signal.signal-add {
-  background: var(--color-up-muted);
-  color: var(--color-up-dark);
-}
-
-.dim-signal.signal-hold {
-  background: rgba(140, 140, 140, 0.1);
-  color: var(--text-secondary);
-}
-
-.dim-signal.signal-reduce {
-  background: var(--color-down-muted);
-  color: var(--color-down-dark);
+  &.signal-add { background: $color-up-light; color: $color-up-dark; }
+  &.signal-hold { background: $bg-muted; color: $text-secondary; }
+  &.signal-reduce { background: $color-down-light; color: $color-down-dark; }
 }
 
 .dim-desc {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: var(--leading-normal);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-secondary;
+  line-height: $leading-normal;
 }
 
 .dim-stats {
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  margin-top: var(--space-xs);
-  color: var(--text-secondary);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-medium;
+  margin-top: $space-xs;
+  color: $text-secondary;
 }
 
-.dim-scenario {
-  font-weight: var(--font-semibold);
-  margin-left: var(--space-xs);
+.dim-sample {
+  font-size: $text-sm;
+  color: $text-tertiary;
+  font-weight: $weight-normal;
+  margin-left: 2px;
 }
 
-/* 综合建议 */
+.dim-confidence-warn {
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $color-warn;
+  margin-top: $space-xs;
+  padding: $space-xs $space-sm;
+  background: $color-neutral-light;
+  border-radius: $radius-sm;
+}
+
+// === 综合建议 ===
 .almanac-advice {
-  margin-top: var(--space-xs);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-muted);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: var(--leading-relaxed);
+  margin-top: $space-xs;
+  padding: $space-sm 0;
+  border-top: $rule-thin;
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-secondary;
+  line-height: $leading-relaxed;
   text-align: center;
 }
 
 .almanac-empty {
   text-align: center;
-  padding: var(--space-2xl) 0;
-  color: var(--text-disabled);
-  font-size: var(--text-sm);
+  padding: $space-2xl 0;
+  color: $text-disabled;
+  font-family: $font-sans;
+  font-size: $text-sm;
 }
 </style>

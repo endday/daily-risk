@@ -7,6 +7,8 @@ import * as scheduler from './scheduler';
 import { getActiveCalendarEffects } from './calendar';
 import { getBeijingDate } from '../../shared/date-utils';
 import riskRulesData from '../data/risk-rules.json';
+import chinaEventsData from '../data/china-events.json';
+import calendarEffectsData from '../data/calendar-effects.json';
 
 export interface Env {
   DB: D1Database;
@@ -21,17 +23,8 @@ const EARNINGS_SYMBOLS = ['NVDA', 'AAPL', 'MSFT', 'META', 'GOOGL', 'AMZN', 'TSLA
 // 从 JSON 文件加载风险规则（唯一数据源）
 const RISK_RULES: Record<string, any> = (riskRulesData as any).rules;
 
-const CHINA_EVENTS: any = {
-  year: 2026,
-  source: 'NBS release schedule',
-  timezone: 'Asia/Shanghai',
-  events: [
-    { event_key: 'CN_CPI', title: '中国CPI', date: '2026-06-10', time: '09:30', country: 'CN', importance: 8, value_source: 'dbnomics:NBS', official_source: 'stats.gov.cn' },
-    { event_key: 'CN_PMI', title: '中国官方制造业PMI', date: '2026-06-30', time: '09:30', country: 'CN', importance: 7, value_source: 'dbnomics:NBS', official_source: 'stats.gov.cn' },
-    { event_key: 'CN_M2', title: '中国M2货币供应', date: '2026-06-14', time: '10:00', country: 'CN', importance: 6, value_source: 'dbnomics:PBC', official_source: 'pbc.gov.cn' },
-    { event_key: 'CN_PPI', title: '中国PPI', date: '2026-06-10', time: '09:30', country: 'CN', importance: 6, value_source: 'dbnomics:NBS', official_source: 'stats.gov.cn' },
-  ],
-};
+// 从 JSON 文件加载中国宏观事件日历（按年份自动选择）
+const CHINA_EVENTS: any = chinaEventsData;
 
 // ============================================
 // HTTP Handler
@@ -62,6 +55,14 @@ export default {
 
     if (url.pathname === '/admin/collect' && request.method === 'POST') {
       return handleCollect(request, env, ctx, corsHeaders);
+    }
+
+    if (url.pathname === '/admin/calendar-info' && request.method === 'GET') {
+      return handleCalendarInfo(corsHeaders);
+    }
+
+    if (url.pathname === '/admin/recompute-calendar' && request.method === 'POST') {
+      return handleRecomputeCalendar(request, env, corsHeaders);
     }
 
     return new Response(JSON.stringify({ error: 'Not Found' }), {
@@ -261,6 +262,52 @@ async function runActualValueUpdater(env: Env): Promise<void> {
   } catch (error) {
     console.error('[Updater] Failed:', error);
   }
+}
+
+// ============================================
+// Calendar Info & Recompute
+// ============================================
+
+function handleCalendarInfo(headers: Record<string, string>): Response {
+  const calendarData = calendarEffectsData as any;
+  return new Response(JSON.stringify({
+    source: 'calendar-effects.json (static, precomputed)',
+    indices: calendarData.indices?.map((i: any) => ({ code: i.code, name: i.name })) ?? [],
+    data_year_range: calendarData.data_year_range ?? 'unknown',
+    special_windows_count: calendarData.special_windows?.length ?? 0,
+    note: '数据为静态预计算，如需更新请运行离线脚本或调用 /admin/recompute-calendar',
+    last_updated: calendarData.last_updated ?? null,
+  }), {
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
+}
+
+async function handleRecomputeCalendar(request: Request, env: Env, headers: Record<string, string>): Promise<Response> {
+  // 安全校验：复用 ADMIN_TOKEN
+  if (!env.ADMIN_TOKEN) {
+    return new Response(JSON.stringify({ error: 'Admin endpoint not available' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+
+  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+  if (token !== env.ADMIN_TOKEN) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+
+  // 当前为 stub 实现：calendar-effects 需要离线脚本重新计算
+  // 未来可在此处调用 D1 中存储的历史数据实时计算
+  return new Response(JSON.stringify({
+    status: 'not_implemented',
+    message: 'calendar-effects 重算需要运行离线脚本。请在本地执行: node scripts/recompute-calendar.js',
+    current_data_source: 'calendar-effects.json (static)',
+  }), {
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
 }
 
 // ============================================

@@ -1,0 +1,100 @@
+// ============================================
+// Daily Risk — Editorial 报纸风主题变量
+// ============================================
+
+// === 颜色 ===
+$bg-page: #FFFFFF;
+$bg-muted: #F3F4F6;
+$bg-card: #FFFFFF;
+$bg-hover: #F9FAFB;
+
+$text-primary: #1A1A1A;
+$text-secondary: #6B7280;
+$text-tertiary: #9CA3AF;
+$text-disabled: #D1D5DB;
+$text-inverse: #FFFFFF;
+
+$color-up: #E8474C;
+$color-up-dark: #C41E3A;
+$color-up-light: rgba(232, 71, 76, 0.07);
+$color-up-medium: rgba(232, 71, 76, 0.15);
+
+$color-down: #2EAF7D;
+$color-down-dark: #1A7A42;
+$color-down-light: rgba(46, 175, 125, 0.07);
+$color-down-medium: rgba(46, 175, 125, 0.15);
+
+$color-neutral: #B8860B;
+$color-neutral-light: rgba(184, 134, 11, 0.08);
+
+$color-warn: #B8860B;
+$color-accent: #E8474C;
+$color-info: #4A90D9;
+
+// === 边框 ===
+$border: #E5E7EB;
+$border-heavy: #1A1A1A;
+$border-light: #F0F0F0;
+
+// === 规则线（报纸风核心元素）===
+$rule-thin: 1px solid $border;
+$rule-heavy: 3px solid $border-heavy;
+$rule-section: 1px solid $border;
+
+// === 阴影（极少使用）===
+$shadow-none: none;
+$shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.04);
+
+// === 圆角（报纸风用极小值）===
+$radius-sm: 2px;
+$radius-md: 3px;
+$radius-lg: 4px;
+
+// === 字体 ===
+$font-serif: 'Noto Serif SC', 'Source Han Serif SC', Georgia, 'Times New Roman', serif;
+$font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+$font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+
+// === 字号 ===
+$text-xs: 10px;
+$text-sm: 12px;
+$text-md: 14px;
+$text-lg: 16px;
+$text-xl: 20px;
+$text-2xl: 28px;
+$text-3xl: 36px;
+$text-hero: 64px;
+
+// === 字重 ===
+$weight-normal: 400;
+$weight-medium: 500;
+$weight-semibold: 600;
+$weight-bold: 700;
+$weight-black: 900;
+
+// === 行高 ===
+$leading-tight: 1.2;
+$leading-normal: 1.5;
+$leading-relaxed: 1.7;
+$leading-article: 1.8;
+
+// === 间距 ===
+$space-xs: 4px;
+$space-sm: 8px;
+$space-md: 12px;
+$space-lg: 16px;
+$space-xl: 24px;
+$space-2xl: 32px;
+$space-3xl: 48px;
+
+// === 动效（克制）===
+$ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+$duration-fast: 150ms;
+$duration-normal: 250ms;
+
+// === 评分热力图色阶 ===
+$rating-excellent-bg: rgba(232, 71, 76, 0.15);
+$rating-good-bg: rgba(232, 71, 76, 0.07);
+$rating-neutral-bg: transparent;
+$rating-poor-bg: rgba(46, 175, 125, 0.07);
+$rating-terrible-bg: rgba(46, 175, 125, 0.15);

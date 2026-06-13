@@ -13,6 +13,9 @@ const emit = defineEmits<{
   (e: 'selectDay', dateStr: string): void
 }>()
 
+// 选中日期的详情
+const selectedDayStat = ref<CalendarDayStat | null>(null)
+
 // 当前显示的日期（用于 Vant Calendar 定位）
 const currentDate = ref(new Date(props.year, props.month - 1, props.todayDay))
 
@@ -84,6 +87,7 @@ function onSelect(date: Date) {
   // 只处理有评分数据的工作日
   const stat = ratingMap.value.get(day)
   if (stat && month === props.month) {
+    selectedDayStat.value = stat
     const m = String(month).padStart(2, '0')
     const d = String(day).padStart(2, '0')
     emit('selectDay', `${year}-${m}-${d}`)
@@ -94,9 +98,28 @@ function onSelect(date: Date) {
 const minDate = computed(() => new Date(props.year, props.month - 1, 1)) // 当月1号
 const maxDate = computed(() => new Date(props.year, props.month, 0)) // 当月最后一天
 
-function formatRating(rating: number | undefined): string {
+function formatPct(prob: number): string {
+  return `${Math.round(prob * 100)}%`
+}
+
+function formatChange(pct: number): string {
+  const sign = pct >= 0 ? '+' : ''
+  return `${sign}${pct.toFixed(2)}%`
+}
+
+function changeClass(pct: number): string {
+  if (pct > 0) return 'change-up'
+  if (pct < 0) return 'change-down'
+  return ''
+}
+
+function ratingClass(rating: number | undefined): string {
   if (rating === undefined) return ''
-  return rating.toFixed(1)
+  if (rating >= 8) return 'rating-excellent'
+  if (rating >= 6) return 'rating-good'
+  if (rating >= 4) return 'rating-neutral'
+  if (rating >= 2) return 'rating-poor'
+  return 'rating-terrible'
 }
 </script>
 
@@ -113,7 +136,7 @@ function formatRating(rating: number | undefined): string {
       :max-date="maxDate"
       :default-date="currentDate"
       :formatter="dayFormatter"
-      color="var(--color-warn)"
+      color="#1A1A1A"
       :row-height="50"
       @select="onSelect"
     />
@@ -127,11 +150,27 @@ function formatRating(rating: number | undefined): string {
       <span class="legend-item heatmap-strong-down">●强利空</span>
     </div>
     <div class="grid-note">评分基于近20年历史涨跌概率，不代表未来表现</div>
+
+    <!-- 选中日期详情 -->
+    <div class="day-detail" v-if="selectedDayStat">
+      <div class="day-detail-header">
+        <span class="day-detail-title">每月{{ selectedDayStat.day }}日 · 历史统计</span>
+        <span class="day-detail-rating" :class="ratingClass(selectedDayStat.rating)">{{ selectedDayStat.rating?.toFixed(1) }}分</span>
+      </div>
+      <div class="day-detail-stats">
+        <span>上涨概率 <strong>{{ formatPct(selectedDayStat.up_probability) }}</strong></span>
+        <span>平均涨跌 <strong :class="changeClass(selectedDayStat.avg_change_pct)">{{ formatChange(selectedDayStat.avg_change_pct) }}</strong></span>
+        <span class="day-detail-sample">样本 n={{ selectedDayStat.sample_count }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
-<style>
-/* Vant 4 Calendar 全局覆盖 */
+<style lang="scss">
+@use '../styles/theme' as *;
+@use '../styles/mixins' as *;
+
+// Vant 4 Calendar 全局覆盖（报纸风）
 .calendar-wrapper .van-calendar {
   background: transparent;
   border-radius: 0;
@@ -140,36 +179,35 @@ function formatRating(rating: number | undefined): string {
   min-width: 0;
 }
 
-.van-calendar__month-title {
-  display: none;
-}
+.van-calendar__month-title { display: none; }
 
 .calendar-wrapper .van-calendar__header {
   box-shadow: none;
-  padding: var(--space-sm) 0;
+  padding: $space-sm 0;
 }
 
 .calendar-wrapper .van-calendar__title {
-  font-size: var(--text-md);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  font-family: $font-serif;
+  font-size: $text-md;
+  font-weight: $weight-bold;
+  color: $text-primary;
 }
 
 .calendar-wrapper .van-calendar__subtitle {
-  font-size: var(--text-md);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  font-family: $font-sans;
+  font-size: $text-md;
+  font-weight: $weight-semibold;
+  color: $text-primary;
   height: auto;
-  padding: var(--space-xs) 0;
+  padding: $space-xs 0;
 }
 
-.calendar-wrapper .van-calendar__weekdays {
-  padding: 0;
-}
+.calendar-wrapper .van-calendar__weekdays { padding: 0; }
 
 .calendar-wrapper .van-calendar__weekday {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
   height: 32px;
 }
 
@@ -179,136 +217,189 @@ function formatRating(rating: number | undefined): string {
   padding: 0;
 }
 
-.calendar-wrapper .van-calendar__month {
-  padding: 0;
-}
-
-.calendar-wrapper .van-calendar__days {
-}
+.calendar-wrapper .van-calendar__month { padding: 0; }
 
 .calendar-wrapper .van-calendar__day {
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   background-clip: padding-box;
 }
 
-/* 选中状态覆盖 */
 .calendar-wrapper .van-calendar__day--selected {
   background: transparent !important;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  border-radius: 0;
+  color: $text-primary;
 }
 
-/* 热力图背景色 — 加大不透明度让色块更明显 */
-.calendar-wrapper .van-calendar__day.heat-5 {
-  background: rgba(232, 71, 76, 0.30) !important;
-}
-.calendar-wrapper .van-calendar__day.heat-4 {
-  background: rgba(232, 71, 76, 0.18) !important;
-}
-.calendar-wrapper .van-calendar__day.heat-3 {
-  background: rgba(156, 163, 175, 0.12) !important;
-}
-.calendar-wrapper .van-calendar__day.heat-2 {
-  background: rgba(46, 175, 125, 0.18) !important;
-}
-.calendar-wrapper .van-calendar__day.heat-1 {
-  background: rgba(46, 175, 125, 0.30) !important;
-}
+// 热力图背景色
+.calendar-wrapper .van-calendar__day.heat-5 { background: rgba(232, 71, 76, 0.25) !important; }
+.calendar-wrapper .van-calendar__day.heat-4 { background: rgba(232, 71, 76, 0.12) !important; }
+.calendar-wrapper .van-calendar__day.heat-3 { background: rgba(156, 163, 175, 0.08) !important; }
+.calendar-wrapper .van-calendar__day.heat-2 { background: rgba(46, 175, 125, 0.12) !important; }
+.calendar-wrapper .van-calendar__day.heat-1 { background: rgba(46, 175, 125, 0.25) !important; }
 
-/* 今日标记 */
+// 今日标记：黑底白字反色
 .calendar-wrapper .van-calendar__day.is-today {
-  border: 1.5px solid var(--color-warn);
+  background: $border-heavy !important;
+  border: none;
 }
 
-/* 日期数字 */
 .calendar-wrapper .van-calendar__day-text {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
+  font-size: $text-sm;
+  color: $text-secondary;
+  @include tabular-nums;
   line-height: 1;
 }
 
-/* 选中状态下的日期数字 */
 .calendar-wrapper .van-calendar__day--selected .van-calendar__day-text {
-  color: var(--text-primary);
+  color: $text-primary;
 }
 
-/* 评分数字 (bottomInfo) */
+.calendar-wrapper .van-calendar__day.is-today .van-calendar__day-text {
+  color: $text-inverse;
+}
+
 .calendar-wrapper .van-calendar__day-bottom-info {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  font-family: $font-sans;
+  font-size: $text-sm - 1;
+  font-weight: $weight-semibold;
+  color: $text-primary;
   opacity: 0.7;
-  font-variant-numeric: tabular-nums;
+  @include tabular-nums;
   line-height: 1;
   position: static;
   margin-top: 2px;
 }
 
-/* 选中状态下的评分 */
 .calendar-wrapper .van-calendar__day--selected .van-calendar__day-bottom-info {
-  color: var(--text-primary);
+  color: $text-primary;
 }
 
-/* 今日顶部文字 */
+.calendar-wrapper .van-calendar__day.is-today .van-calendar__day-bottom-info {
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .calendar-wrapper .van-calendar__day-top-info {
-  font-size: var(--text-sm);
-  color: var(--color-warn);
-  font-weight: var(--font-semibold);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-primary;
+  font-weight: $weight-bold;
   line-height: 1;
   position: static;
   margin-bottom: 2px;
 }
 
-/* 周末灰色 */
+.calendar-wrapper .van-calendar__day.is-today .van-calendar__day-top-info {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .calendar-wrapper .van-calendar__day--disabled {
-  background: var(--bg-muted) !important;
-  color: var(--text-disabled);
+  background: $bg-muted !important;
+  color: $text-disabled;
 }
 
 .calendar-wrapper .van-calendar__day--disabled .van-calendar__day-text {
-  color: var(--text-disabled);
+  color: $text-disabled;
 }
 </style>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '../styles/theme' as *;
+@use '../styles/mixins' as *;
+
 .calendar-wrapper {
-  padding: var(--space-sm) 0;
+  padding: $space-sm 0;
 }
 
 .grid-legend {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: var(--space-sm);
-  margin-top: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  gap: $space-sm;
+  margin-top: $space-sm;
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
   flex-wrap: wrap;
 }
 
 .legend-heatmap {
-  color: var(--text-secondary);
-  font-weight: var(--font-medium);
+  color: $text-secondary;
+  font-weight: $weight-medium;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 2px;
-}
 
-.legend-item.heatmap-strong-up { color: var(--color-up-dark); }
-.legend-item.heatmap-weak-up { color: var(--color-up); }
-.legend-item.heatmap-neutral { color: var(--color-neutral); }
-.legend-item.heatmap-weak-down { color: var(--color-down); }
-.legend-item.heatmap-strong-down { color: var(--color-down-dark); }
+  &.heatmap-strong-up { color: $color-up-dark; }
+  &.heatmap-weak-up { color: $color-up; }
+  &.heatmap-neutral { color: $text-tertiary; }
+  &.heatmap-weak-down { color: $color-down; }
+  &.heatmap-strong-down { color: $color-down-dark; }
+}
 
 .grid-note {
   text-align: center;
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
-  margin-top: var(--space-sm);
-  line-height: var(--leading-normal);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-tertiary;
+  margin-top: $space-sm;
+  line-height: $leading-normal;
+}
+
+// === 选中日期详情 ===
+.day-detail {
+  margin-top: $space-md;
+  padding: $space-sm 0;
+  border-top: $rule-thin;
+}
+
+.day-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $space-xs;
+}
+
+.day-detail-title {
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-semibold;
+  color: $text-primary;
+}
+
+.day-detail-rating {
+  font-family: $font-serif;
+  font-size: $text-md;
+  font-weight: $weight-bold;
+  @include tabular-nums;
+
+  &.rating-excellent { color: $color-up-dark; }
+  &.rating-good { color: $color-up; }
+  &.rating-neutral { color: $text-secondary; }
+  &.rating-poor { color: $color-down; }
+  &.rating-terrible { color: $color-down-dark; }
+}
+
+.day-detail-stats {
+  display: flex;
+  gap: $space-md;
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-secondary;
+  flex-wrap: wrap;
+
+  strong {
+    font-weight: $weight-semibold;
+    @include tabular-nums;
+  }
+}
+
+.change-up { color: $color-up; }
+.change-down { color: $color-down; }
+
+.day-detail-sample {
+  color: $text-tertiary;
 }
 </style>

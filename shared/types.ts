@@ -213,14 +213,6 @@ export interface NextTradingDay {
   sample_count: number;
 }
 
-export interface ActionSignal {
-  action: 'strong_buy' | 'buy' | 'hold' | 'caution' | 'sell';
-  label: string;
-  description: string;
-  basis_rating: number;
-  basis_date: string;
-}
-
 export interface AlmanacSignal {
   action: 'add' | 'hold' | 'reduce';
   label: string;
@@ -261,7 +253,6 @@ export interface CalendarEffects {
   today: CalendarToday;
   this_month: CalendarThisMonth;
   next_trading_day: NextTradingDay;
-  action_signal: ActionSignal;
   almanac: Almanac;
   almanac_by_index?: AlmanacByIndex;
   daily_calendar: CalendarDayStat[];

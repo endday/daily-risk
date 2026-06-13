@@ -10,7 +10,7 @@
  */
 
 import calendarData from '../data/calendar-effects.json';
-import type { CalendarEffects, CalendarBannerData, CalendarDayStat, CalendarToday, NextTradingDay, ActionSignal, Almanac, AlmanacSignal } from '../../shared/types';
+import type { CalendarEffects, CalendarBannerData, CalendarDayStat, CalendarToday, NextTradingDay, Almanac, AlmanacSignal } from '../../shared/types';
 
 // Default index: Shanghai Composite
 const DEFAULT_INDEX = '000001';
@@ -76,54 +76,6 @@ function getNextTradingDayStr(dateStr: string): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
-/**
- * Generate action signal based on next trading day's rating
- */
-function generateActionSignal(rating: number, basisDate: string): ActionSignal {
-  if (rating >= 8) {
-    return {
-      action: 'strong_buy',
-      label: '加仓窗口',
-      description: '明日历史评分极高，上涨概率显著偏大，今日可考虑逢低加仓',
-      basis_rating: rating,
-      basis_date: basisDate,
-    };
-  }
-  if (rating >= 6) {
-    return {
-      action: 'buy',
-      label: '轻仓布局',
-      description: '明日偏利好，今日可适度布局，控制仓位',
-      basis_rating: rating,
-      basis_date: basisDate,
-    };
-  }
-  if (rating >= 4) {
-    return {
-      action: 'hold',
-      label: '观望为主',
-      description: '明日走势中性，建议持仓观望，不急于操作',
-      basis_rating: rating,
-      basis_date: basisDate,
-    };
-  }
-  if (rating >= 2) {
-    return {
-      action: 'caution',
-      label: '谨慎操作',
-      description: '明日偏利空，下跌风险偏大，建议控制仓位或减仓',
-      basis_rating: rating,
-      basis_date: basisDate,
-    };
-  }
-  return {
-    action: 'sell',
-    label: '减仓回避',
-    description: '明日历史评分极低，下跌概率显著偏大，建议今日减仓或回避',
-    basis_rating: rating,
-    basis_date: basisDate,
-  };
-}
 
 /**
  * Lightweight: compute only "today" fields for a date (used for next trading day lookup)
@@ -342,22 +294,14 @@ export function getActiveCalendarEffects(dateStr: string): CalendarEffects {
     rating: nextEffects.today.rating ?? 5,
     sample_count: nextEffects.today.sample_count ?? 0,
   };
-  const actionSignal = generateActionSignal(nextTradingDay.rating, nextDateStr);
 
-  // 7. 黄历 — 组合评分（逢低买入逻辑）
-  // 短线：明日评分 + 今日弱日的入场加分（今日弱=低价入场点，增强买入信号）
-  // 波段：下月评分 + 本月弱势的入场加分
+  // 7. 黄历 — 直接使用明日/下月评分，无入场加分
   const nextMonthNum = month % 12 + 1;
   const nextMonthStat = allMonths.find((m: any) => m.month === nextMonthNum);
   const nextMonthRating = nextMonthStat?.rating ?? thisMonth.rating ?? 5;
 
-  const shortTermBase = nextTradingDay.rating ?? 5;
-  const shortTermEntryBonus = Math.max(0, (5 - (today.rating ?? 5)) * 0.5);
-  const shortTermScore = Math.round(Math.min(10, Math.max(0, shortTermBase + shortTermEntryBonus)) * 10) / 10;
-
-  const swingBase = nextMonthRating;
-  const swingEntryBonus = Math.max(0, (5 - (thisMonth.rating ?? 5)) * 0.5);
-  const swingScore = Math.round(Math.min(10, Math.max(0, swingBase + swingEntryBonus)) * 10) / 10;
+  const shortTermScore = nextTradingDay.rating ?? 5;
+  const swingScore = nextMonthRating;
 
   const almanac = computeAlmanac(shortTermScore, swingScore);
 
@@ -368,7 +312,6 @@ export function getActiveCalendarEffects(dateStr: string): CalendarEffects {
     today,
     this_month: thisMonth,
     next_trading_day: nextTradingDay,
-    action_signal: actionSignal,
     almanac,
     almanac_by_index: almanacByIndex,
     daily_calendar: dailyCalendar,
@@ -496,14 +439,9 @@ function buildAlmanacByIndex(dateStr: string, currentMonth: number, allIndicesDa
     const thisMonthSampleCount = thisMonthData?.sample_count ?? 0;
     const nextMonthSampleCount = nextMonthData?.sample_count ?? 0;
 
-    // Compute combined scores (dip-buying bonus)
-    const shortTermBase = daily.next_day.rating;
-    const shortTermEntryBonus = Math.max(0, (5 - daily.today.rating) * 0.5);
-    const shortTermScore = Math.round(Math.min(10, Math.max(0, shortTermBase + shortTermEntryBonus)) * 10) / 10;
-
-    const swingBase = nextMonthRating;
-    const swingEntryBonus = Math.max(0, (5 - thisMonthRating) * 0.5);
-    const swingScore = Math.round(Math.min(10, Math.max(0, swingBase + swingEntryBonus)) * 10) / 10;
+    // Use next day / next month rating directly (no entry bonus)
+    const shortTermScore = daily.next_day.rating;
+    const swingScore = nextMonthRating;
 
     const almanac = computeAlmanac(shortTermScore, swingScore);
 

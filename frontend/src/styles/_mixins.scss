@@ -1,0 +1,137 @@
+@use 'theme' as *;
+
+// === 规则线 ===
+@mixin rule-heavy {
+  border: none;
+  border-top: $rule-heavy;
+}
+
+@mixin rule-thin {
+  border: none;
+  border-top: $rule-thin;
+}
+
+@mixin rule-bottom-thin {
+  border: none;
+  border-bottom: $rule-thin;
+}
+
+@mixin rule-bottom-heavy {
+  border: none;
+  border-bottom: $rule-heavy;
+}
+
+// === 报纸风格卡片（无阴影、无圆角、用规则线分隔）===
+@mixin editorial-card {
+  background: $bg-card;
+  border-radius: 0;
+  box-shadow: none;
+  padding: $space-lg 0;
+  border-bottom: $rule-thin;
+}
+
+// === 报纸标题 ===
+@mixin editorial-title {
+  font-family: $font-serif;
+  font-weight: $weight-bold;
+  color: $text-primary;
+  letter-spacing: 1px;
+}
+
+// === 报纸副标题/标签 ===
+@mixin editorial-label {
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-semibold;
+  color: $text-secondary;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+// === 数据数字（等宽）===
+@mixin tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+// === 评分颜色 ===
+@mixin score-color($rating) {
+  @if $rating >= 6 {
+    color: $color-up;
+  } @else if $rating >= 4 {
+    color: $color-neutral;
+  } @else {
+    color: $color-down;
+  }
+}
+
+// === 按钮 ===
+@mixin btn-filled {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  background: $text-primary;
+  color: $text-inverse;
+  border: none;
+  border-radius: $radius-sm;
+  font-family: $font-sans;
+  font-size: $text-md;
+  font-weight: $weight-bold;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: transform $duration-fast $ease-out;
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+@mixin btn-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  background: transparent;
+  color: $text-primary;
+  border: 1.5px solid $text-primary;
+  border-radius: $radius-sm;
+  font-family: $font-sans;
+  font-size: $text-md;
+  font-weight: $weight-semibold;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: transform $duration-fast $ease-out;
+
+  &:active {
+    transform: scale(0.97);
+    background: $bg-muted;
+  }
+}
+
+// === 入场动画 ===
+@mixin anim-rise($delay: 0s) {
+  animation: rise-in 0.5s ease both;
+  animation-delay: $delay;
+}
+
+@mixin anim-fade($delay: 0s) {
+  animation: fade-in 0.5s ease both;
+  animation-delay: $delay;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

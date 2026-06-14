@@ -93,8 +93,8 @@ $duration-fast: 150ms;
 $duration-normal: 250ms;
 
 // === 评分热力图色阶 ===
-$rating-excellent-bg: rgba(232, 71, 76, 0.15);
-$rating-good-bg: rgba(232, 71, 76, 0.07);
-$rating-neutral-bg: transparent;
-$rating-poor-bg: rgba(46, 175, 125, 0.07);
-$rating-terrible-bg: rgba(46, 175, 125, 0.15);
+$rating-excellent-bg: rgba(232, 71, 76, 0.25);
+$rating-good-bg: rgba(232, 71, 76, 0.12);
+$rating-neutral-bg: rgba(156, 163, 175, 0.08);
+$rating-poor-bg: rgba(46, 175, 125, 0.12);
+$rating-terrible-bg: rgba(46, 175, 125, 0.25);

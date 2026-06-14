@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { fetchEventsByDate } from '../services/api'
-import { getToday } from '../../../shared/date-utils'
+import { getToday, getMonday, offsetDate, dateLabel, dateShort, formatDateParts, WEEKDAYS } from '../../../shared/date-utils'
+import { formatPct, formatScore, signalClass, scoreColor } from '../utils/display'
 import type { CalendarEffects, RiskEvent } from '../services/api'
 import CalendarStatsView from '../components/CalendarStatsView.vue'
 import MonthlyCalendarGrid from '../components/MonthlyCalendarGrid.vue'
@@ -10,12 +12,29 @@ import MonthlyCalendarGrid from '../components/MonthlyCalendarGrid.vue'
 // 共享状态
 // ============================================
 
-const today = getToday()
-const [year, month, day] = today.split('-').map(Number)
-const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-const currentWeekday = new Date(year, month - 1, day).getDay()
+const route = useRoute()
+const router = useRouter()
 
-const activeTab = ref<'overview' | 'events' | 'stats'>('overview')
+const today = getToday()
+const todayParts = formatDateParts(today)
+
+// masthead 日期跟随 selectedDate
+const displayDate = computed(() => formatDateParts(selectedDate.value))
+const displayWeekday = computed(() => {
+  const { year, month, day } = displayDate.value
+  return new Date(year, month - 1, day).getDay()
+})
+
+type TabName = 'overview' | 'events' | 'stats'
+const activeTab = computed<TabName>(() => (route.params.tab as TabName) || 'overview')
+
+function setTab(tab: TabName) {
+  if (tab === 'overview') {
+    router.push({ path: '/' })
+  } else {
+    router.push({ name: 'home', params: { tab } })
+  }
+}
 
 // ============================================
 // 数据层：按日期缓存
@@ -61,10 +80,10 @@ onMounted(() => {
 })
 
 // ============================================
-// 概览 Tab 数据（始终用今天）
+// 概览 Tab 数据（跟随 selectedDate）
 // ============================================
 
-const calendar = computed(() => dateCalendarMap.value[today] ?? null)
+const calendar = computed(() => dateCalendarMap.value[selectedDate.value] ?? null)
 
 const shortRating = computed(() => calendar.value?.almanac?.short_term?.rating ?? null)
 const shortLabel = computed(() => calendar.value?.almanac?.short_term?.signal?.label ?? '--')
@@ -82,54 +101,22 @@ const nextMonthProb = computed(() => {
   if (!ce) return null
   const idxData = ce.almanac_by_index?.['000001']
   if (idxData?.next_month_prob !== undefined) return idxData.next_month_prob
-  const nextMonthNum = month === 12 ? 1 : month + 1
+  const curMonth = displayDate.value.month
+  const nextMonthNum = curMonth === 12 ? 1 : curMonth + 1
   const nextMonthStat = ce.all_months?.find(m => m.month === nextMonthNum)
   if (nextMonthStat?.up_probability !== undefined) return nextMonthStat.up_probability
   return null
 })
 
-// 概览：今日事件摘要（取前 2 条最重要的）
-const todayEvents = computed(() => dateEventsMap.value[today] || [])
-const topEvents = computed(() => todayEvents.value.slice(0, 2))
+// 概览：选中日期事件摘要（取前 2 条最重要的）
+const selectedDayEvents = computed(() => dateEventsMap.value[selectedDate.value] || [])
+const topEvents = computed(() => selectedDayEvents.value.slice(0, 2))
 
 // ============================================
 // 事件 Tab 数据（用 selectedDate）
 // ============================================
 
 const baseMonday = ref(getMonday(today))
-
-function getMonday(anyDate: string): string {
-  const [yStr, mStr, dStr] = anyDate.split('-')
-  let y = parseInt(yStr), m = parseInt(mStr), d = parseInt(dStr)
-  if (m < 3) { m += 12; y -= 1 }
-  const K = y % 100, J = Math.floor(y / 100)
-  const h = (d + Math.floor(13 * (m + 1) / 5) + K + Math.floor(K / 4) + Math.floor(J / 4) - 2 * J) % 7
-  const dayOfWeek = ((h + 6) % 7)
-  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-  d += diff
-  const dim = [31, (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-  while (d < 1) { m--; if (m < 1) { m = 12; y-- } d += dim[m - 1] || 30 }
-  while (d > (dim[m - 1] || 30)) { d -= dim[m - 1] || 30; m++; if (m > 12) { m = 1; y++ } }
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-}
-
-function offsetDate(monday: string, offset: number): string {
-  const [y, m, d] = monday.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, m - 1, d + offset))
-  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
-}
-
-function dateLabel(dateStr: string): string {
-  const labels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  const [y, m, d] = dateStr.split('-').map(Number)
-  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
-  return labels[day]
-}
-
-function dateShort(dateStr: string): string {
-  const [, m, d] = dateStr.split('-').map(Number)
-  return `${m}/${d}`
-}
 
 const dateStrip = computed(() => {
   const labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -156,37 +143,11 @@ const selectedEvents = computed(() => dateEventsMap.value[selectedDate.value] ||
 const selectedRisk = computed(() => dateRiskMap.value[selectedDate.value] || 0)
 const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value] ?? lastCalendar.value)
 
-// ============================================
-// 工具函数
-// ============================================
-
-function signalClass(rating: number | null): string {
-  if (rating === null) return ''
-  if (rating >= 6) return 'bullish'
-  if (rating >= 4) return 'neutral'
-  return 'bearish'
-}
-
-function scoreColor(score: number): string {
-  if (score >= 9) return 'red'
-  if (score >= 7) return 'orange'
-  if (score >= 5) return 'yellow'
-  return 'gray'
-}
-
-function fmtPct(v: number | null): string {
-  return v !== null ? `${Math.round(v * 100)}%` : '--'
-}
-
-function fmtScore(v: number | null): string {
-  return v !== null ? v.toFixed(1) : '--'
-}
-
 // 概览日历点击 → 切到事件 Tab 并选中该日期
 function onOverviewCalendarSelect(dateStr: string) {
   baseMonday.value = getMonday(dateStr)
   selectDate(dateStr)
-  activeTab.value = 'events'
+  setTab('events')
 }
 </script>
 
@@ -194,24 +155,29 @@ function onOverviewCalendarSelect(dateStr: string) {
   <div class="editorial-home">
     <!-- 报头 -->
     <header class="masthead">
-      <div class="mast-top">
-        <span class="mast-date">{{ weekdays[currentWeekday] }}</span>
-        <span class="mast-sep">|</span>
-        <span class="mast-date">{{ year }}年{{ month }}月{{ day }}日</span>
-      </div>
-      <h1 class="mast-title">明日风险榜</h1>
-      <div class="mast-sub">基于近20年A股历史涨跌统计 · 每日更新</div>
-      <div class="mast-rule"></div>
+      <span class="mast-date">{{ displayDate.month }}月{{ displayDate.day }}日 {{ WEEKDAYS[displayWeekday] }}</span>
+      <span class="mast-sep">·</span>
+      <span class="mast-title">明日风险榜</span>
     </header>
 
-    <!-- Tab 栏 -->
-    <div class="tab-bar">
-      <div class="tab-item" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">概览</div>
-      <div class="tab-item" :class="{ active: activeTab === 'events' }" @click="activeTab = 'events'">
-        事件
-        <span v-if="todayEvents.length > 0" class="tab-badge">{{ todayEvents.length }}</span>
+    <!-- 日期条 (全局 sticky) -->
+    <div class="date-strip-wrapper">
+      <button class="nav-btn nav-prev" @click="changeWeek(-1)">◀</button>
+      <div class="date-strip">
+        <div
+          v-for="item in dateStrip"
+          :key="item.date"
+          class="date-item"
+          :class="{ active: item.date === selectedDate, today: item.isToday }"
+          @click="selectDate(item.date)"
+        >
+          <span class="date-day">{{ item.label }}</span>
+          <span class="date-num">{{ item.short }}</span>
+          <span v-if="dateRiskMap[item.date] && dateRiskMap[item.date] > 0" class="date-dot" :class="scoreColor(dateRiskMap[item.date])"></span>
+        </div>
       </div>
-      <div class="tab-item" :class="{ active: activeTab === 'stats' }" @click="activeTab = 'stats'">统计</div>
+      <button class="nav-btn nav-next" @click="changeWeek(1)">▶</button>
+      <button v-if="selectedDate !== today" class="today-btn" @click="goToday">今天</button>
     </div>
 
     <!-- ============================================ -->
@@ -222,7 +188,7 @@ function onOverviewCalendarSelect(dateStr: string) {
       <section class="headline">
         <div class="hl-label">今日研判</div>
         <div class="hl-score-row">
-          <span class="hl-score" :class="signalClass(shortRating)">{{ fmtScore(shortRating) }}</span>
+          <span class="hl-score" :class="signalClass(shortRating)">{{ formatScore(shortRating) }}</span>
           <span class="hl-unit">/ 10</span>
         </div>
         <div class="hl-signal" :class="signalClass(shortRating)">
@@ -237,10 +203,10 @@ function onOverviewCalendarSelect(dateStr: string) {
       <section class="data-columns">
         <div class="data-col">
           <div class="col-head">短线 · 明日</div>
-          <div class="col-score" :class="signalClass(shortRating)">{{ fmtScore(shortRating) }}</div>
+          <div class="col-score" :class="signalClass(shortRating)">{{ formatScore(shortRating) }}</div>
           <div class="col-meta">
             <span class="meta-label">上涨概率</span>
-            <span class="meta-value" :class="signalClass(shortRating)">{{ fmtPct(upProb) }}</span>
+            <span class="meta-value" :class="signalClass(shortRating)">{{ formatPct(upProb) }}</span>
           </div>
           <div class="col-meta">
             <span class="meta-label">历史样本</span>
@@ -249,11 +215,11 @@ function onOverviewCalendarSelect(dateStr: string) {
         </div>
         <div class="col-divider"></div>
         <div class="data-col">
-          <div class="col-head">波段 · {{ month + 1 > 12 ? 1 : month + 1 }}月</div>
-          <div class="col-score" :class="signalClass(swingRating)">{{ fmtScore(swingRating) }}</div>
+          <div class="col-head">波段 · {{ displayDate.month + 1 > 12 ? 1 : displayDate.month + 1 }}月</div>
+          <div class="col-score" :class="signalClass(swingRating)">{{ formatScore(swingRating) }}</div>
           <div class="col-meta">
             <span class="meta-label">上涨概率</span>
-            <span class="meta-value" :class="signalClass(swingRating)">{{ fmtPct(nextMonthProb) }}</span>
+            <span class="meta-value" :class="signalClass(swingRating)">{{ formatPct(nextMonthProb) }}</span>
           </div>
           <div class="col-meta">
             <span class="meta-label">操作信号</span>
@@ -280,8 +246,8 @@ function onOverviewCalendarSelect(dateStr: string) {
           <span class="event-brief-score" :class="scoreColor(evt.score)">{{ evt.score }}</span>
           <span v-if="evt.event_time" class="event-brief-time">{{ evt.event_time }}</span>
         </div>
-        <div class="event-more" v-if="todayEvents.length > 2" @click="activeTab = 'events'">
-          查看全部 {{ todayEvents.length }} 个事件 →
+        <div class="event-more" v-if="selectedDayEvents.length > 2" @click="setTab('events')">
+          查看全部 {{ selectedDayEvents.length }} 个事件 →
         </div>
       </section>
 
@@ -291,9 +257,9 @@ function onOverviewCalendarSelect(dateStr: string) {
       <section class="cal-table">
         <MonthlyCalendarGrid
           :dailyCalendar="dailyCalendar"
-          :todayDay="day"
-          :month="month"
-          :year="year"
+          :todayDay="todayParts.day"
+          :month="displayDate.month"
+          :year="displayDate.year"
           compact
           @selectDay="onOverviewCalendarSelect"
         />
@@ -310,26 +276,6 @@ function onOverviewCalendarSelect(dateStr: string) {
     <!-- Tab: 事件                                     -->
     <!-- ============================================ -->
     <div v-show="activeTab === 'events'" class="tab-panel">
-      <!-- 日期条 -->
-      <div class="date-strip-wrapper">
-        <button class="nav-btn nav-prev" @click="changeWeek(-1)">◀</button>
-        <div class="date-strip">
-          <div
-            v-for="item in dateStrip"
-            :key="item.date"
-            class="date-item"
-            :class="{ active: item.date === selectedDate, today: item.isToday }"
-            @click="selectDate(item.date)"
-          >
-            <span class="date-day">{{ item.label }}</span>
-            <span class="date-num">{{ item.short }}</span>
-            <span v-if="dateRiskMap[item.date] && dateRiskMap[item.date] > 0" class="date-dot" :class="scoreColor(dateRiskMap[item.date])"></span>
-          </div>
-        </div>
-        <button class="nav-btn nav-next" @click="changeWeek(1)">▶</button>
-        <button v-if="selectedDate !== today" class="today-btn" @click="goToday">今天</button>
-      </div>
-
       <!-- 风险指数 -->
       <div class="risk-section" v-if="selectedEvents.length > 0">
         <div class="risk-header">
@@ -406,7 +352,7 @@ function onOverviewCalendarSelect(dateStr: string) {
           <div class="event-bottom">
             <span v-if="event.event_time" class="event-time">🕐 {{ event.event_time }}</span>
             <span v-if="event.market_impact?.length" class="event-impact">影响: {{ event.market_impact.join(' / ') }}</span>
-            <span class="event-history-link" @click="activeTab = 'stats'">📊 历史</span>
+            <span class="event-history-link" @click="setTab('stats')">📊 历史</span>
           </div>
         </div>
       </div>
@@ -427,6 +373,16 @@ function onOverviewCalendarSelect(dateStr: string) {
         <div>暂无历史统计数据</div>
       </div>
     </div>
+
+    <!-- 底部 Tab 栏 -->
+    <nav class="bottom-tab-bar">
+      <div class="bottom-tab" :class="{ active: activeTab === 'overview' }" @click="setTab('overview')">概览</div>
+      <div class="bottom-tab" :class="{ active: activeTab === 'events' }" @click="setTab('events')">
+        事件
+        <span v-if="selectedDayEvents.length" class="tab-badge">{{ selectedDayEvents.length }}</span>
+      </div>
+      <div class="bottom-tab" :class="{ active: activeTab === 'stats' }" @click="setTab('stats')">统计</div>
+    </nav>
   </div>
 </template>
 
@@ -436,90 +392,77 @@ function onOverviewCalendarSelect(dateStr: string) {
 
 .editorial-home {
   min-height: 100vh;
-  padding: 0 $space-xl $space-2xl;
+  padding: 0 $space-xl 68px;
   background: $bg-page;
   color: $text-primary;
   font-family: $font-serif;
 }
 
-// === 报头 ===
+// === 报头 (极简一行) ===
 .masthead {
-  text-align: center;
-  padding: $space-lg 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-sm;
+  padding: $space-md 0;
+  font-family: $font-sans;
 }
 
-.mast-top {
-  font-size: $text-xs + 1;
+.mast-date {
+  font-size: $text-sm;
   color: $text-secondary;
-  letter-spacing: 1px;
-  margin-bottom: $space-sm;
-  font-family: $font-sans;
 }
 
 .mast-sep {
-  margin: 0 $space-sm;
-  color: $border;
+  color: $text-disabled;
+  font-size: $text-sm;
 }
 
 .mast-title {
-  font-size: $text-2xl + 4;
-  font-weight: $weight-black;
-  color: $text-primary;
-  letter-spacing: 4px;
-  margin: 0;
-  line-height: $leading-tight;
-}
-
-.mast-sub {
   font-size: $text-sm;
-  color: $text-secondary;
-  margin-top: $space-xs + 2;
-  font-family: $font-sans;
-  letter-spacing: 0.5px;
+  font-weight: $weight-bold;
+  color: $text-primary;
+  letter-spacing: 2px;
 }
 
-.mast-rule {
-  margin-top: $space-md + 2;
-  height: 3px;
-  background: $border-heavy;
+// === 日期条 (全局 sticky) ===
+.date-strip-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: $bg-page;
+  margin-bottom: $space-sm;
+  padding: $space-sm $space-xl;
+  border-bottom: $rule-thin;
 }
 
-// === Tab 栏 ===
-.tab-bar {
+// === 底部 Tab 栏 ===
+.bottom-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
-  gap: 0;
-  margin-bottom: 0;
-  background: transparent;
-  padding: 0;
-  border-bottom: 2px solid $border-heavy;
+  background: $bg-page;
+  border-top: 1px solid $border;
+  z-index: 200;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-.tab-item {
+.bottom-tab {
   flex: 1;
   text-align: center;
-  padding: $space-sm 0;
+  padding: $space-md 0;
   font-family: $font-sans;
   font-size: $text-md;
   font-weight: $weight-semibold;
   color: $text-tertiary;
   cursor: pointer;
-  border-radius: 0;
-  transition: color $duration-fast $ease-out;
   position: relative;
+  transition: color $duration-fast $ease-out;
 
   &.active {
-    background: transparent;
     color: $text-primary;
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: -2px;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: $text-primary;
-    }
   }
 }
 
@@ -766,14 +709,6 @@ function onOverviewCalendarSelect(dateStr: string) {
 // 事件 Tab 样式
 // ============================================
 
-.date-strip-wrapper {
-  position: relative;
-  margin-bottom: $space-sm;
-  background: $bg-card;
-  border-radius: 0;
-  padding: $space-sm $space-xl;
-  border-bottom: $rule-thin;
-}
 
 .nav-btn {
   position: absolute;
@@ -867,11 +802,8 @@ function onOverviewCalendarSelect(dateStr: string) {
 
 // === 风险指数 ===
 .risk-section {
-  background: $bg-card;
-  border-radius: 0;
-  padding: $space-lg 0;
+  @include editorial-card;
   margin-bottom: 0;
-  border-bottom: $rule-thin;
 }
 
 .risk-header {
@@ -900,16 +832,11 @@ function onOverviewCalendarSelect(dateStr: string) {
 }
 
 .risk-bar {
-  height: 4px;
-  background: $bg-muted;
-  border-radius: 0;
-  overflow: hidden;
+  @include progress-track;
 }
 
 .risk-fill {
-  height: 100%;
-  border-radius: 0;
-  transition: width $duration-normal $ease-out;
+  @include progress-fill;
 
   &.red { background: $color-up; }
   &.orange { background: $color-warn; }
@@ -918,14 +845,12 @@ function onOverviewCalendarSelect(dateStr: string) {
 
 // === 操作信号摘要 ===
 .signal-summary {
+  @include editorial-card;
   display: flex;
   align-items: center;
   gap: $space-md;
-  background: $bg-card;
-  border-radius: 0;
   padding: $space-md 0;
   margin-bottom: 0;
-  border-bottom: $rule-thin;
 }
 
 .signal-item {
@@ -975,10 +900,7 @@ function onOverviewCalendarSelect(dateStr: string) {
 }
 
 .event-card {
-  background: $bg-card;
-  border-radius: 0;
-  padding: $space-lg 0;
-  border-bottom: $rule-thin;
+  @include editorial-card;
 
   &:last-child { border-bottom: none; }
   &.estimated { opacity: 0.75; border-left: 3px solid $color-warn; padding-left: $space-md; }

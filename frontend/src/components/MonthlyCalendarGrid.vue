@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { CalendarDayStat } from '../services/api'
+import { formatPct, ratingClass, heatmapClass } from '../utils/display'
 
 const props = defineProps<{
   dailyCalendar: CalendarDayStat[]
@@ -61,14 +62,7 @@ function dayFormatter(day: any) {
 
   if (stat) {
     const rating = stat.rating ?? 5
-    let heatClass = 'heat-3'
-    if (rating >= 8) heatClass = 'heat-5'
-    else if (rating >= 6) heatClass = 'heat-4'
-    else if (rating >= 4) heatClass = 'heat-3'
-    else if (rating >= 2) heatClass = 'heat-2'
-    else heatClass = 'heat-1'
-
-    day.className = (day.className || '') + ' ' + heatClass
+    day.className = (day.className || '') + ' ' + heatmapClass(rating)
     day.bottomInfo = rating.toFixed(1)
   }
 
@@ -101,10 +95,6 @@ function onSelect(date: Date) {
 const minDate = computed(() => new Date(props.year, props.month - 1, 1)) // 当月1号
 const maxDate = computed(() => new Date(props.year, props.month, 0)) // 当月最后一天
 
-function formatPct(prob: number): string {
-  return `${Math.round(prob * 100)}%`
-}
-
 function formatChange(pct: number): string {
   const sign = pct >= 0 ? '+' : ''
   return `${sign}${pct.toFixed(2)}%`
@@ -114,15 +104,6 @@ function changeClass(pct: number): string {
   if (pct > 0) return 'change-up'
   if (pct < 0) return 'change-down'
   return ''
-}
-
-function ratingClass(rating: number | undefined): string {
-  if (rating === undefined) return ''
-  if (rating >= 8) return 'rating-excellent'
-  if (rating >= 6) return 'rating-good'
-  if (rating >= 4) return 'rating-neutral'
-  if (rating >= 2) return 'rating-poor'
-  return 'rating-terrible'
 }
 </script>
 
@@ -242,29 +223,44 @@ function ratingClass(rating: number | undefined): string {
 
 // 日期格子：1px gap 网格线效果
 .calendar-wrapper .van-calendar__days {
-  gap: 1px;
-  background: $border;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
   border: 1px solid $border;
+  border-right: none;
+  border-bottom: none;
 }
 
 .calendar-wrapper .van-calendar__day {
+  width: 100%;
+  box-sizing: border-box;
   border-radius: 0;
   background-clip: padding-box;
   background: $bg-card;
+  border-right: 1px solid $border;
+  border-bottom: 1px solid $border;
 }
 
 .calendar-wrapper .van-calendar__day--selected {
   background: $bg-card !important;
   border-radius: 0;
   color: $text-primary;
+  box-shadow: none;
+  border-right: 1px solid $border;
+  border-bottom: 1px solid $border;
+}
+
+.calendar-wrapper .van-calendar__selected-day {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0;
 }
 
 // 热力图背景色
-.calendar-wrapper .van-calendar__day.heat-5 { background: rgba(232, 71, 76, 0.25) !important; }
-.calendar-wrapper .van-calendar__day.heat-4 { background: rgba(232, 71, 76, 0.12) !important; }
-.calendar-wrapper .van-calendar__day.heat-3 { background: rgba(156, 163, 175, 0.08) !important; }
-.calendar-wrapper .van-calendar__day.heat-2 { background: rgba(46, 175, 125, 0.12) !important; }
-.calendar-wrapper .van-calendar__day.heat-1 { background: rgba(46, 175, 125, 0.25) !important; }
+.calendar-wrapper .van-calendar__day.heat-5 { background: $rating-excellent-bg !important; }
+.calendar-wrapper .van-calendar__day.heat-4 { background: $rating-good-bg !important; }
+.calendar-wrapper .van-calendar__day.heat-3 { background: $rating-neutral-bg !important; }
+.calendar-wrapper .van-calendar__day.heat-2 { background: $rating-poor-bg !important; }
+.calendar-wrapper .van-calendar__day.heat-1 { background: $rating-terrible-bg !important; }
 
 // 今日标记：黑底白字反色
 .calendar-wrapper .van-calendar__day.is-today {

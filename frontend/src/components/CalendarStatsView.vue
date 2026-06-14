@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { CalendarEffects } from '../services/api'
+import { formatPct, ratingClass, probColorClass, heatmapClass } from '../utils/display'
+import { dateShort } from '../../../shared/date-utils'
 import CalendarBanner from './CalendarBanner.vue'
 import MonthlyCalendarGrid from './MonthlyCalendarGrid.vue'
 import AlmanacCard from './AlmanacCard.vue'
@@ -84,25 +86,10 @@ const streakDesc = computed(() => {
   return '涨跌交替频繁'
 })
 
-function probColor(prob: number): string {
-  if (prob > 0.55) return 'bar-up'
-  if (prob < 0.45) return 'bar-down'
-  return 'bar-neutral'
-}
-
-// 评分显示函数 (0-10分)
+// 评分显示函数 (0-10分，undefined 默认 5.0)
 function formatRating(rating: number | undefined): string {
   if (rating === undefined) return '5.0'
   return rating.toFixed(1)
-}
-
-function ratingClass(rating: number | undefined): string {
-  if (rating === undefined) return 'rating-neutral'
-  if (rating >= 8) return 'rating-excellent'
-  if (rating >= 6) return 'rating-good'
-  if (rating >= 4) return 'rating-neutral'
-  if (rating >= 2) return 'rating-poor'
-  return 'rating-terrible'
 }
 
 function ratingEmoji(rating: number | undefined): string {
@@ -112,10 +99,6 @@ function ratingEmoji(rating: number | undefined): string {
   if (rating >= 4) return '➖'
   if (rating >= 2) return '📉'
   return '⚠️'
-}
-
-function formatPct(prob: number): string {
-  return `${Math.round(prob * 100)}%`
 }
 
 function getIndexMonthProb(idxCode: string, month: number): number {
@@ -132,15 +115,6 @@ function getIndexMonthRating(idxCode: string, month: number): number | undefined
   return monthData?.rating
 }
 
-// 热力图背景色（基于评分 0-10，5级色阶）
-function heatmapBg(rating: number | undefined): string {
-  if (rating === undefined) return 'transparent'
-  if (rating >= 8) return 'rgba(232, 71, 76, 0.22)'   // 极强利好
-  if (rating >= 6) return 'rgba(232, 71, 76, 0.10)'   // 利好
-  if (rating >= 4) return 'rgba(156, 163, 175, 0.06)' // 中性
-  if (rating >= 2) return 'rgba(46, 175, 125, 0.10)'  // 利空
-  return 'rgba(46, 175, 125, 0.22)'                    // 极强利空
-}
 
 const indexCodes = ['000001', '000300', '000905'] as const
 
@@ -149,12 +123,11 @@ function getIndexData(idxCode: string) {
   return props.calendarEffects.indices_monthly[idxCode as keyof typeof props.calendarEffects.indices_monthly] ?? null
 }
 
-// 明日日期简写 (如 "6/12")
+// 明日日期简写
 const nextDayShort = computed(() => {
   const nd = props.calendarEffects.next_trading_day
   if (!nd?.date) return ''
-  const [, m, d] = nd.date.split('-').map(Number)
-  return `${m}/${d}`
+  return dateShort(nd.date)
 })
 
 </script>
@@ -226,7 +199,7 @@ const nextDayShort = computed(() => {
           <div class="decay-mini-row">
             <span class="decay-mini-label">全样本</span>
             <div class="bar-wrapper">
-              <div class="bar-fill" :class="probColor(calendarEffects.this_month.up_probability)"
+              <div class="bar-fill" :class="probColorClass(calendarEffects.this_month.up_probability)"
                 :style="{ width: (calendarEffects.this_month.up_probability * 100) + '%' }"></div>
             </div>
             <span class="decay-mini-value">{{ formatPct(calendarEffects.this_month.up_probability) }}</span>
@@ -234,7 +207,7 @@ const nextDayShort = computed(() => {
           <div class="decay-mini-row">
             <span class="decay-mini-label">近10年</span>
             <div class="bar-wrapper">
-              <div class="bar-fill" :class="probColor(calendarEffects.this_month.decay.recent_10y?.up_probability ?? 0.5)"
+              <div class="bar-fill" :class="probColorClass(calendarEffects.this_month.decay.recent_10y?.up_probability ?? 0.5)"
                 :style="{ width: ((calendarEffects.this_month.decay.recent_10y?.up_probability ?? 0.5) * 100) + '%' }"></div>
             </div>
             <span class="decay-mini-value">{{ formatPct(calendarEffects.this_month.decay.recent_10y?.up_probability ?? 0.5) }}</span>
@@ -242,7 +215,7 @@ const nextDayShort = computed(() => {
           <div class="decay-mini-row">
             <span class="decay-mini-label">近5年</span>
             <div class="bar-wrapper">
-              <div class="bar-fill" :class="probColor(calendarEffects.this_month.decay.recent_5y?.up_probability ?? 0.5)"
+              <div class="bar-fill" :class="probColorClass(calendarEffects.this_month.decay.recent_5y?.up_probability ?? 0.5)"
                 :style="{ width: ((calendarEffects.this_month.decay.recent_5y?.up_probability ?? 0.5) * 100) + '%' }"></div>
             </div>
             <span class="decay-mini-value">{{ formatPct(calendarEffects.this_month.decay.recent_5y?.up_probability ?? 0.5) }}</span>
@@ -295,8 +268,7 @@ const nextDayShort = computed(() => {
           <div class="index-section" v-if="getIndexData(idxCode)">
             <div class="index-name">{{ getIndexData(idxCode)!.name }}</div>
             <div class="v-chart">
-              <div v-for="m in 12" :key="m" class="v-bar-item" :class="{ 'is-current': m === dateParts.month }"
-                :style="{ backgroundColor: getIndexMonthRating(idxCode, m) !== undefined ? heatmapBg(getIndexMonthRating(idxCode, m)) : 'transparent' }">
+              <div v-for="m in 12" :key="m" class="v-bar-item" :class="[{ 'is-current': m === dateParts.month }, heatmapClass(getIndexMonthRating(idxCode, m))]">
                 <div class="v-bar-rating" :class="ratingClass(getIndexMonthRating(idxCode, m))">
                   {{ formatRating(getIndexMonthRating(idxCode, m)) }}
                 </div>
@@ -380,10 +352,7 @@ const nextDayShort = computed(() => {
 }
 
 .card {
-  background: $bg-card;
-  border-radius: 0;
-  padding: $space-lg 0;
-  border-bottom: $rule-thin;
+  @include editorial-card;
 }
 
 .card-title {
@@ -476,8 +445,8 @@ const nextDayShort = computed(() => {
   @include tabular-nums;
 }
 
-.bar-wrapper { flex: 1; height: 4px; background: $bg-muted; border-radius: 0; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 0; transition: width $duration-normal $ease-out; }
+.bar-wrapper { @include progress-track; flex: 1; }
+.bar-fill { @include progress-fill; }
 .bar-up { background: $color-up; }
 .bar-down { background: $color-down; }
 .bar-neutral { background: $border; }
@@ -557,6 +526,13 @@ const nextDayShort = computed(() => {
 .v-bar-pct { font-size: $text-sm; color: $text-tertiary; font-family: $font-sans; @include tabular-nums; }
 .v-bar-label { font-size: $text-sm; color: $text-tertiary; font-family: $font-sans; margin-top: 2px; }
 .v-bar-item.is-current .v-bar-label { color: $text-primary; font-weight: $weight-bold; }
+
+// 热力图色阶（引用 theme 变量）
+.v-bar-item.heat-5 { background: $rating-excellent-bg; }
+.v-bar-item.heat-4 { background: $rating-good-bg; }
+.v-bar-item.heat-3 { background: $rating-neutral-bg; }
+.v-bar-item.heat-2 { background: $rating-poor-bg; }
+.v-bar-item.heat-1 { background: $rating-terrible-bg; }
 
 // === 特殊窗口 ===
 .effect-details { display: flex; flex-direction: column; }

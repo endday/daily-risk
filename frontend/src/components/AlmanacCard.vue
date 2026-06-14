@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Almanac, AlmanacByIndex } from '../services/api'
+import { formatPct, signalClass, probColorValue } from '../utils/display'
 
 const props = defineProps<{
   almanacByIndex?: AlmanacByIndex
@@ -22,26 +23,10 @@ const currentAlmanac = computed<Almanac | null>(() => {
   return currentData.value?.almanac ?? null
 })
 
-function formatPct(prob: number): string {
-  return `${Math.round(prob * 100)}%`
-}
-
-function probColor(prob: number): string {
-  if (prob > 0.55) return '#E8474C'
-  if (prob < 0.45) return '#2EAF7D'
-  return '#6B7280'
-}
-
 function signalColor(action: string): string {
   if (action === 'add') return 'signal-add'
   if (action === 'reduce') return 'signal-reduce'
   return 'signal-hold'
-}
-
-function scoreClass(score: number): string {
-  if (score >= 6) return 'score-add'
-  if (score >= 4) return 'score-hold'
-  return 'score-reduce'
 }
 </script>
 
@@ -49,7 +34,6 @@ function scoreClass(score: number): string {
   <div class="almanac-card">
     <div class="almanac-header">
       <div class="almanac-title-group">
-        <span class="almanac-title">黄历</span>
         <span class="almanac-subtitle">近20年历史统计</span>
       </div>
     </div>
@@ -75,7 +59,7 @@ function scoreClass(score: number): string {
           <span class="dim-sub">明日 {{ nextDayShort }}</span>
         </div>
         <div class="dim-body">
-          <span class="dim-score" :class="scoreClass(currentAlmanac.short_term.rating)">
+          <span class="dim-score" :class="signalClass(currentAlmanac.short_term.rating)">
             {{ currentAlmanac.short_term.rating.toFixed(1) }}
           </span>
           <span class="dim-signal" :class="signalColor(currentAlmanac.short_term.signal.action)">
@@ -84,8 +68,8 @@ function scoreClass(score: number): string {
         </div>
         <div class="dim-desc">{{ currentAlmanac.short_term.signal.description }}</div>
         <div class="dim-stats">
-          今日 <span :style="{ color: probColor(currentData.today_prob) }">{{ formatPct(currentData.today_prob) }}</span><span class="dim-sample">(n={{ currentData.today_sample_count }})</span>
-          · 明日 <span :style="{ color: probColor(currentData.next_day_prob) }">{{ formatPct(currentData.next_day_prob) }}</span><span class="dim-sample">(n={{ currentData.next_day_sample_count }})</span>
+          今日 <span :style="{ color: probColorValue(currentData.today_prob) }">{{ formatPct(currentData.today_prob) }}</span><span class="dim-sample">(n={{ currentData.today_sample_count }})</span>
+          · 明日 <span :style="{ color: probColorValue(currentData.next_day_prob) }">{{ formatPct(currentData.next_day_prob) }}</span><span class="dim-sample">(n={{ currentData.next_day_sample_count }})</span>
         </div>
         <div class="dim-confidence-warn" v-if="currentData.next_day_sample_count < 10">
           ⚠️ 样本量较少，评分仅供参考
@@ -99,7 +83,7 @@ function scoreClass(score: number): string {
           <span class="dim-sub">{{ nextMonthName }}</span>
         </div>
         <div class="dim-body">
-          <span class="dim-score" :class="scoreClass(currentAlmanac.swing.rating)">
+          <span class="dim-score" :class="signalClass(currentAlmanac.swing.rating)">
             {{ currentAlmanac.swing.rating.toFixed(1) }}
           </span>
           <span class="dim-signal" :class="signalColor(currentAlmanac.swing.signal.action)">
@@ -108,8 +92,8 @@ function scoreClass(score: number): string {
         </div>
         <div class="dim-desc">{{ currentAlmanac.swing.signal.description }}</div>
         <div class="dim-stats">
-          本月 <span :style="{ color: probColor(currentData.this_month_prob) }">{{ formatPct(currentData.this_month_prob) }}</span><span class="dim-sample">(n={{ currentData.this_month_sample_count }})</span>
-          · 下月 <span :style="{ color: probColor(currentData.next_month_prob) }">{{ formatPct(currentData.next_month_prob) }}</span><span class="dim-sample">(n={{ currentData.next_month_sample_count }})</span>
+          本月 <span :style="{ color: probColorValue(currentData.this_month_prob) }">{{ formatPct(currentData.this_month_prob) }}</span><span class="dim-sample">(n={{ currentData.this_month_sample_count }})</span>
+          · 下月 <span :style="{ color: probColorValue(currentData.next_month_prob) }">{{ formatPct(currentData.next_month_prob) }}</span><span class="dim-sample">(n={{ currentData.next_month_sample_count }})</span>
         </div>
         <div class="dim-confidence-warn" v-if="currentData.next_month_sample_count < 10">
           ⚠️ 样本量较少，评分仅供参考
@@ -131,10 +115,7 @@ function scoreClass(score: number): string {
 @use '../styles/mixins' as *;
 
 .almanac-card {
-  background: $bg-card;
-  border-radius: 0;
-  padding: $space-lg 0;
-  border-bottom: $rule-thin;
+  @include editorial-card;
 }
 
 .almanac-header {
@@ -257,9 +238,9 @@ function scoreClass(score: number): string {
   line-height: 1;
   @include tabular-nums;
 
-  &.score-add { color: $color-up; }
-  &.score-hold { color: $color-neutral; }
-  &.score-reduce { color: $color-down; }
+  &.bullish { color: $color-up; }
+  &.neutral { color: $color-neutral; }
+  &.bearish { color: $color-down; }
 }
 
 .dim-signal {

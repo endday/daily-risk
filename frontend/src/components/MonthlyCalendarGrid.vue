@@ -7,6 +7,7 @@ const props = defineProps<{
   todayDay: number
   month: number
   year: number
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -42,9 +43,11 @@ function dayFormatter(day: any) {
   const year = day.date.getFullYear()
   const isDataMonth = month === props.month && year === props.year
 
-  // 周末标记为 disabled（不可点击，灰色背景）
+  // 周末：compact 模式只加灰色标记不禁用，非 compact 禁用
   if (isWeekend) {
-    day.type = 'disabled'
+    if (!props.compact) {
+      day.type = 'disabled'
+    }
     day.className = (day.className || '') + ' is-weekend'
     return day
   }
@@ -124,7 +127,12 @@ function ratingClass(rating: number | undefined): string {
 </script>
 
 <template>
-  <div class="calendar-wrapper">
+  <div class="calendar-wrapper" :class="{ 'is-compact': compact }">
+    <!-- compact 模式显示报纸风标题 -->
+    <div v-if="compact" class="cal-head">
+      <span class="cal-title">{{ month }}月 · 每日历史评分一览</span>
+    </div>
+
     <van-calendar
       type="single"
       :poppable="false"
@@ -137,22 +145,28 @@ function ratingClass(rating: number | undefined): string {
       :default-date="currentDate"
       :formatter="dayFormatter"
       color="#1A1A1A"
-      :row-height="50"
+      :row-height="compact ? 44 : 50"
       @select="onSelect"
     />
 
-    <div class="grid-legend">
-      <span class="legend-heatmap">评分图：</span>
-      <span class="legend-item heatmap-strong-up">●强利好</span>
-      <span class="legend-item heatmap-weak-up">●弱利好</span>
-      <span class="legend-item heatmap-neutral">●中性</span>
-      <span class="legend-item heatmap-weak-down">●弱利空</span>
-      <span class="legend-item heatmap-strong-down">●强利空</span>
-    </div>
-    <div class="grid-note">评分基于近20年历史涨跌概率，不代表未来表现</div>
+    <template v-if="!compact">
+      <div class="grid-legend">
+        <span class="legend-heatmap">评分图：</span>
+        <span class="legend-item heatmap-strong-up">●强利好</span>
+        <span class="legend-item heatmap-weak-up">●弱利好</span>
+        <span class="legend-item heatmap-neutral">●中性</span>
+        <span class="legend-item heatmap-weak-down">●弱利空</span>
+        <span class="legend-item heatmap-strong-down">●强利空</span>
+      </div>
+      <div class="grid-note">评分基于近20年历史涨跌概率，不代表未来表现</div>
+    </template>
 
-    <!-- 选中日期详情 -->
-    <div class="day-detail" v-if="selectedDayStat">
+    <div v-if="compact" class="cal-footnote">
+      评分范围 0-10，基于近20年同日上涨概率 Z-Score 计算。红色利好 / 绿色利空。点击日期查看详情。
+    </div>
+
+    <!-- 选中日期详情（非 compact 模式） -->
+    <div class="day-detail" v-if="!compact && selectedDayStat">
       <div class="day-detail-header">
         <span class="day-detail-title">每月{{ selectedDayStat.day }}日 · 历史统计</span>
         <span class="day-detail-rating" :class="ratingClass(selectedDayStat.rating)">{{ selectedDayStat.rating?.toFixed(1) }}分</span>
@@ -202,13 +216,20 @@ function ratingClass(rating: number | undefined): string {
   padding: $space-xs 0;
 }
 
-.calendar-wrapper .van-calendar__weekdays { padding: 0; }
+// 周几表头：报纸风粗线底
+.calendar-wrapper .van-calendar__weekdays {
+  padding: 0;
+  border-bottom: 2px solid $border-heavy;
+  margin-bottom: 1px;
+}
 
 .calendar-wrapper .van-calendar__weekday {
   font-family: $font-sans;
-  font-size: $text-sm;
-  color: $text-tertiary;
-  height: 32px;
+  font-size: $text-xs + 1;
+  font-weight: $weight-bold;
+  color: $text-primary;
+  letter-spacing: 1px;
+  height: 28px;
 }
 
 .calendar-wrapper .van-calendar__body {
@@ -219,13 +240,21 @@ function ratingClass(rating: number | undefined): string {
 
 .calendar-wrapper .van-calendar__month { padding: 0; }
 
+// 日期格子：1px gap 网格线效果
+.calendar-wrapper .van-calendar__days {
+  gap: 1px;
+  background: $border;
+  border: 1px solid $border;
+}
+
 .calendar-wrapper .van-calendar__day {
   border-radius: 0;
   background-clip: padding-box;
+  background: $bg-card;
 }
 
 .calendar-wrapper .van-calendar__day--selected {
-  background: transparent !important;
+  background: $bg-card !important;
   border-radius: 0;
   color: $text-primary;
 }
@@ -245,7 +274,8 @@ function ratingClass(rating: number | undefined): string {
 
 .calendar-wrapper .van-calendar__day-text {
   font-size: $text-sm;
-  color: $text-secondary;
+  font-weight: $weight-bold;
+  color: $text-primary;
   @include tabular-nums;
   line-height: 1;
 }
@@ -300,6 +330,16 @@ function ratingClass(rating: number | undefined): string {
 .calendar-wrapper .van-calendar__day--disabled .van-calendar__day-text {
   color: $text-disabled;
 }
+
+// compact 模式：周末也显示（不禁用）
+.calendar-wrapper.is-compact .van-calendar__day.is-weekend {
+  background: $bg-muted !important;
+  color: $text-tertiary;
+}
+
+.calendar-wrapper.is-compact .van-calendar__day.is-weekend .van-calendar__day-text {
+  color: $text-tertiary;
+}
 </style>
 
 <style lang="scss" scoped>
@@ -308,6 +348,24 @@ function ratingClass(rating: number | undefined): string {
 
 .calendar-wrapper {
   padding: $space-sm 0;
+}
+
+// compact 模式标题
+.cal-head {
+  margin-bottom: $space-md;
+}
+
+.cal-title {
+  @include editorial-title;
+  font-size: $text-md;
+}
+
+.cal-footnote {
+  font-size: $text-xs;
+  color: $text-tertiary;
+  margin-top: $space-sm;
+  font-family: $font-sans;
+  line-height: $leading-normal;
 }
 
 .grid-legend {

@@ -4,6 +4,7 @@ import { fetchEventsByDate } from '../services/api'
 import { getToday } from '../../../shared/date-utils'
 import type { CalendarEffects, RiskEvent } from '../services/api'
 import CalendarStatsView from '../components/CalendarStatsView.vue'
+import MonthlyCalendarGrid from '../components/MonthlyCalendarGrid.vue'
 
 // ============================================
 // 共享状态
@@ -74,22 +75,7 @@ const advice = computed(() => calendar.value?.almanac?.advice ?? '--')
 const upProb = computed(() => calendar.value?.today?.up_probability ?? null)
 const sampleCount = computed(() => calendar.value?.today?.sample_count ?? null)
 
-const dayRatingMap = computed(() => {
-  const ce = calendar.value
-  if (!ce?.daily_calendar) return {} as Record<number, number>
-  const map: Record<number, number> = {}
-  for (const stat of ce.daily_calendar) {
-    if (stat.rating !== undefined) map[stat.day] = stat.rating
-  }
-  return map
-})
-
-const daysInMonth = computed(() => new Date(year, month, 0).getDate())
-
-const gridOffset = computed(() => {
-  const dow = new Date(year, month - 1, 1).getDay()
-  return (dow + 6) % 7
-})
+const dailyCalendar = computed(() => calendar.value?.daily_calendar ?? [])
 
 const nextMonthProb = computed(() => {
   const ce = calendar.value
@@ -188,15 +174,6 @@ function scoreColor(score: number): string {
   return 'gray'
 }
 
-function ratingBg(rating: number | null): string {
-  if (rating === null) return 'transparent'
-  if (rating >= 8) return 'rgba(232, 71, 76, 0.15)'
-  if (rating >= 6) return 'rgba(232, 71, 76, 0.07)'
-  if (rating >= 4) return 'transparent'
-  if (rating >= 2) return 'rgba(46, 175, 125, 0.07)'
-  return 'rgba(46, 175, 125, 0.15)'
-}
-
 function fmtPct(v: number | null): string {
   return v !== null ? `${Math.round(v * 100)}%` : '--'
 }
@@ -205,9 +182,8 @@ function fmtScore(v: number | null): string {
   return v !== null ? v.toFixed(1) : '--'
 }
 
-// 概览日历格子点击 → 切到事件 Tab 并选中该日期
-function onGridDayClick(d: number) {
-  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+// 概览日历点击 → 切到事件 Tab 并选中该日期
+function onOverviewCalendarSelect(dateStr: string) {
   baseMonday.value = getMonday(dateStr)
   selectDate(dateStr)
   activeTab.value = 'events'
@@ -311,31 +287,16 @@ function onGridDayClick(d: number) {
 
       <div class="rule-thin" v-if="topEvents.length > 0"></div>
 
-      <!-- 月度日历表格 -->
+      <!-- 月度日历 -->
       <section class="cal-table">
-        <div class="cal-head">
-          <span class="cal-title">{{ month }}月 · 每日历史评分一览</span>
-        </div>
-        <div class="cal-weekdays">
-          <span v-for="w in ['一','二','三','四','五','六','日']" :key="w">{{ w }}</span>
-        </div>
-        <div class="cal-grid">
-          <div v-for="i in gridOffset" :key="'e'+i" class="cal-cell empty"></div>
-          <div
-            v-for="d in daysInMonth"
-            :key="d"
-            class="cal-cell clickable"
-            :class="{ 'is-today': d === day }"
-            :style="{ backgroundColor: ratingBg(dayRatingMap[d] ?? null) }"
-            @click="onGridDayClick(d)"
-          >
-            <span class="cell-day">{{ d }}</span>
-            <span v-if="dayRatingMap[d] !== undefined" class="cell-score">{{ dayRatingMap[d]?.toFixed(1) }}</span>
-          </div>
-        </div>
-        <div class="cal-footnote">
-          评分范围 0-10，基于近20年同日上涨概率 Z-Score 计算。红色利好 / 绿色利空。点击日期查看详情。
-        </div>
+        <MonthlyCalendarGrid
+          :dailyCalendar="dailyCalendar"
+          :todayDay="day"
+          :month="month"
+          :year="year"
+          compact
+          @selectDay="onOverviewCalendarSelect"
+        />
       </section>
 
       <!-- 底部 -->
@@ -781,87 +742,9 @@ function onGridDayClick(d: number) {
   &:active { opacity: 0.6; }
 }
 
-// === 日历表格 ===
+// === 日历 ===
 .cal-table {
   padding: $space-xl - 4 0 0;
-}
-
-.cal-head {
-  margin-bottom: $space-md;
-}
-
-.cal-title {
-  @include editorial-title;
-  font-size: $text-md;
-}
-
-.cal-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  text-align: center;
-  padding-bottom: $space-xs + 2;
-  border-bottom: 2px solid $border-heavy;
-  margin-bottom: 2px;
-
-  span {
-    font-size: $text-xs + 1;
-    font-weight: $weight-bold;
-    color: $text-primary;
-    font-family: $font-sans;
-    letter-spacing: 1px;
-  }
-}
-
-.cal-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  background: $border;
-  border: 1px solid $border;
-}
-
-.cal-cell {
-  background: $bg-card;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: $space-xs + 2 2px;
-  gap: 2px;
-
-  &.empty { background: $bg-muted; }
-  &.clickable { cursor: pointer; }
-  &.clickable:active { opacity: 0.7; }
-}
-
-.cell-day {
-  font-size: $text-sm;
-  font-weight: $weight-bold;
-  color: $text-primary;
-  line-height: 1;
-}
-
-.cell-score {
-  font-size: 9px;
-  color: $text-secondary;
-  @include tabular-nums;
-  font-family: $font-sans;
-  line-height: 1;
-}
-
-.is-today {
-  background: $border-heavy !important;
-
-  .cell-day { color: $text-inverse; }
-  .cell-score { color: rgba(255, 255, 255, 0.7); }
-}
-
-.cal-footnote {
-  font-size: $text-xs;
-  color: $text-tertiary;
-  margin-top: $space-sm;
-  font-family: $font-sans;
-  line-height: $leading-normal;
 }
 
 // === 底部 ===

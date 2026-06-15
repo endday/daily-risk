@@ -37,6 +37,9 @@ self.addEventListener('activate', (event) => {
 
 // Fetch: apply caching strategies
 self.addEventListener('fetch', (event) => {
+  // Cache API only supports GET, let other methods pass through
+  if (event.request.method !== 'GET') return
+
   const url = new URL(event.request.url)
 
   // API requests: Stale-while-revalidate
@@ -133,6 +136,10 @@ async function handleCacheFirst(request) {
 }
 
 async function handleNetworkFirst(request) {
+  // Cache API only supports GET
+  if (request.method !== 'GET') {
+    return fetch(request)
+  }
   try {
     const response = await fetch(request)
     if (response.ok) {

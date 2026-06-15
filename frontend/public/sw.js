@@ -11,6 +11,13 @@ const API_CACHE_NAME = 'daily-risk-api-v2'
 const API_CACHE_TTL = 5 * 60 * 1000 // 5 minutes (stale-while-revalidate window)
 const API_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000 // 7 days (max offline fallback age)
 
+// Listen for skip waiting message from page
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
+
 // Install: cache essential assets
 self.addEventListener('install', (event) => {
   event.waitUntil(

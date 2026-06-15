@@ -7,6 +7,7 @@ import { formatPct, formatScore, signalClass, scoreColor } from '../utils/displa
 import type { CalendarEffects, RiskEvent } from '../services/api'
 import CalendarStatsView from '../components/CalendarStatsView.vue'
 import MonthlyCalendarGrid from '../components/MonthlyCalendarGrid.vue'
+import DecisionPanel from '../components/DecisionPanel.vue'
 
 // ============================================
 // 共享状态
@@ -46,6 +47,7 @@ const dateCalendarMap = ref<Record<string, CalendarEffects | null>>({})
 const selectedDate = ref(today)
 const loadingDay = ref(false)
 const lastCalendar = ref<CalendarEffects | null>(null)
+const decisionActive = ref(false)
 
 async function fetchDateEvents(date: string) {
   if (dateEventsMap.value[date] !== undefined) return
@@ -199,77 +201,92 @@ function onOverviewCalendarSelect(dateStr: string) {
 
       <div class="rule-thin"></div>
 
-      <!-- 双栏数据 -->
-      <section class="data-columns">
-        <div class="data-col">
-          <div class="col-head">短线 · 明日</div>
-          <div class="col-score" :class="signalClass(shortRating)">{{ formatScore(shortRating) }}</div>
-          <div class="col-meta">
-            <span class="meta-label">上涨概率</span>
-            <span class="meta-value" :class="signalClass(shortRating)">{{ formatPct(upProb) }}</span>
+      <!-- 买/卖决策面板（内容流中，不 sticky） -->
+      <DecisionPanel
+        :dailyCalendar="dailyCalendar"
+        :calendar="calendar"
+        :events="selectedDayEvents"
+        :today="today"
+        :selectedDate="selectedDate"
+        @activate="decisionActive = $event"
+      />
+
+      <!-- 决策未激活时显示原有概览内容 -->
+      <template v-if="!decisionActive">
+        <div class="rule-thin"></div>
+
+        <!-- 双栏数据 -->
+        <section class="data-columns">
+          <div class="data-col">
+            <div class="col-head">短线 · 明日</div>
+            <div class="col-score" :class="signalClass(shortRating)">{{ formatScore(shortRating) }}</div>
+            <div class="col-meta">
+              <span class="meta-label">上涨概率</span>
+              <span class="meta-value" :class="signalClass(shortRating)">{{ formatPct(upProb) }}</span>
+            </div>
+            <div class="col-meta">
+              <span class="meta-label">历史样本</span>
+              <span class="meta-value">{{ sampleCount !== null ? `n=${sampleCount}` : '--' }}</span>
+            </div>
           </div>
-          <div class="col-meta">
-            <span class="meta-label">历史样本</span>
-            <span class="meta-value">{{ sampleCount !== null ? `n=${sampleCount}` : '--' }}</span>
+          <div class="col-divider"></div>
+          <div class="data-col">
+            <div class="col-head">波段 · {{ displayDate.month + 1 > 12 ? 1 : displayDate.month + 1 }}月</div>
+            <div class="col-score" :class="signalClass(swingRating)">{{ formatScore(swingRating) }}</div>
+            <div class="col-meta">
+              <span class="meta-label">上涨概率</span>
+              <span class="meta-value" :class="signalClass(swingRating)">{{ formatPct(nextMonthProb) }}</span>
+            </div>
+            <div class="col-meta">
+              <span class="meta-label">操作信号</span>
+              <span class="meta-value" :class="signalClass(swingRating)">{{ swingLabel }}</span>
+            </div>
           </div>
-        </div>
-        <div class="col-divider"></div>
-        <div class="data-col">
-          <div class="col-head">波段 · {{ displayDate.month + 1 > 12 ? 1 : displayDate.month + 1 }}月</div>
-          <div class="col-score" :class="signalClass(swingRating)">{{ formatScore(swingRating) }}</div>
-          <div class="col-meta">
-            <span class="meta-label">上涨概率</span>
-            <span class="meta-value" :class="signalClass(swingRating)">{{ formatPct(nextMonthProb) }}</span>
+        </section>
+
+        <div class="rule-thin"></div>
+
+        <!-- 综合研判 -->
+        <section class="editorial-advice">
+          <div class="advice-label">综合研判</div>
+          <p class="advice-body">{{ advice }}</p>
+        </section>
+
+        <div class="rule-thin"></div>
+
+        <!-- 今日要事 -->
+        <section class="today-events" v-if="topEvents.length > 0">
+          <div class="section-label">今日要事</div>
+          <div v-for="evt in topEvents" :key="evt.event_key" class="event-brief">
+            <span class="event-brief-name">{{ evt.display_name }}</span>
+            <span class="event-brief-score" :class="scoreColor(evt.score)">{{ evt.score }}</span>
+            <span v-if="evt.event_time" class="event-brief-time">{{ evt.event_time }}</span>
           </div>
-          <div class="col-meta">
-            <span class="meta-label">操作信号</span>
-            <span class="meta-value" :class="signalClass(swingRating)">{{ swingLabel }}</span>
+          <div class="event-more" v-if="selectedDayEvents.length > 2" @click="setTab('events')">
+            查看全部 {{ selectedDayEvents.length }} 个事件 →
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div class="rule-thin"></div>
+        <div class="rule-thin" v-if="topEvents.length > 0"></div>
 
-      <!-- 综合研判 -->
-      <section class="editorial-advice">
-        <div class="advice-label">综合研判</div>
-        <p class="advice-body">{{ advice }}</p>
-      </section>
+        <!-- 月度日历 -->
+        <section class="cal-table">
+          <MonthlyCalendarGrid
+            :dailyCalendar="dailyCalendar"
+            :todayDay="todayParts.day"
+            :month="displayDate.month"
+            :year="displayDate.year"
+            compact
+            @selectDay="onOverviewCalendarSelect"
+          />
+        </section>
 
-      <div class="rule-thin"></div>
-
-      <!-- 今日要事 -->
-      <section class="today-events" v-if="topEvents.length > 0">
-        <div class="section-label">今日要事</div>
-        <div v-for="evt in topEvents" :key="evt.event_key" class="event-brief">
-          <span class="event-brief-name">{{ evt.display_name }}</span>
-          <span class="event-brief-score" :class="scoreColor(evt.score)">{{ evt.score }}</span>
-          <span v-if="evt.event_time" class="event-brief-time">{{ evt.event_time }}</span>
-        </div>
-        <div class="event-more" v-if="selectedDayEvents.length > 2" @click="setTab('events')">
-          查看全部 {{ selectedDayEvents.length }} 个事件 →
-        </div>
-      </section>
-
-      <div class="rule-thin" v-if="topEvents.length > 0"></div>
-
-      <!-- 月度日历 -->
-      <section class="cal-table">
-        <MonthlyCalendarGrid
-          :dailyCalendar="dailyCalendar"
-          :todayDay="todayParts.day"
-          :month="displayDate.month"
-          :year="displayDate.year"
-          compact
-          @selectDay="onOverviewCalendarSelect"
-        />
-      </section>
-
-      <!-- 底部 -->
-      <footer class="editorial-footer">
-        <div class="footer-rule"></div>
-        <span>历史统计不代表未来表现 · 仅供参考，不构成投资建议</span>
-      </footer>
+        <!-- 底部 -->
+        <footer class="editorial-footer">
+          <div class="footer-rule"></div>
+          <span>历史统计不代表未来表现 · 仅供参考，不构成投资建议</span>
+        </footer>
+      </template>
     </div>
 
     <!-- ============================================ -->

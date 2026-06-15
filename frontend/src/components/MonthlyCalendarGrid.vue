@@ -221,32 +221,23 @@ function changeClass(pct: number): string {
 
 .calendar-wrapper .van-calendar__month { padding: 0; }
 
-// 日期格子：1px gap 网格线效果
+// 日期格子：网格线效果（用 box-shadow 模拟，不破坏 Vant 原生 flex 布局）
 .calendar-wrapper .van-calendar__days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  border: 1px solid $border;
-  border-right: none;
-  border-bottom: none;
+  border-top: 1px solid $border;
+  border-left: 1px solid $border;
 }
 
 .calendar-wrapper .van-calendar__day {
-  width: 100%;
-  box-sizing: border-box;
   border-radius: 0;
   background-clip: padding-box;
   background: $bg-card;
-  border-right: 1px solid $border;
-  border-bottom: 1px solid $border;
+  box-shadow: inset -1px -1px 0 0 $border;
 }
 
 .calendar-wrapper .van-calendar__day--selected {
   background: $bg-card !important;
   border-radius: 0;
   color: $text-primary;
-  box-shadow: none;
-  border-right: 1px solid $border;
-  border-bottom: 1px solid $border;
 }
 
 .calendar-wrapper .van-calendar__selected-day {

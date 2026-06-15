@@ -508,7 +508,7 @@ function onOverviewCalendarSelect(dateStr: string) {
 // === 头条 ===
 .headline {
   text-align: center;
-  padding: $space-xl 0 $space-xl - 4;
+  padding: $space-xl 0 $space-lg-xl;
 }
 
 .hl-label {
@@ -572,7 +572,7 @@ function onOverviewCalendarSelect(dateStr: string) {
 .data-columns {
   display: flex;
   align-items: stretch;
-  padding: $space-xl - 4 0;
+  padding: $space-lg-xl 0;
 }
 
 .data-col {
@@ -626,7 +626,7 @@ function onOverviewCalendarSelect(dateStr: string) {
 
 // === 综合研判 ===
 .editorial-advice {
-  padding: $space-xl - 4 $space-sm;
+  padding: $space-lg-xl $space-sm;
 }
 
 .advice-label {
@@ -704,7 +704,7 @@ function onOverviewCalendarSelect(dateStr: string) {
 
 // === 日历 ===
 .cal-table {
-  padding: $space-xl - 4 0 0;
+  padding: $space-lg-xl 0 0;
 }
 
 // === 底部 ===

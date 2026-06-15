@@ -54,17 +54,6 @@
   font-feature-settings: 'tnum';
 }
 
-// === 评分颜色 ===
-@mixin score-color($rating) {
-  @if $rating >= 6 {
-    color: $color-up;
-  } @else if $rating >= 4 {
-    color: $color-neutral;
-  } @else {
-    color: $color-down;
-  }
-}
-
 // === 进度条 ===
 @mixin progress-track {
   height: 4px;
@@ -79,58 +68,9 @@
   transition: width $duration-normal $ease-out;
 }
 
-// === 按钮 ===
-@mixin btn-filled {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 46px;
-  background: $text-primary;
-  color: $text-inverse;
-  border: none;
-  border-radius: $radius-sm;
-  font-family: $font-sans;
-  font-size: $text-md;
-  font-weight: $weight-bold;
-  letter-spacing: 2px;
-  cursor: pointer;
-  transition: transform $duration-fast $ease-out;
-
-  &:active {
-    transform: scale(0.97);
-  }
-}
-
-@mixin btn-outline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 46px;
-  background: transparent;
-  color: $text-primary;
-  border: 1.5px solid $text-primary;
-  border-radius: $radius-sm;
-  font-family: $font-sans;
-  font-size: $text-md;
-  font-weight: $weight-semibold;
-  letter-spacing: 2px;
-  cursor: pointer;
-  transition: transform $duration-fast $ease-out;
-
-  &:active {
-    transform: scale(0.97);
-    background: $bg-muted;
-  }
-}
-
 // === 入场动画 ===
 @mixin anim-rise($delay: 0s) {
   animation: rise-in 0.5s ease both;
-  animation-delay: $delay;
-}
-
-@mixin anim-fade($delay: 0s) {
-  animation: fade-in 0.5s ease both;
   animation-delay: $delay;
 }
 
@@ -145,7 +85,3 @@
   }
 }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}

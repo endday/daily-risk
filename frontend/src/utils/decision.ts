@@ -30,11 +30,12 @@ export interface Recommendation {
 
 /**
  * 推荐最佳操作日期
- * @param intent - 'buy' 推荐评分最高的日期, 'sell' 推荐评分最低的日期
- * @param range - 时间范围: '3d'(3个交易日) | '7d'(7个交易日) | 'month'(本月剩余)
- * @param dailyCalendar - 当月每日统计数据
- * @param selectedDate - 当前选中日期 YYYY-MM-DD（用于确定年月上下文）
- * @returns 推荐结果，范围内无有效数据时返回 null
+ *
+ * T+1 逻辑：
+ * - 买入：今天买 → 明天才能卖 → 推荐"下一个交易日评分最高"的买入日
+ *   （买入日的下一天涨，才能赚钱出来）
+ * - 卖出：今天卖 → 今天成交 → 推荐"下一个交易日评分最低"的卖出日
+ *   （明天要跌，今天赶紧跑）
  */
 export function recommend(
   intent: Intent,
@@ -49,27 +50,67 @@ export function recommend(
 
   if (candidates.length === 0) return null
 
-  // 排序：买入取最高 rating，卖出取最低 rating
-  const sorted = [...candidates].sort((a, b) =>
-    intent === 'buy'
-      ? (b.rating ?? 0) - (a.rating ?? 0)
-      : (a.rating ?? 0) - (b.rating ?? 0)
-  )
+  // 构建 day → stat 映射，方便查找下一天
+  const statByDay = new Map<number, CalendarDayStat>()
+  for (const stat of dailyCalendar) {
+    statByDay.set(stat.day, stat)
+  }
 
-  const best = sorted[0]
-  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(best.day).padStart(2, '0')}`
-  const weekday = new Date(Date.UTC(year, month - 1, best.day)).getUTCDay()
+  // 为每个候选日找到下一个交易日的评分
+  const scored = candidates.map(c => {
+    const nextDay = findNextTradingDay(c.day, statByDay, year, month)
+    return { candidate: c, nextDay }
+  })
+
+  // 买入：选下一天评分最高的（买入后明天涨）
+  // 卖出：选下一天评分最低的（明天要跌，今天赶紧卖）
+  scored.sort((a, b) => {
+    const aRating = a.nextDay?.rating ?? 5
+    const bRating = b.nextDay?.rating ?? 5
+    return intent === 'buy'
+      ? bRating - aRating
+      : aRating - bRating
+  })
+
+  const best = scored[0]
+  const stat = best.candidate
+  const nextStat = best.nextDay
+
+  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(stat.day).padStart(2, '0')}`
+  const weekday = new Date(Date.UTC(year, month - 1, stat.day)).getUTCDay()
 
   return {
     date: dateStr,
-    dayLabel: `${month}月${best.day}日 ${WEEKDAYS_SHORT[weekday]}`,
-    rating: best.rating ?? 0,
-    upProbability: best.up_probability,
-    avgChange: best.avg_change_pct,
-    sampleCount: best.sample_count,
-    reasons: generateReasons(intent, best),
-    caveats: generateCaveats(intent, best, candidates),
+    dayLabel: `${month}月${stat.day}日 ${WEEKDAYS_SHORT[weekday]}`,
+    rating: nextStat?.rating ?? stat.rating ?? 0,
+    upProbability: nextStat?.up_probability ?? stat.up_probability,
+    avgChange: nextStat?.avg_change_pct ?? stat.avg_change_pct,
+    sampleCount: nextStat?.sample_count ?? stat.sample_count,
+    reasons: generateReasons(intent, stat, nextStat),
+    caveats: generateCaveats(intent, stat, nextStat, candidates),
   }
+}
+
+/**
+ * 查找给定日期之后的下一个交易日（跳过周末）
+ */
+function findNextTradingDay(
+  currentDay: number,
+  statByDay: Map<number, CalendarDayStat>,
+  year: number,
+  month: number,
+): CalendarDayStat | null {
+  let d = currentDay + 1
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
+
+  while (d <= daysInMonth) {
+    const dow = new Date(Date.UTC(year, month - 1, d)).getUTCDay()
+    if (dow !== 0 && dow !== 6) {
+      return statByDay.get(d) ?? null
+    }
+    d++
+  }
+  return null // 月末，无下一个交易日
 }
 
 // ============================================
@@ -118,93 +159,102 @@ function filterCandidates(
 
 /**
  * 根据意图和推荐日期数据生成支持论据
+ * T+1 话术：
+ * - 买入：强调"买入后次日"的数据（明天涨才能赚）
+ * - 卖出：强调"次日下跌风险"（明天要跌，今天赶紧跑）
  */
-function generateReasons(intent: Intent, stat: CalendarDayStat): string[] {
+function generateReasons(
+  intent: Intent,
+  stat: CalendarDayStat,
+  nextStat: CalendarDayStat | null,
+): string[] {
   const reasons: string[] = []
-  const rating = stat.rating ?? 0
-  const prob = stat.up_probability
-  const avg = stat.avg_change_pct
 
-  if (intent === 'buy') {
-    // 评分信号
-    if (rating >= 7) {
-      reasons.push(`短线强买信号，评分 ${rating.toFixed(1)}`)
-    } else if (rating >= 5) {
-      reasons.push(`短线买入信号，评分 ${rating.toFixed(1)}`)
+  if (intent === 'buy' && nextStat) {
+    // 买入论据：围绕"买入次日"的数据
+    const nextRating = nextStat.rating ?? 0
+    const nextProb = nextStat.up_probability
+    const nextAvg = nextStat.avg_change_pct
+
+    if (nextRating >= 7) {
+      reasons.push(`买入次日评分 ${nextRating.toFixed(1)}，历史强利好`)
+    } else if (nextRating >= 5) {
+      reasons.push(`买入次日评分 ${nextRating.toFixed(1)}，偏多`)
     }
 
-    // 历史概率
-    if (prob > 0.6) {
-      reasons.push(`近20年该日上涨概率 ${pct(prob)}`)
-    } else if (prob > 0.5) {
-      reasons.push(`近20年该日上涨概率 ${pct(prob)}，略高于均值`)
+    if (nextProb > 0.6) {
+      reasons.push(`次日上涨概率 ${pct(nextProb)}，T+1 获利概率大`)
+    } else if (nextProb > 0.5) {
+      reasons.push(`次日上涨概率 ${pct(nextProb)}`)
     }
 
-    // 历史涨幅
-    if (avg > 0.003) {
-      reasons.push(`历史平均涨幅 +${pct(avg)}`)
-    } else if (avg > 0) {
-      reasons.push(`历史平均涨幅 +${pct(avg)}`)
+    if (nextAvg > 0.003) {
+      reasons.push(`次日历史平均涨幅 +${pct(nextAvg)}`)
+    } else if (nextAvg > 0) {
+      reasons.push(`次日历史平均涨幅 +${pct(nextAvg)}`)
     }
 
-    // 样本量
-    if (stat.sample_count >= 15) {
-      reasons.push(`样本充足（n=${stat.sample_count}），统计可信`)
+    if (nextStat.sample_count >= 15) {
+      reasons.push(`样本充足（n=${nextStat.sample_count}），统计可信`)
     }
-  } else {
-    // 卖出论据
-    if (rating < 3) {
-      reasons.push(`短线谨慎信号，评分仅 ${rating.toFixed(1)}`)
-    } else if (rating < 5) {
-      reasons.push(`短线偏弱，评分 ${rating.toFixed(1)}`)
+  } else if (intent === 'sell' && nextStat) {
+    // 卖出论据：围绕"次日下跌风险"
+    const nextRating = nextStat.rating ?? 0
+    const nextProb = nextStat.up_probability
+    const nextAvg = nextStat.avg_change_pct
+
+    if (nextRating < 3) {
+      reasons.push(`次日评分仅 ${nextRating.toFixed(1)}，下跌风险大，适合今日离场`)
+    } else if (nextRating < 5) {
+      reasons.push(`次日评分 ${nextRating.toFixed(1)}，偏弱，今日卖出可规避`)
     }
 
-    if (prob < 0.4) {
-      reasons.push(`近20年该日上涨概率仅 ${pct(prob)}`)
-    } else if (prob < 0.5) {
-      reasons.push(`近20年该日上涨概率 ${pct(prob)}，低于均值`)
+    if (nextProb < 0.4) {
+      reasons.push(`次日上涨概率仅 ${pct(nextProb)}，持有风险大`)
+    } else if (nextProb < 0.5) {
+      reasons.push(`次日上涨概率 ${pct(nextProb)}，低于均值`)
     }
 
-    if (avg < -0.003) {
-      reasons.push(`历史平均跌幅 ${pct(avg)}`)
-    } else if (avg < 0) {
-      reasons.push(`历史平均跌幅 ${pct(avg)}`)
+    if (nextAvg < -0.003) {
+      reasons.push(`次日历史平均跌幅 ${pct(nextAvg)}`)
+    } else if (nextAvg < 0) {
+      reasons.push(`次日历史平均跌幅 ${pct(nextAvg)}`)
     }
 
-    if (stat.sample_count >= 15) {
-      reasons.push(`样本充足（n=${stat.sample_count}），统计可信`)
+    if (nextStat.sample_count >= 15) {
+      reasons.push(`样本充足（n=${nextStat.sample_count}），统计可信`)
     }
   }
 
-  // 兜底：如果论据为空，给一个通用说明
+  // 兜底
   if (reasons.length === 0) {
+    const r = nextStat?.rating ?? stat.rating ?? 0
     reasons.push(intent === 'buy'
-      ? `该日评分 ${rating.toFixed(1)}，在范围内相对最优`
-      : `该日评分 ${rating.toFixed(1)}，在范围内风险最低`)
+      ? `该日次日评分 ${r.toFixed(1)}，在范围内相对最优`
+      : `该日次日评分 ${r.toFixed(1)}，在范围内风险最大，适合提前离场`)
   }
 
   return reasons
 }
 
 /**
- * 生成反面提醒（折叠区内容）
+ * 生成反面提醒
  */
 function generateCaveats(
   intent: Intent,
   stat: CalendarDayStat,
+  nextStat: CalendarDayStat | null,
   allCandidates: CalendarDayStat[],
 ): string[] {
   const caveats: string[] = []
-  const prob = stat.up_probability
 
-  if (intent === 'buy') {
-    // 买入时提醒下跌可能性
-    const downProb = 1 - prob
+  if (intent === 'buy' && nextStat) {
+    const nextProb = nextStat.up_probability
+    const downProb = 1 - nextProb
     if (downProb > 0.3) {
-      caveats.push(`仍有 ${pct(downProb)} 的概率下跌，历史并非绝对`)
+      caveats.push(`次日仍有 ${pct(downProb)} 概率下跌，T+1 锁仓风险`)
     }
 
-    // 候选中是否有波动更大的日期
     const maxVolatility = allCandidates.reduce(
       (max, c) => Math.max(max, Math.abs(c.avg_change_pct)), 0
     )
@@ -212,20 +262,16 @@ function generateCaveats(
       caveats.push('近期市场波动较大，注意控制仓位')
     }
 
-    // 通用提醒
+    caveats.push('A 股 T+1，买入当天无法卖出，需承受隔夜风险')
+    caveats.push('历史统计基于近20年数据，不代表未来表现')
+  } else if (intent === 'sell' && nextStat) {
+    const nextProb = nextStat.up_probability
+    if (nextProb > 0.45) {
+      caveats.push(`次日仍有 ${pct(nextProb)} 上涨概率，卖出可能踏空`)
+    }
+
     caveats.push('历史统计基于近20年数据，不代表未来表现')
   } else {
-    // 卖出时提醒可能错过涨幅
-    if (prob > 0.4) {
-      caveats.push(`该日仍有 ${pct(prob)} 的上涨概率，卖出可能踏空`)
-    }
-
-    // 候选中是否有评分更高的日期（说明不是最差时机）
-    const higherDays = allCandidates.filter(c => (c.rating ?? 0) > (stat.rating ?? 0))
-    if (higherDays.length > 0) {
-      caveats.push(`范围内还有 ${higherDays.length} 个交易日评分更高，并非最差选择`)
-    }
-
     caveats.push('历史统计基于近20年数据，不代表未来表现')
   }
 

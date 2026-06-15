@@ -6,8 +6,8 @@
  * - index.html: Network-first
  */
 
-const CACHE_NAME = 'daily-risk-v1'
-const API_CACHE_NAME = 'daily-risk-api-v1'
+const CACHE_NAME = 'daily-risk-v2'
+const API_CACHE_NAME = 'daily-risk-api-v2'
 const API_CACHE_TTL = 5 * 60 * 1000 // 5 minutes (stale-while-revalidate window)
 const API_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000 // 7 days (max offline fallback age)
 

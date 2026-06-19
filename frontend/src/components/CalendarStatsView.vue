@@ -2,10 +2,8 @@
 import { computed, ref } from 'vue'
 import type { CalendarEffects } from '../services/api'
 import { formatPct, ratingClass, probColorClass, heatmapClass } from '../utils/display'
-import { dateShort } from '../../../shared/date-utils'
 import CalendarBanner from './CalendarBanner.vue'
 import MonthlyCalendarGrid from './MonthlyCalendarGrid.vue'
-import AlmanacCard from './AlmanacCard.vue'
 
 const props = defineProps<{
   calendarEffects: CalendarEffects
@@ -124,26 +122,12 @@ function getIndexData(idxCode: string) {
   return props.calendarEffects.indices_monthly[idxCode as keyof typeof props.calendarEffects.indices_monthly] ?? null
 }
 
-// 明日日期简写
-const nextDayShort = computed(() => {
-  const nd = props.calendarEffects.next_trading_day
-  if (!nd?.date) return ''
-  return dateShort(nd.date)
-})
-
 </script>
 
 <template>
   <div class="stats-view">
     <!-- 横幅 -->
     <CalendarBanner :banner="calendarEffects.active_banner" />
-
-    <!-- 黄历卡片 -->
-    <AlmanacCard
-      :almanacByIndex="calendarEffects.almanac_by_index"
-      :nextMonthName="monthNames[dateParts.month % 12 + 1]"
-      :nextDayShort="nextDayShort"
-    />
 
     <!-- 月度日历 -->
     <div class="card">

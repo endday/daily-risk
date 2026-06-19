@@ -3,12 +3,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchEventsByDate, fetchMarketTemperature } from '../services/api'
 import { getToday, getMonday, offsetDate, dateLabel, dateShort, formatDateParts, WEEKDAYS } from '../../../shared/date-utils'
-import { formatPct, formatScore, signalClass, scoreColor } from '../utils/display'
+import { signalClass, scoreColor } from '../utils/display'
 import type { CalendarEffects, RiskEvent, MarketTemperatureResponse } from '../services/api'
 import CalendarStatsView from '../components/CalendarStatsView.vue'
-import MonthlyCalendarGrid from '../components/MonthlyCalendarGrid.vue'
 import DecisionPanel from '../components/DecisionPanel.vue'
 import MarketPulse from '../components/MarketPulse.vue'
+import AlmanacCard from '../components/AlmanacCard.vue'
 
 // ============================================
 // 共享状态
@@ -18,7 +18,6 @@ const route = useRoute()
 const router = useRouter()
 
 const today = getToday()
-const todayParts = formatDateParts(today)
 
 // masthead 日期跟随 selectedDate
 const displayDate = computed(() => formatDateParts(selectedDate.value))
@@ -48,7 +47,6 @@ const dateCalendarMap = ref<Record<string, CalendarEffects | null>>({})
 const selectedDate = ref(today)
 const loadingDay = ref(false)
 const lastCalendar = ref<CalendarEffects | null>(null)
-const decisionActive = ref(false)
 
 // 假日表（key: date, value: HolidayEntry）
 const holidayMap = ref<Record<string, { name: string; is_trading_day: boolean }>>({})
@@ -108,22 +106,16 @@ const calendar = computed(() => dateCalendarMap.value[selectedDate.value] ?? nul
 const shortRating = computed(() => calendar.value?.almanac?.short_term?.rating ?? null)
 const shortLabel = computed(() => calendar.value?.almanac?.short_term?.signal?.label ?? '--')
 const shortDesc = computed(() => calendar.value?.almanac?.short_term?.signal?.description ?? '--')
-const swingRating = computed(() => calendar.value?.almanac?.swing?.rating ?? null)
-const swingLabel = computed(() => calendar.value?.almanac?.swing?.signal?.label ?? '--')
-const advice = computed(() => calendar.value?.almanac?.advice ?? '--')
 
 const dailyCalendar = computed(() => calendar.value?.daily_calendar ?? [])
 
-const nextMonthProb = computed(() => {
-  const ce = calendar.value
-  if (!ce) return null
-  const idxData = ce.almanac_by_index?.['000001']
-  if (idxData?.next_month_prob !== undefined) return idxData.next_month_prob
-  const curMonth = displayDate.value.month
-  const nextMonthNum = curMonth === 12 ? 1 : curMonth + 1
-  const nextMonthStat = ce.all_months?.find(m => m.month === nextMonthNum)
-  if (nextMonthStat?.up_probability !== undefined) return nextMonthStat.up_probability
-  return null
+// AlmanacCard 需要的 props
+const monthNames = ['', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+const nextMonthName = computed(() => monthNames[displayDate.value.month % 12 + 1])
+const nextDayShort = computed(() => {
+  const nd = calendar.value?.next_trading_day
+  if (!nd?.date) return ''
+  return dateShort(nd.date)
 })
 
 // 概览：选中日期事件摘要（取前 2 条最重要的）
@@ -176,13 +168,6 @@ function goToday() {
 const selectedEvents = computed(() => dateEventsMap.value[selectedDate.value] || [])
 const selectedRisk = computed(() => dateRiskMap.value[selectedDate.value] || 0)
 const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value] ?? lastCalendar.value)
-
-// 概览日历点击 → 切到事件 Tab 并选中该日期
-function onOverviewCalendarSelect(dateStr: string) {
-  baseMonday.value = getMonday(dateStr)
-  selectDate(dateStr)
-  setTab('events')
-}
 </script>
 
 <template>
@@ -235,50 +220,23 @@ function onOverviewCalendarSelect(dateStr: string) {
 
       <div class="rule-thin"></div>
 
-      <!-- 买/卖决策面板（内容流中，不 sticky） -->
+      <!-- 买/卖决策面板（就地展开，不遮挡其他内容） -->
       <DecisionPanel
         :dailyCalendar="dailyCalendar"
         :calendar="calendar"
         :events="selectedDayEvents"
         :today="today"
         :selectedDate="selectedDate"
-        @activate="decisionActive = $event"
       />
 
-      <!-- 决策未激活时显示原有概览内容 -->
-      <template v-if="!decisionActive">
-        <div class="rule-thin"></div>
+      <div class="rule-thin"></div>
 
-        <!-- 市场体温 -->
+      <!-- 市场体温 -->
         <MarketPulse
           v-if="temperature"
           :derived="temperature.derived"
           :latest="temperature.latest"
         />
-
-        <!-- 波段数据 -->
-        <section class="data-columns data-columns--single">
-          <div class="data-col">
-            <div class="col-head">波段 · {{ displayDate.month + 1 > 12 ? 1 : displayDate.month + 1 }}月</div>
-            <div class="col-score" :class="signalClass(swingRating)">{{ formatScore(swingRating) }}</div>
-            <div class="col-meta">
-              <span class="meta-label">上涨概率</span>
-              <span class="meta-value" :class="signalClass(swingRating)">{{ formatPct(nextMonthProb) }}</span>
-            </div>
-            <div class="col-meta">
-              <span class="meta-label">操作信号</span>
-              <span class="meta-value" :class="signalClass(swingRating)">{{ swingLabel }}</span>
-            </div>
-          </div>
-        </section>
-
-        <div class="rule-thin"></div>
-
-        <!-- 综合研判 -->
-        <section class="editorial-advice">
-          <div class="advice-label">综合研判</div>
-          <p class="advice-body">{{ advice }}</p>
-        </section>
 
         <div class="rule-thin"></div>
 
@@ -297,25 +255,19 @@ function onOverviewCalendarSelect(dateStr: string) {
 
         <div class="rule-thin" v-if="topEvents.length > 0"></div>
 
-        <!-- 月度日历 -->
-        <section class="cal-table">
-          <MonthlyCalendarGrid
-            :dailyCalendar="dailyCalendar"
-            :todayDay="todayParts.day"
-            :month="displayDate.month"
-            :year="displayDate.year"
-            :holidays="holidayMap"
-            compact
-            @selectDay="onOverviewCalendarSelect"
-          />
-        </section>
+        <!-- 三指数黄历 -->
+        <AlmanacCard
+          v-if="calendar?.almanac_by_index"
+          :almanacByIndex="calendar.almanac_by_index"
+          :nextMonthName="nextMonthName"
+          :nextDayShort="nextDayShort"
+        />
 
-        <!-- 底部 -->
-        <footer class="editorial-footer">
-          <div class="footer-rule"></div>
-          <span>历史统计不代表未来表现 · 仅供参考，不构成投资建议</span>
-        </footer>
-      </template>
+      <!-- 底部 -->
+      <footer class="editorial-footer">
+        <div class="footer-rule"></div>
+        <span>历史统计不代表未来表现 · 仅供参考，不构成投资建议</span>
+      </footer>
     </div>
 
     <!-- ============================================ -->
@@ -404,7 +356,7 @@ function onOverviewCalendarSelect(dateStr: string) {
 
     <!-- 底部 Tab 栏 -->
     <nav class="bottom-tab-bar">
-      <div class="bottom-tab" :class="{ active: activeTab === 'overview' }" @click="setTab('overview')">概览</div>
+      <div class="bottom-tab" :class="{ active: activeTab === 'overview' }" @click="setTab('overview')">今日</div>
       <div class="bottom-tab" :class="{ active: activeTab === 'events' }" @click="setTab('events')">
         事件
         <span v-if="selectedDayEvents.length" class="tab-badge">{{ selectedDayEvents.length }}</span>
@@ -556,82 +508,6 @@ function onOverviewCalendarSelect(dateStr: string) {
   margin: 0;
 }
 
-// === 波段数据 ===
-.data-columns {
-  display: flex;
-  align-items: stretch;
-  padding: $space-lg-xl 0;
-
-  &--single {
-    justify-content: center;
-
-    .data-col {
-      max-width: 200px;
-    }
-  }
-}
-
-.data-col {
-  flex: 1;
-  text-align: center;
-}
-
-.col-head {
-  @include editorial-label;
-  margin-bottom: $space-sm;
-}
-
-.col-score {
-  font-size: $text-3xl;
-  font-weight: $weight-bold + 100;
-  line-height: 1;
-  margin-bottom: $space-md;
-
-  &.bullish { color: $color-up; }
-  &.neutral { color: $color-neutral; }
-  &.bearish { color: $color-down; }
-}
-
-.col-meta {
-  display: flex;
-  justify-content: space-between;
-  padding: $space-xs $space-md;
-  font-size: $text-sm;
-  font-family: $font-sans;
-}
-
-.meta-label {
-  color: $text-secondary;
-}
-
-.meta-value {
-  font-weight: $weight-semibold;
-  color: $text-primary;
-  @include tabular-nums;
-
-  &.bullish { color: $color-up; }
-  &.neutral { color: $color-neutral; }
-  &.bearish { color: $color-down; }
-}
-
-// === 综合研判 ===
-.editorial-advice {
-  padding: $space-lg-xl $space-sm;
-}
-
-.advice-label {
-  @include editorial-label;
-  margin-bottom: $space-sm;
-}
-
-.advice-body {
-  font-size: 15px;
-  line-height: $leading-article;
-  color: $text-primary;
-  margin: 0;
-  text-indent: 2em;
-}
-
 // === 今日要事 ===
 .today-events {
   padding: $space-lg 0;
@@ -690,11 +566,6 @@ function onOverviewCalendarSelect(dateStr: string) {
   font-weight: $weight-medium;
 
   &:active { opacity: 0.6; }
-}
-
-// === 日历 ===
-.cal-table {
-  padding: $space-lg-xl 0 0;
 }
 
 // === 底部 ===

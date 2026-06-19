@@ -12,10 +12,6 @@ const props = defineProps<{
   selectedDate: string
 }>()
 
-const emit = defineEmits<{
-  activate: [active: boolean]
-}>()
-
 // ============================================
 // 状态
 // ============================================
@@ -48,12 +44,10 @@ function setIntent(intent: Intent) {
     return
   }
   activeIntent.value = intent
-  emit('activate', true)
 }
 
 function closeDecision() {
   activeIntent.value = null
-  emit('activate', false)
 }
 
 function setRange(range: DateRange) {
@@ -109,7 +103,7 @@ const recRatingClass = computed(() => {
           @click="setIntent('sell')"
         >我想卖</button>
       </div>
-      <button class="close-btn" @click="closeDecision">返回概览</button>
+      <button class="close-btn" @click="closeDecision">收起</button>
     </div>
 
     <!-- 时间范围 chips -->

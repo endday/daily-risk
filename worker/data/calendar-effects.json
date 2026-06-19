@@ -1,6 +1,6 @@
 {
   "version": "2026",
-  "updated_at": "2026-06-09",
+  "updated_at": "2026-06-19",
   "description": "A股日历效应统计数据，用于风险榜辅助展示",
   "disclaimer": "历史统计不代表未来表现，仅供参考",
   "indices": [
@@ -8,22 +8,29 @@
       "code": "000001",
       "name": "上证指数",
       "years": 21,
-      "data_start": "2006-06-16",
-      "data_end": "2026-06-09"
+      "data_start": "2006-06-27",
+      "data_end": "2026-06-18"
     },
     {
       "code": "000300",
       "name": "沪深300",
       "years": 21,
-      "data_start": "2006-06-16",
-      "data_end": "2026-06-09"
+      "data_start": "2006-06-27",
+      "data_end": "2026-06-18"
     },
     {
       "code": "000905",
       "name": "中证500",
       "years": 21,
-      "data_start": "2006-06-16",
-      "data_end": "2026-06-09"
+      "data_start": "2006-06-27",
+      "data_end": "2026-06-18"
+    },
+    {
+      "code": "399006",
+      "name": "创业板指",
+      "years": 17,
+      "data_start": "2010-06-02",
+      "data_end": "2026-06-18"
     }
   ],
   "monthly": {
@@ -189,27 +196,27 @@
         {
           "month": 6,
           "sample_count": 401,
-          "up_count": 208,
-          "up_probability": 0.5187,
-          "avg_change_pct": -0.09,
-          "median_change_pct": 0.04,
+          "up_count": 205,
+          "up_probability": 0.5112,
+          "avg_change_pct": -0.1,
+          "median_change_pct": 0.03,
           "max_gain_pct": 5.53,
           "max_loss_pct": -8.26,
-          "volatility": 7.71,
+          "volatility": 7.43,
           "decay": {
             "recent_5y": {
-              "up_probability": 0.5402,
-              "avg_change_pct": 0.05,
-              "sample_count": 87
+              "up_probability": 0.5319,
+              "avg_change_pct": 0.06,
+              "sample_count": 94
             },
             "recent_10y": {
-              "up_probability": 0.545,
-              "avg_change_pct": 0.03,
-              "sample_count": 189
+              "up_probability": 0.5408,
+              "avg_change_pct": 0.04,
+              "sample_count": 196
             }
           },
           "streaks": {
-            "avg_up_streak": 1.9,
+            "avg_up_streak": 1.8,
             "avg_down_streak": 1.8,
             "max_up_streak": 7,
             "max_down_streak": 8
@@ -567,23 +574,23 @@
         {
           "month": 6,
           "sample_count": 401,
-          "up_count": 203,
-          "up_probability": 0.5062,
-          "avg_change_pct": -0.06,
+          "up_count": 202,
+          "up_probability": 0.5037,
+          "avg_change_pct": -0.07,
           "median_change_pct": 0.01,
           "max_gain_pct": 6.71,
           "max_loss_pct": -8.11,
-          "volatility": 8.79,
+          "volatility": 8.58,
           "decay": {
             "recent_5y": {
-              "up_probability": 0.5287,
-              "avg_change_pct": 0.09,
-              "sample_count": 87
+              "up_probability": 0.5319,
+              "avg_change_pct": 0.12,
+              "sample_count": 94
             },
             "recent_10y": {
-              "up_probability": 0.5397,
-              "avg_change_pct": 0.08,
-              "sample_count": 189
+              "up_probability": 0.5408,
+              "avg_change_pct": 0.1,
+              "sample_count": 196
             }
           },
           "streaks": {
@@ -945,23 +952,23 @@
         {
           "month": 6,
           "sample_count": 401,
-          "up_count": 207,
-          "up_probability": 0.5162,
+          "up_count": 206,
+          "up_probability": 0.5137,
           "avg_change_pct": -0.14,
           "median_change_pct": 0.06,
           "max_gain_pct": 5.75,
           "max_loss_pct": -8.74,
-          "volatility": 9.56,
+          "volatility": 9.34,
           "decay": {
             "recent_5y": {
-              "up_probability": 0.5402,
-              "avg_change_pct": 0.02,
-              "sample_count": 87
+              "up_probability": 0.5532,
+              "avg_change_pct": 0.08,
+              "sample_count": 94
             },
             "recent_10y": {
-              "up_probability": 0.545,
-              "avg_change_pct": 0.04,
-              "sample_count": 189
+              "up_probability": 0.551,
+              "avg_change_pct": 0.07,
+              "sample_count": 196
             }
           },
           "streaks": {
@@ -1158,6 +1165,384 @@
           },
           "label": null,
           "confidence": 2
+        }
+      ]
+    },
+    "399006": {
+      "name": "创业板指",
+      "years": 17,
+      "data": [
+        {
+          "month": 1,
+          "sample_count": 309,
+          "up_count": 156,
+          "up_probability": 0.5049,
+          "avg_change_pct": -0.09,
+          "median_change_pct": 0.02,
+          "max_gain_pct": 5.59,
+          "max_loss_pct": -8.58,
+          "volatility": 12.05,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.4842,
+              "avg_change_pct": -0.21,
+              "sample_count": 95
+            },
+            "recent_10y": {
+              "up_probability": 0.4819,
+              "avg_change_pct": -0.07,
+              "sample_count": 193
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 1.9,
+            "avg_down_streak": 1.8,
+            "max_up_streak": 4,
+            "max_down_streak": 8
+          },
+          "label": null,
+          "confidence": 1
+        },
+        {
+          "month": 2,
+          "sample_count": 264,
+          "up_count": 148,
+          "up_probability": 0.5606,
+          "avg_change_pct": 0.28,
+          "median_change_pct": 0.31,
+          "max_gain_pct": 6.71,
+          "max_loss_pct": -7.56,
+          "volatility": 8.62,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.4699,
+              "avg_change_pct": 0.14,
+              "sample_count": 83
+            },
+            "recent_10y": {
+              "up_probability": 0.5361,
+              "avg_change_pct": 0.24,
+              "sample_count": 166
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 2.0,
+            "avg_down_streak": 1.6,
+            "max_up_streak": 6,
+            "max_down_streak": 7
+          },
+          "label": "春季躁动",
+          "confidence": 3
+        },
+        {
+          "month": 3,
+          "sample_count": 353,
+          "up_count": 170,
+          "up_probability": 0.4816,
+          "avg_change_pct": 0.01,
+          "median_change_pct": -0.08,
+          "max_gain_pct": 5.55,
+          "max_loss_pct": -5.9,
+          "volatility": 9.23,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.4455,
+              "avg_change_pct": -0.13,
+              "sample_count": 110
+            },
+            "recent_10y": {
+              "up_probability": 0.4842,
+              "avg_change_pct": -0.05,
+              "sample_count": 221
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 1.8,
+            "avg_down_streak": 2.0,
+            "max_up_streak": 7,
+            "max_down_streak": 10
+          },
+          "label": "两会震荡",
+          "confidence": 1
+        },
+        {
+          "month": 4,
+          "sample_count": 315,
+          "up_count": 155,
+          "up_probability": 0.4921,
+          "avg_change_pct": 0.04,
+          "median_change_pct": -0.02,
+          "max_gain_pct": 5.91,
+          "max_loss_pct": -12.5,
+          "volatility": 9.3,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.44,
+              "avg_change_pct": -0.05,
+              "sample_count": 100
+            },
+            "recent_10y": {
+              "up_probability": 0.4724,
+              "avg_change_pct": 0.02,
+              "sample_count": 199
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 1.7,
+            "avg_down_streak": 2.0,
+            "max_up_streak": 5,
+            "max_down_streak": 6
+          },
+          "label": "财报雷期",
+          "confidence": 1
+        },
+        {
+          "month": 5,
+          "sample_count": 320,
+          "up_count": 161,
+          "up_probability": 0.5031,
+          "avg_change_pct": 0.14,
+          "median_change_pct": 0.02,
+          "max_gain_pct": 5.97,
+          "max_loss_pct": -7.94,
+          "volatility": 8.83,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.4792,
+              "avg_change_pct": 0.08,
+              "sample_count": 96
+            },
+            "recent_10y": {
+              "up_probability": 0.4742,
+              "avg_change_pct": -0.0,
+              "sample_count": 194
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 1.8,
+            "avg_down_streak": 1.8,
+            "max_up_streak": 6,
+            "max_down_streak": 6
+          },
+          "label": null,
+          "confidence": 1
+        },
+        {
+          "month": 6,
+          "sample_count": 333,
+          "up_count": 178,
+          "up_probability": 0.5345,
+          "avg_change_pct": 0.07,
+          "median_change_pct": 0.15,
+          "max_gain_pct": 6.28,
+          "max_loss_pct": -8.91,
+          "volatility": 8.64,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.5638,
+              "avg_change_pct": 0.25,
+              "sample_count": 94
+            },
+            "recent_10y": {
+              "up_probability": 0.551,
+              "avg_change_pct": 0.22,
+              "sample_count": 196
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 2.0,
+            "avg_down_streak": 1.9,
+            "max_up_streak": 9,
+            "max_down_streak": 5
+          },
+          "label": null,
+          "confidence": 2
+        },
+        {
+          "month": 7,
+          "sample_count": 354,
+          "up_count": 184,
+          "up_probability": 0.5198,
+          "avg_change_pct": 0.04,
+          "median_change_pct": 0.12,
+          "max_gain_pct": 5.95,
+          "max_loss_pct": -7.4,
+          "volatility": 7.08,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.4432,
+              "avg_change_pct": 0.05,
+              "sample_count": 88
+            },
+            "recent_10y": {
+              "up_probability": 0.5176,
+              "avg_change_pct": 0.08,
+              "sample_count": 199
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 2.1,
+            "avg_down_streak": 1.9,
+            "max_up_streak": 8,
+            "max_down_streak": 5
+          },
+          "label": "七翻身",
+          "confidence": 1
+        },
+        {
+          "month": 8,
+          "sample_count": 355,
+          "up_count": 175,
+          "up_probability": 0.493,
+          "avg_change_pct": 0.01,
+          "median_change_pct": -0.02,
+          "max_gain_pct": 6.26,
+          "max_loss_pct": -8.08,
+          "volatility": 9.45,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.427,
+              "avg_change_pct": 0.07,
+              "sample_count": 89
+            },
+            "recent_10y": {
+              "up_probability": 0.445,
+              "avg_change_pct": -0.01,
+              "sample_count": 200
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 1.9,
+            "avg_down_streak": 1.9,
+            "max_up_streak": 7,
+            "max_down_streak": 6
+          },
+          "label": null,
+          "confidence": 1
+        },
+        {
+          "month": 9,
+          "sample_count": 324,
+          "up_count": 164,
+          "up_probability": 0.5062,
+          "avg_change_pct": 0.09,
+          "median_change_pct": 0.04,
+          "max_gain_pct": 15.36,
+          "max_loss_pct": -7.49,
+          "volatility": 11.65,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.4756,
+              "avg_change_pct": 0.36,
+              "sample_count": 82
+            },
+            "recent_10y": {
+              "up_probability": 0.5054,
+              "avg_change_pct": 0.14,
+              "sample_count": 184
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 1.8,
+            "avg_down_streak": 1.8,
+            "max_up_streak": 6,
+            "max_down_streak": 6
+          },
+          "label": null,
+          "confidence": 1
+        },
+        {
+          "month": 10,
+          "sample_count": 272,
+          "up_count": 128,
+          "up_probability": 0.4706,
+          "avg_change_pct": 0.1,
+          "median_change_pct": -0.09,
+          "max_gain_pct": 17.25,
+          "max_loss_pct": -10.59,
+          "volatility": 7.0,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.4559,
+              "avg_change_pct": -0.02,
+              "sample_count": 68
+            },
+            "recent_10y": {
+              "up_probability": 0.4575,
+              "avg_change_pct": -0.01,
+              "sample_count": 153
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 1.9,
+            "avg_down_streak": 2.1,
+            "max_up_streak": 6,
+            "max_down_streak": 5
+          },
+          "label": "红十月",
+          "confidence": 2
+        },
+        {
+          "month": 11,
+          "sample_count": 343,
+          "up_count": 167,
+          "up_probability": 0.4869,
+          "avg_change_pct": 0.07,
+          "median_change_pct": -0.06,
+          "max_gain_pct": 6.38,
+          "max_loss_pct": -6.48,
+          "volatility": 6.16,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.4471,
+              "avg_change_pct": 0.01,
+              "sample_count": 85
+            },
+            "recent_10y": {
+              "up_probability": 0.4663,
+              "avg_change_pct": 0.02,
+              "sample_count": 193
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 1.8,
+            "avg_down_streak": 2.0,
+            "max_up_streak": 6,
+            "max_down_streak": 6
+          },
+          "label": null,
+          "confidence": 1
+        },
+        {
+          "month": 12,
+          "sample_count": 353,
+          "up_count": 176,
+          "up_probability": 0.4986,
+          "avg_change_pct": -0.03,
+          "median_change_pct": -0.0,
+          "max_gain_pct": 4.52,
+          "max_loss_pct": -8.26,
+          "volatility": 7.9,
+          "decay": {
+            "recent_5y": {
+              "up_probability": 0.4886,
+              "avg_change_pct": 0.0,
+              "sample_count": 88
+            },
+            "recent_10y": {
+              "up_probability": 0.5127,
+              "avg_change_pct": 0.04,
+              "sample_count": 197
+            }
+          },
+          "streaks": {
+            "avg_up_streak": 1.7,
+            "avg_down_streak": 1.8,
+            "max_up_streak": 6,
+            "max_down_streak": 6
+          },
+          "label": null,
+          "confidence": 1
         }
       ]
     }
@@ -2135,21 +2520,21 @@
           },
           {
             "day": 10,
-            "sample_count": 11,
-            "up_probability": 0.5455,
+            "sample_count": 12,
+            "up_probability": 0.5,
             "avg_change_pct": -0.42
           },
           {
             "day": 11,
-            "sample_count": 13,
-            "up_probability": 0.5385,
-            "avg_change_pct": 0.17
+            "sample_count": 14,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.14
           },
           {
             "day": 12,
-            "sample_count": 13,
-            "up_probability": 0.3846,
-            "avg_change_pct": -0.17
+            "sample_count": 14,
+            "up_probability": 0.4286,
+            "avg_change_pct": -0.08
           },
           {
             "day": 13,
@@ -2165,57 +2550,57 @@
           },
           {
             "day": 15,
-            "sample_count": 12,
-            "up_probability": 0.5833,
-            "avg_change_pct": -0.01
+            "sample_count": 13,
+            "up_probability": 0.6154,
+            "avg_change_pct": 0.12
           },
           {
             "day": 16,
             "sample_count": 13,
-            "up_probability": 0.4615,
-            "avg_change_pct": -0.15
+            "up_probability": 0.3846,
+            "avg_change_pct": -0.36
           },
           {
             "day": 17,
-            "sample_count": 14,
-            "up_probability": 0.5,
-            "avg_change_pct": -0.07
+            "sample_count": 15,
+            "up_probability": 0.5333,
+            "avg_change_pct": -0.04
           },
           {
             "day": 18,
-            "sample_count": 13,
-            "up_probability": 0.6923,
-            "avg_change_pct": 0.38
+            "sample_count": 14,
+            "up_probability": 0.6429,
+            "avg_change_pct": 0.32
           },
           {
             "day": 19,
-            "sample_count": 15,
-            "up_probability": 0.4,
-            "avg_change_pct": -1.12
+            "sample_count": 14,
+            "up_probability": 0.3571,
+            "avg_change_pct": -1.25
           },
           {
             "day": 20,
-            "sample_count": 15,
-            "up_probability": 0.4,
-            "avg_change_pct": -0.05
+            "sample_count": 14,
+            "up_probability": 0.3571,
+            "avg_change_pct": -0.09
           },
           {
             "day": 21,
-            "sample_count": 14,
-            "up_probability": 0.5,
-            "avg_change_pct": 0.08
+            "sample_count": 13,
+            "up_probability": 0.4615,
+            "avg_change_pct": 0.06
           },
           {
             "day": 22,
-            "sample_count": 11,
-            "up_probability": 0.5455,
-            "avg_change_pct": -0.18
+            "sample_count": 10,
+            "up_probability": 0.6,
+            "avg_change_pct": -0.19
           },
           {
             "day": 23,
-            "sample_count": 13,
-            "up_probability": 0.6154,
-            "avg_change_pct": 0.26
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.23
           },
           {
             "day": 24,
@@ -2231,9 +2616,9 @@
           },
           {
             "day": 26,
-            "sample_count": 14,
-            "up_probability": 0.4286,
-            "avg_change_pct": -0.39
+            "sample_count": 13,
+            "up_probability": 0.3846,
+            "avg_change_pct": -0.55
           },
           {
             "day": 27,
@@ -4320,21 +4705,21 @@
           },
           {
             "day": 10,
-            "sample_count": 11,
-            "up_probability": 0.5455,
-            "avg_change_pct": -0.37
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.43
           },
           {
             "day": 11,
-            "sample_count": 13,
-            "up_probability": 0.4615,
-            "avg_change_pct": 0.15
+            "sample_count": 14,
+            "up_probability": 0.4286,
+            "avg_change_pct": 0.1
           },
           {
             "day": 12,
-            "sample_count": 13,
-            "up_probability": 0.4615,
-            "avg_change_pct": -0.06
+            "sample_count": 14,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.03
           },
           {
             "day": 13,
@@ -4350,57 +4735,57 @@
           },
           {
             "day": 15,
-            "sample_count": 12,
-            "up_probability": 0.5,
-            "avg_change_pct": 0.08
+            "sample_count": 13,
+            "up_probability": 0.5385,
+            "avg_change_pct": 0.26
           },
           {
             "day": 16,
             "sample_count": 13,
-            "up_probability": 0.3846,
-            "avg_change_pct": -0.23
+            "up_probability": 0.3077,
+            "avg_change_pct": -0.43
           },
           {
             "day": 17,
-            "sample_count": 14,
-            "up_probability": 0.4286,
-            "avg_change_pct": -0.1
+            "sample_count": 15,
+            "up_probability": 0.4667,
+            "avg_change_pct": -0.03
           },
           {
             "day": 18,
-            "sample_count": 13,
-            "up_probability": 0.7692,
-            "avg_change_pct": 0.48
+            "sample_count": 14,
+            "up_probability": 0.7857,
+            "avg_change_pct": 0.46
           },
           {
             "day": 19,
-            "sample_count": 15,
-            "up_probability": 0.4,
-            "avg_change_pct": -1.05
+            "sample_count": 14,
+            "up_probability": 0.3571,
+            "avg_change_pct": -1.22
           },
           {
             "day": 20,
-            "sample_count": 15,
-            "up_probability": 0.5333,
-            "avg_change_pct": 0.01
+            "sample_count": 14,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.01
           },
           {
             "day": 21,
-            "sample_count": 14,
-            "up_probability": 0.3571,
-            "avg_change_pct": 0.07
+            "sample_count": 13,
+            "up_probability": 0.3846,
+            "avg_change_pct": 0.1
           },
           {
             "day": 22,
-            "sample_count": 11,
-            "up_probability": 0.6364,
-            "avg_change_pct": -0.24
+            "sample_count": 10,
+            "up_probability": 0.7,
+            "avg_change_pct": -0.25
           },
           {
             "day": 23,
-            "sample_count": 13,
-            "up_probability": 0.6923,
-            "avg_change_pct": 0.44
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.43
           },
           {
             "day": 24,
@@ -4416,9 +4801,9 @@
           },
           {
             "day": 26,
-            "sample_count": 14,
-            "up_probability": 0.5714,
-            "avg_change_pct": -0.29
+            "sample_count": 13,
+            "up_probability": 0.5385,
+            "avg_change_pct": -0.45
           },
           {
             "day": 27,
@@ -6505,21 +6890,21 @@
           },
           {
             "day": 10,
-            "sample_count": 11,
-            "up_probability": 0.8182,
-            "avg_change_pct": -0.1
+            "sample_count": 12,
+            "up_probability": 0.75,
+            "avg_change_pct": -0.21
           },
           {
             "day": 11,
-            "sample_count": 13,
-            "up_probability": 0.5385,
-            "avg_change_pct": 0.41
+            "sample_count": 14,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.35
           },
           {
             "day": 12,
-            "sample_count": 13,
-            "up_probability": 0.5385,
-            "avg_change_pct": 0.03
+            "sample_count": 14,
+            "up_probability": 0.5714,
+            "avg_change_pct": 0.09
           },
           {
             "day": 13,
@@ -6535,57 +6920,57 @@
           },
           {
             "day": 15,
-            "sample_count": 12,
-            "up_probability": 0.4167,
-            "avg_change_pct": 0.06
+            "sample_count": 13,
+            "up_probability": 0.4615,
+            "avg_change_pct": 0.34
           },
           {
             "day": 16,
             "sample_count": 13,
             "up_probability": 0.4615,
-            "avg_change_pct": -0.35
+            "avg_change_pct": -0.42
           },
           {
             "day": 17,
-            "sample_count": 14,
-            "up_probability": 0.5714,
-            "avg_change_pct": -0.24
+            "sample_count": 15,
+            "up_probability": 0.6,
+            "avg_change_pct": -0.13
           },
           {
             "day": 18,
-            "sample_count": 13,
-            "up_probability": 0.5385,
-            "avg_change_pct": 0.27
+            "sample_count": 14,
+            "up_probability": 0.5714,
+            "avg_change_pct": 0.29
           },
           {
             "day": 19,
-            "sample_count": 15,
-            "up_probability": 0.4,
-            "avg_change_pct": -1.47
+            "sample_count": 14,
+            "up_probability": 0.3571,
+            "avg_change_pct": -1.66
           },
           {
             "day": 20,
-            "sample_count": 15,
-            "up_probability": 0.5333,
-            "avg_change_pct": -0.14
+            "sample_count": 14,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.24
           },
           {
             "day": 21,
-            "sample_count": 14,
-            "up_probability": 0.4286,
-            "avg_change_pct": -0.16
+            "sample_count": 13,
+            "up_probability": 0.4615,
+            "avg_change_pct": -0.14
           },
           {
             "day": 22,
-            "sample_count": 11,
-            "up_probability": 0.4545,
-            "avg_change_pct": -0.52
+            "sample_count": 10,
+            "up_probability": 0.4,
+            "avg_change_pct": -0.58
           },
           {
             "day": 23,
-            "sample_count": 13,
-            "up_probability": 0.6923,
-            "avg_change_pct": 0.41
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.33
           },
           {
             "day": 24,
@@ -6601,9 +6986,9 @@
           },
           {
             "day": 26,
-            "sample_count": 14,
-            "up_probability": 0.6429,
-            "avg_change_pct": 0.14
+            "sample_count": 13,
+            "up_probability": 0.6154,
+            "avg_change_pct": 0.01
           },
           {
             "day": 27,
@@ -7717,6 +8102,2179 @@
           }
         ]
       }
+    },
+    "399006": {
+      "name": "创业板指",
+      "years": 17,
+      "description": "每月1-31号的历史涨跌概率",
+      "data": {
+        "1": [
+          {
+            "day": 2,
+            "sample_count": 6,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.39
+          },
+          {
+            "day": 3,
+            "sample_count": 8,
+            "up_probability": 0.625,
+            "avg_change_pct": -0.11
+          },
+          {
+            "day": 4,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.74
+          },
+          {
+            "day": 5,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.64
+          },
+          {
+            "day": 6,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.42
+          },
+          {
+            "day": 7,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": -0.11
+          },
+          {
+            "day": 8,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": 0.11
+          },
+          {
+            "day": 9,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.58
+          },
+          {
+            "day": 10,
+            "sample_count": 12,
+            "up_probability": 0.25,
+            "avg_change_pct": -0.27
+          },
+          {
+            "day": 11,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.99
+          },
+          {
+            "day": 12,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.86
+          },
+          {
+            "day": 13,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.97
+          },
+          {
+            "day": 14,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 1.15
+          },
+          {
+            "day": 15,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.27
+          },
+          {
+            "day": 16,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.35
+          },
+          {
+            "day": 17,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.11
+          },
+          {
+            "day": 18,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.22
+          },
+          {
+            "day": 19,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": 0.05
+          },
+          {
+            "day": 20,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.77
+          },
+          {
+            "day": 21,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.24
+          },
+          {
+            "day": 22,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.4
+          },
+          {
+            "day": 23,
+            "sample_count": 10,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.17
+          },
+          {
+            "day": 24,
+            "sample_count": 9,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.1
+          },
+          {
+            "day": 25,
+            "sample_count": 9,
+            "up_probability": 0.5556,
+            "avg_change_pct": -0.16
+          },
+          {
+            "day": 26,
+            "sample_count": 9,
+            "up_probability": 0.5556,
+            "avg_change_pct": -0.81
+          },
+          {
+            "day": 27,
+            "sample_count": 8,
+            "up_probability": 0.625,
+            "avg_change_pct": -0.36
+          },
+          {
+            "day": 28,
+            "sample_count": 9,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.73
+          },
+          {
+            "day": 29,
+            "sample_count": 9,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.14
+          },
+          {
+            "day": 30,
+            "sample_count": 9,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.47
+          },
+          {
+            "day": 31,
+            "sample_count": 7,
+            "up_probability": 0.1429,
+            "avg_change_pct": -0.77
+          }
+        ],
+        "2": [
+          {
+            "day": 1,
+            "sample_count": 9,
+            "up_probability": 0.7778,
+            "avg_change_pct": 0.67
+          },
+          {
+            "day": 2,
+            "sample_count": 8,
+            "up_probability": 0.625,
+            "avg_change_pct": 0.56
+          },
+          {
+            "day": 3,
+            "sample_count": 8,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.05
+          },
+          {
+            "day": 4,
+            "sample_count": 6,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.75
+          },
+          {
+            "day": 5,
+            "sample_count": 9,
+            "up_probability": 0.4444,
+            "avg_change_pct": 0.21
+          },
+          {
+            "day": 6,
+            "sample_count": 10,
+            "up_probability": 0.6,
+            "avg_change_pct": 0.69
+          },
+          {
+            "day": 7,
+            "sample_count": 10,
+            "up_probability": 0.7,
+            "avg_change_pct": 0.81
+          },
+          {
+            "day": 8,
+            "sample_count": 8,
+            "up_probability": 0.75,
+            "avg_change_pct": 1.02
+          },
+          {
+            "day": 9,
+            "sample_count": 9,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.45
+          },
+          {
+            "day": 10,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.72
+          },
+          {
+            "day": 11,
+            "sample_count": 8,
+            "up_probability": 0.375,
+            "avg_change_pct": -0.25
+          },
+          {
+            "day": 12,
+            "sample_count": 7,
+            "up_probability": 1.0,
+            "avg_change_pct": 1.77
+          },
+          {
+            "day": 13,
+            "sample_count": 10,
+            "up_probability": 0.6,
+            "avg_change_pct": 0.1
+          },
+          {
+            "day": 14,
+            "sample_count": 10,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.43
+          },
+          {
+            "day": 15,
+            "sample_count": 7,
+            "up_probability": 0.5714,
+            "avg_change_pct": 0.57
+          },
+          {
+            "day": 16,
+            "sample_count": 7,
+            "up_probability": 0.7143,
+            "avg_change_pct": 1.18
+          },
+          {
+            "day": 17,
+            "sample_count": 10,
+            "up_probability": 0.6,
+            "avg_change_pct": 0.52
+          },
+          {
+            "day": 18,
+            "sample_count": 9,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.19
+          },
+          {
+            "day": 19,
+            "sample_count": 8,
+            "up_probability": 0.375,
+            "avg_change_pct": -0.11
+          },
+          {
+            "day": 20,
+            "sample_count": 9,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.73
+          },
+          {
+            "day": 21,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.71
+          },
+          {
+            "day": 22,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.05
+          },
+          {
+            "day": 23,
+            "sample_count": 9,
+            "up_probability": 0.5556,
+            "avg_change_pct": 0.31
+          },
+          {
+            "day": 24,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.33
+          },
+          {
+            "day": 25,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.28
+          },
+          {
+            "day": 26,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.34
+          },
+          {
+            "day": 27,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.21
+          },
+          {
+            "day": 28,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": -0.56
+          },
+          {
+            "day": 29,
+            "sample_count": 3,
+            "up_probability": 0.3333,
+            "avg_change_pct": -1.67
+          }
+        ],
+        "3": [
+          {
+            "day": 1,
+            "sample_count": 11,
+            "up_probability": 0.9091,
+            "avg_change_pct": 1.4
+          },
+          {
+            "day": 2,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": 0.52
+          },
+          {
+            "day": 3,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.13
+          },
+          {
+            "day": 4,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.75
+          },
+          {
+            "day": 5,
+            "sample_count": 11,
+            "up_probability": 0.9091,
+            "avg_change_pct": 1.15
+          },
+          {
+            "day": 6,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.21
+          },
+          {
+            "day": 7,
+            "sample_count": 12,
+            "up_probability": 0.25,
+            "avg_change_pct": -0.87
+          },
+          {
+            "day": 8,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.47
+          },
+          {
+            "day": 9,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.33
+          },
+          {
+            "day": 10,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.66
+          },
+          {
+            "day": 11,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 1.0
+          },
+          {
+            "day": 12,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.17
+          },
+          {
+            "day": 13,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.16
+          },
+          {
+            "day": 14,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.47
+          },
+          {
+            "day": 15,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.73
+          },
+          {
+            "day": 16,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.46
+          },
+          {
+            "day": 17,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.6
+          },
+          {
+            "day": 18,
+            "sample_count": 12,
+            "up_probability": 0.8333,
+            "avg_change_pct": 1.25
+          },
+          {
+            "day": 19,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.37
+          },
+          {
+            "day": 20,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": -0.05
+          },
+          {
+            "day": 21,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.14
+          },
+          {
+            "day": 22,
+            "sample_count": 11,
+            "up_probability": 0.1818,
+            "avg_change_pct": -0.39
+          },
+          {
+            "day": 23,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.72
+          },
+          {
+            "day": 24,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.23
+          },
+          {
+            "day": 25,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": 0.01
+          },
+          {
+            "day": 26,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.04
+          },
+          {
+            "day": 27,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": -0.03
+          },
+          {
+            "day": 28,
+            "sample_count": 12,
+            "up_probability": 0.0833,
+            "avg_change_pct": -1.35
+          },
+          {
+            "day": 29,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.32
+          },
+          {
+            "day": 30,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.48
+          },
+          {
+            "day": 31,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.2
+          }
+        ],
+        "4": [
+          {
+            "day": 1,
+            "sample_count": 12,
+            "up_probability": 0.75,
+            "avg_change_pct": 1.35
+          },
+          {
+            "day": 2,
+            "sample_count": 10,
+            "up_probability": 0.4,
+            "avg_change_pct": -0.18
+          },
+          {
+            "day": 3,
+            "sample_count": 10,
+            "up_probability": 0.3,
+            "avg_change_pct": -0.31
+          },
+          {
+            "day": 4,
+            "sample_count": 4,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.15
+          },
+          {
+            "day": 5,
+            "sample_count": 3,
+            "up_probability": 1.0,
+            "avg_change_pct": 2.69
+          },
+          {
+            "day": 6,
+            "sample_count": 7,
+            "up_probability": 0.5714,
+            "avg_change_pct": -0.34
+          },
+          {
+            "day": 7,
+            "sample_count": 10,
+            "up_probability": 0.6,
+            "avg_change_pct": -1.01
+          },
+          {
+            "day": 8,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.37
+          },
+          {
+            "day": 9,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.26
+          },
+          {
+            "day": 10,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": 0.11
+          },
+          {
+            "day": 11,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.49
+          },
+          {
+            "day": 12,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -0.15
+          },
+          {
+            "day": 13,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.25
+          },
+          {
+            "day": 14,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.79
+          },
+          {
+            "day": 15,
+            "sample_count": 12,
+            "up_probability": 0.0833,
+            "avg_change_pct": -0.8
+          },
+          {
+            "day": 16,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.51
+          },
+          {
+            "day": 17,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.25
+          },
+          {
+            "day": 18,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.16
+          },
+          {
+            "day": 19,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.23
+          },
+          {
+            "day": 20,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.99
+          },
+          {
+            "day": 21,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.04
+          },
+          {
+            "day": 22,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.38
+          },
+          {
+            "day": 23,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.6
+          },
+          {
+            "day": 24,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": 0.15
+          },
+          {
+            "day": 25,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -1.33
+          },
+          {
+            "day": 26,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.19
+          },
+          {
+            "day": 27,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.81
+          },
+          {
+            "day": 28,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.77
+          },
+          {
+            "day": 29,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 1.13
+          },
+          {
+            "day": 30,
+            "sample_count": 8,
+            "up_probability": 0.75,
+            "avg_change_pct": 0.78
+          }
+        ],
+        "5": [
+          {
+            "day": 2,
+            "sample_count": 4,
+            "up_probability": 0.75,
+            "avg_change_pct": 0.94
+          },
+          {
+            "day": 3,
+            "sample_count": 6,
+            "up_probability": 0.8333,
+            "avg_change_pct": 1.53
+          },
+          {
+            "day": 4,
+            "sample_count": 7,
+            "up_probability": 0.1429,
+            "avg_change_pct": -0.38
+          },
+          {
+            "day": 5,
+            "sample_count": 7,
+            "up_probability": 0.4286,
+            "avg_change_pct": -0.38
+          },
+          {
+            "day": 6,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": -0.18
+          },
+          {
+            "day": 7,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.01
+          },
+          {
+            "day": 8,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.41
+          },
+          {
+            "day": 9,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.44
+          },
+          {
+            "day": 10,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.54
+          },
+          {
+            "day": 11,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.77
+          },
+          {
+            "day": 12,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.64
+          },
+          {
+            "day": 13,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.13
+          },
+          {
+            "day": 14,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -0.33
+          },
+          {
+            "day": 15,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.41
+          },
+          {
+            "day": 16,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.18
+          },
+          {
+            "day": 17,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.32
+          },
+          {
+            "day": 18,
+            "sample_count": 11,
+            "up_probability": 0.1818,
+            "avg_change_pct": -0.29
+          },
+          {
+            "day": 19,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.29
+          },
+          {
+            "day": 20,
+            "sample_count": 12,
+            "up_probability": 0.75,
+            "avg_change_pct": 0.78
+          },
+          {
+            "day": 21,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.49
+          },
+          {
+            "day": 22,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.1
+          },
+          {
+            "day": 23,
+            "sample_count": 12,
+            "up_probability": 0.25,
+            "avg_change_pct": -0.83
+          },
+          {
+            "day": 24,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": 0.03
+          },
+          {
+            "day": 25,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.25
+          },
+          {
+            "day": 26,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.52
+          },
+          {
+            "day": 27,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.11
+          },
+          {
+            "day": 28,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.46
+          },
+          {
+            "day": 29,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.19
+          },
+          {
+            "day": 30,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.03
+          },
+          {
+            "day": 31,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 1.05
+          }
+        ],
+        "6": [
+          {
+            "day": 1,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.41
+          },
+          {
+            "day": 2,
+            "sample_count": 10,
+            "up_probability": 0.7,
+            "avg_change_pct": 1.0
+          },
+          {
+            "day": 3,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.28
+          },
+          {
+            "day": 4,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.09
+          },
+          {
+            "day": 5,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.14
+          },
+          {
+            "day": 6,
+            "sample_count": 11,
+            "up_probability": 0.1818,
+            "avg_change_pct": -0.27
+          },
+          {
+            "day": 7,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": 0.1
+          },
+          {
+            "day": 8,
+            "sample_count": 12,
+            "up_probability": 0.1667,
+            "avg_change_pct": -0.92
+          },
+          {
+            "day": 9,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.14
+          },
+          {
+            "day": 10,
+            "sample_count": 10,
+            "up_probability": 0.7,
+            "avg_change_pct": 1.16
+          },
+          {
+            "day": 11,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.74
+          },
+          {
+            "day": 12,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.13
+          },
+          {
+            "day": 13,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.29
+          },
+          {
+            "day": 14,
+            "sample_count": 10,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.22
+          },
+          {
+            "day": 15,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.53
+          },
+          {
+            "day": 16,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.34
+          },
+          {
+            "day": 17,
+            "sample_count": 13,
+            "up_probability": 0.6154,
+            "avg_change_pct": 0.35
+          },
+          {
+            "day": 18,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": -0.62
+          },
+          {
+            "day": 19,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -1.34
+          },
+          {
+            "day": 20,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": -0.06
+          },
+          {
+            "day": 21,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.15
+          },
+          {
+            "day": 22,
+            "sample_count": 8,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.33
+          },
+          {
+            "day": 23,
+            "sample_count": 10,
+            "up_probability": 0.9,
+            "avg_change_pct": 1.5
+          },
+          {
+            "day": 24,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.12
+          },
+          {
+            "day": 25,
+            "sample_count": 10,
+            "up_probability": 0.3,
+            "avg_change_pct": -0.88
+          },
+          {
+            "day": 26,
+            "sample_count": 10,
+            "up_probability": 0.6,
+            "avg_change_pct": 0.09
+          },
+          {
+            "day": 27,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.24
+          },
+          {
+            "day": 28,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.4
+          },
+          {
+            "day": 29,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -1.21
+          },
+          {
+            "day": 30,
+            "sample_count": 11,
+            "up_probability": 1.0,
+            "avg_change_pct": 1.78
+          }
+        ],
+        "7": [
+          {
+            "day": 1,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.1
+          },
+          {
+            "day": 2,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.58
+          },
+          {
+            "day": 3,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.47
+          },
+          {
+            "day": 4,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.12
+          },
+          {
+            "day": 5,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.53
+          },
+          {
+            "day": 6,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.19
+          },
+          {
+            "day": 7,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.02
+          },
+          {
+            "day": 8,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.12
+          },
+          {
+            "day": 9,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 1.12
+          },
+          {
+            "day": 10,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.35
+          },
+          {
+            "day": 11,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.07
+          },
+          {
+            "day": 12,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.61
+          },
+          {
+            "day": 13,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 1.42
+          },
+          {
+            "day": 14,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.15
+          },
+          {
+            "day": 15,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.39
+          },
+          {
+            "day": 16,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -1.15
+          },
+          {
+            "day": 17,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.2
+          },
+          {
+            "day": 18,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.01
+          },
+          {
+            "day": 19,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": -0.0
+          },
+          {
+            "day": 20,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.72
+          },
+          {
+            "day": 21,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.45
+          },
+          {
+            "day": 22,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.49
+          },
+          {
+            "day": 23,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.06
+          },
+          {
+            "day": 24,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.61
+          },
+          {
+            "day": 25,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.48
+          },
+          {
+            "day": 26,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.07
+          },
+          {
+            "day": 27,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -1.17
+          },
+          {
+            "day": 28,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.4
+          },
+          {
+            "day": 29,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.93
+          },
+          {
+            "day": 30,
+            "sample_count": 11,
+            "up_probability": 0.1818,
+            "avg_change_pct": -1.16
+          },
+          {
+            "day": 31,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.24
+          }
+        ],
+        "8": [
+          {
+            "day": 1,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.45
+          },
+          {
+            "day": 2,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.21
+          },
+          {
+            "day": 3,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.29
+          },
+          {
+            "day": 4,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.83
+          },
+          {
+            "day": 5,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.13
+          },
+          {
+            "day": 6,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.01
+          },
+          {
+            "day": 7,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.01
+          },
+          {
+            "day": 8,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.25
+          },
+          {
+            "day": 9,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.44
+          },
+          {
+            "day": 10,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.12
+          },
+          {
+            "day": 11,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.19
+          },
+          {
+            "day": 12,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.36
+          },
+          {
+            "day": 13,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.45
+          },
+          {
+            "day": 14,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.22
+          },
+          {
+            "day": 15,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.51
+          },
+          {
+            "day": 16,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.21
+          },
+          {
+            "day": 17,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": -0.02
+          },
+          {
+            "day": 18,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.44
+          },
+          {
+            "day": 19,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.47
+          },
+          {
+            "day": 20,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.86
+          },
+          {
+            "day": 21,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.13
+          },
+          {
+            "day": 22,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.23
+          },
+          {
+            "day": 23,
+            "sample_count": 12,
+            "up_probability": 0.75,
+            "avg_change_pct": 0.6
+          },
+          {
+            "day": 24,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.77
+          },
+          {
+            "day": 25,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.75
+          },
+          {
+            "day": 26,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.95
+          },
+          {
+            "day": 27,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.94
+          },
+          {
+            "day": 28,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 1.16
+          },
+          {
+            "day": 29,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.43
+          },
+          {
+            "day": 30,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.46
+          },
+          {
+            "day": 31,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -1.03
+          }
+        ],
+        "9": [
+          {
+            "day": 1,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.51
+          },
+          {
+            "day": 2,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.17
+          },
+          {
+            "day": 3,
+            "sample_count": 10,
+            "up_probability": 0.8,
+            "avg_change_pct": 0.87
+          },
+          {
+            "day": 4,
+            "sample_count": 10,
+            "up_probability": 0.6,
+            "avg_change_pct": -0.05
+          },
+          {
+            "day": 5,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.63
+          },
+          {
+            "day": 6,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.28
+          },
+          {
+            "day": 7,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.39
+          },
+          {
+            "day": 8,
+            "sample_count": 10,
+            "up_probability": 0.4,
+            "avg_change_pct": 0.18
+          },
+          {
+            "day": 9,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.23
+          },
+          {
+            "day": 10,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.27
+          },
+          {
+            "day": 11,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.63
+          },
+          {
+            "day": 12,
+            "sample_count": 10,
+            "up_probability": 0.3,
+            "avg_change_pct": -0.48
+          },
+          {
+            "day": 13,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.28
+          },
+          {
+            "day": 14,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -0.89
+          },
+          {
+            "day": 15,
+            "sample_count": 10,
+            "up_probability": 0.3,
+            "avg_change_pct": -1.22
+          },
+          {
+            "day": 16,
+            "sample_count": 10,
+            "up_probability": 0.4,
+            "avg_change_pct": -0.14
+          },
+          {
+            "day": 17,
+            "sample_count": 10,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.2
+          },
+          {
+            "day": 18,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.79
+          },
+          {
+            "day": 19,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.08
+          },
+          {
+            "day": 20,
+            "sample_count": 10,
+            "up_probability": 0.3,
+            "avg_change_pct": -0.58
+          },
+          {
+            "day": 21,
+            "sample_count": 10,
+            "up_probability": 0.4,
+            "avg_change_pct": 0.12
+          },
+          {
+            "day": 22,
+            "sample_count": 10,
+            "up_probability": 0.3,
+            "avg_change_pct": -0.34
+          },
+          {
+            "day": 23,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.23
+          },
+          {
+            "day": 24,
+            "sample_count": 9,
+            "up_probability": 0.7778,
+            "avg_change_pct": 1.03
+          },
+          {
+            "day": 25,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -0.56
+          },
+          {
+            "day": 26,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.63
+          },
+          {
+            "day": 27,
+            "sample_count": 12,
+            "up_probability": 0.9167,
+            "avg_change_pct": 1.76
+          },
+          {
+            "day": 28,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": 0.09
+          },
+          {
+            "day": 29,
+            "sample_count": 10,
+            "up_probability": 0.6,
+            "avg_change_pct": 0.02
+          },
+          {
+            "day": 30,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 1.68
+          }
+        ],
+        "10": [
+          {
+            "day": 8,
+            "sample_count": 9,
+            "up_probability": 0.6667,
+            "avg_change_pct": 2.46
+          },
+          {
+            "day": 9,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.12
+          },
+          {
+            "day": 10,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.44
+          },
+          {
+            "day": 11,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -1.22
+          },
+          {
+            "day": 12,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 1.39
+          },
+          {
+            "day": 13,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.54
+          },
+          {
+            "day": 14,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.02
+          },
+          {
+            "day": 15,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.04
+          },
+          {
+            "day": 16,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -1.12
+          },
+          {
+            "day": 17,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.39
+          },
+          {
+            "day": 18,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.39
+          },
+          {
+            "day": 19,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": 0.53
+          },
+          {
+            "day": 20,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.48
+          },
+          {
+            "day": 21,
+            "sample_count": 12,
+            "up_probability": 0.25,
+            "avg_change_pct": -0.51
+          },
+          {
+            "day": 22,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.77
+          },
+          {
+            "day": 23,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -0.89
+          },
+          {
+            "day": 24,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.07
+          },
+          {
+            "day": 25,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.51
+          },
+          {
+            "day": 26,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": 0.09
+          },
+          {
+            "day": 27,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.46
+          },
+          {
+            "day": 28,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.02
+          },
+          {
+            "day": 29,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.36
+          },
+          {
+            "day": 30,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.28
+          },
+          {
+            "day": 31,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.15
+          }
+        ],
+        "11": [
+          {
+            "day": 1,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.62
+          },
+          {
+            "day": 2,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.3
+          },
+          {
+            "day": 3,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.03
+          },
+          {
+            "day": 4,
+            "sample_count": 12,
+            "up_probability": 0.75,
+            "avg_change_pct": 1.13
+          },
+          {
+            "day": 5,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.9
+          },
+          {
+            "day": 6,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.52
+          },
+          {
+            "day": 7,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": 0.05
+          },
+          {
+            "day": 8,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.26
+          },
+          {
+            "day": 9,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.68
+          },
+          {
+            "day": 10,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.02
+          },
+          {
+            "day": 11,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.26
+          },
+          {
+            "day": 12,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.11
+          },
+          {
+            "day": 13,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": -0.08
+          },
+          {
+            "day": 14,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.16
+          },
+          {
+            "day": 15,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.43
+          },
+          {
+            "day": 16,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.43
+          },
+          {
+            "day": 17,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.8
+          },
+          {
+            "day": 18,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -0.57
+          },
+          {
+            "day": 19,
+            "sample_count": 11,
+            "up_probability": 0.9091,
+            "avg_change_pct": 1.66
+          },
+          {
+            "day": 20,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.09
+          },
+          {
+            "day": 21,
+            "sample_count": 12,
+            "up_probability": 0.25,
+            "avg_change_pct": -0.36
+          },
+          {
+            "day": 22,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.47
+          },
+          {
+            "day": 23,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -0.64
+          },
+          {
+            "day": 24,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.08
+          },
+          {
+            "day": 25,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": 0.07
+          },
+          {
+            "day": 26,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": -0.12
+          },
+          {
+            "day": 27,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.47
+          },
+          {
+            "day": 28,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": 0.24
+          },
+          {
+            "day": 29,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": 0.5
+          },
+          {
+            "day": 30,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": -0.4
+          }
+        ],
+        "12": [
+          {
+            "day": 1,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.58
+          },
+          {
+            "day": 2,
+            "sample_count": 12,
+            "up_probability": 0.4167,
+            "avg_change_pct": -1.1
+          },
+          {
+            "day": 3,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.53
+          },
+          {
+            "day": 4,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": -0.02
+          },
+          {
+            "day": 5,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.52
+          },
+          {
+            "day": 6,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": -0.08
+          },
+          {
+            "day": 7,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.55
+          },
+          {
+            "day": 8,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": 0.34
+          },
+          {
+            "day": 9,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.52
+          },
+          {
+            "day": 10,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.86
+          },
+          {
+            "day": 11,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.02
+          },
+          {
+            "day": 12,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.13
+          },
+          {
+            "day": 13,
+            "sample_count": 12,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.13
+          },
+          {
+            "day": 14,
+            "sample_count": 11,
+            "up_probability": 0.3636,
+            "avg_change_pct": 0.01
+          },
+          {
+            "day": 15,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.09
+          },
+          {
+            "day": 16,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.37
+          },
+          {
+            "day": 17,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.36
+          },
+          {
+            "day": 18,
+            "sample_count": 11,
+            "up_probability": 0.0909,
+            "avg_change_pct": -0.66
+          },
+          {
+            "day": 19,
+            "sample_count": 12,
+            "up_probability": 0.5833,
+            "avg_change_pct": -0.09
+          },
+          {
+            "day": 20,
+            "sample_count": 12,
+            "up_probability": 0.25,
+            "avg_change_pct": -0.8
+          },
+          {
+            "day": 21,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.45
+          },
+          {
+            "day": 22,
+            "sample_count": 11,
+            "up_probability": 0.2727,
+            "avg_change_pct": -0.67
+          },
+          {
+            "day": 23,
+            "sample_count": 12,
+            "up_probability": 0.3333,
+            "avg_change_pct": -0.72
+          },
+          {
+            "day": 24,
+            "sample_count": 11,
+            "up_probability": 0.7273,
+            "avg_change_pct": 0.38
+          },
+          {
+            "day": 25,
+            "sample_count": 11,
+            "up_probability": 0.6364,
+            "avg_change_pct": 0.41
+          },
+          {
+            "day": 26,
+            "sample_count": 12,
+            "up_probability": 0.6667,
+            "avg_change_pct": 0.14
+          },
+          {
+            "day": 27,
+            "sample_count": 12,
+            "up_probability": 0.25,
+            "avg_change_pct": -0.76
+          },
+          {
+            "day": 28,
+            "sample_count": 11,
+            "up_probability": 0.4545,
+            "avg_change_pct": 0.01
+          },
+          {
+            "day": 29,
+            "sample_count": 11,
+            "up_probability": 0.5455,
+            "avg_change_pct": -0.13
+          },
+          {
+            "day": 30,
+            "sample_count": 12,
+            "up_probability": 0.8333,
+            "avg_change_pct": 0.67
+          },
+          {
+            "day": 31,
+            "sample_count": 10,
+            "up_probability": 0.5,
+            "avg_change_pct": -0.06
+          }
+        ]
+      }
     }
   },
   "special_windows": [
@@ -8066,18 +10624,18 @@
     },
     "turn_of_month": {
       "window": {
-        "sample_count": 1205,
-        "up_probability": 0.571,
-        "avg_change_pct": 0.14
+        "sample_count": 1204,
+        "up_probability": 0.5698,
+        "avg_change_pct": 0.13
       },
       "non_window": {
-        "sample_count": 3651,
-        "up_probability": 0.5215,
+        "sample_count": 3652,
+        "up_probability": 0.5211,
         "avg_change_pct": -0.0
       },
       "premium": {
-        "up_probability_diff": 0.0495,
-        "avg_change_diff_pct": 0.14
+        "up_probability_diff": 0.0487,
+        "avg_change_diff_pct": 0.13
       }
     },
     "two_sessions": {
@@ -8138,6 +10696,11 @@
         "name": "中证500",
         "up_probability": 0.544,
         "avg_change_pct": 0.0
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.5049,
+        "avg_change_pct": -0.09
       }
     },
     "2": {
@@ -8156,6 +10719,11 @@
         "name": "中证500",
         "up_probability": 0.6394,
         "avg_change_pct": 0.37
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.5606,
+        "avg_change_pct": 0.28
       }
     },
     "3": {
@@ -8174,6 +10742,11 @@
         "name": "中证500",
         "up_probability": 0.5533,
         "avg_change_pct": 0.03
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.4816,
+        "avg_change_pct": 0.01
       }
     },
     "4": {
@@ -8192,6 +10765,11 @@
         "name": "中证500",
         "up_probability": 0.5539,
         "avg_change_pct": 0.09
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.4921,
+        "avg_change_pct": 0.04
       }
     },
     "5": {
@@ -8210,24 +10788,34 @@
         "name": "中证500",
         "up_probability": 0.5278,
         "avg_change_pct": 0.06
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.5031,
+        "avg_change_pct": 0.14
       }
     },
     "6": {
       "month": 6,
       "000001": {
         "name": "上证指数",
-        "up_probability": 0.5187,
-        "avg_change_pct": -0.09
+        "up_probability": 0.5112,
+        "avg_change_pct": -0.1
       },
       "000300": {
         "name": "沪深300",
-        "up_probability": 0.5062,
-        "avg_change_pct": -0.06
+        "up_probability": 0.5037,
+        "avg_change_pct": -0.07
       },
       "000905": {
         "name": "中证500",
-        "up_probability": 0.5162,
+        "up_probability": 0.5137,
         "avg_change_pct": -0.14
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.5345,
+        "avg_change_pct": 0.07
       }
     },
     "7": {
@@ -8246,6 +10834,11 @@
         "name": "中证500",
         "up_probability": 0.5711,
         "avg_change_pct": 0.15
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.5198,
+        "avg_change_pct": 0.04
       }
     },
     "8": {
@@ -8264,6 +10857,11 @@
         "name": "中证500",
         "up_probability": 0.544,
         "avg_change_pct": -0.04
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.493,
+        "avg_change_pct": 0.01
       }
     },
     "9": {
@@ -8282,6 +10880,11 @@
         "name": "中证500",
         "up_probability": 0.5616,
         "avg_change_pct": 0.05
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.5062,
+        "avg_change_pct": 0.09
       }
     },
     "10": {
@@ -8300,6 +10903,11 @@
         "name": "中证500",
         "up_probability": 0.5015,
         "avg_change_pct": -0.05
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.4706,
+        "avg_change_pct": 0.1
       }
     },
     "11": {
@@ -8318,6 +10926,11 @@
         "name": "中证500",
         "up_probability": 0.535,
         "avg_change_pct": 0.09
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.4869,
+        "avg_change_pct": 0.07
       }
     },
     "12": {
@@ -8336,6 +10949,11 @@
         "name": "中证500",
         "up_probability": 0.5409,
         "avg_change_pct": 0.07
+      },
+      "399006": {
+        "name": "创业板指",
+        "up_probability": 0.4986,
+        "avg_change_pct": -0.03
       }
     }
   }

@@ -27,6 +27,55 @@ export type {
 
 import { getToday, getTomorrow } from '../../../shared/date-utils'
 
+// ============================================
+// 市场温度 API 类型
+// ============================================
+
+export interface MarketSnapshot {
+  trade_date: string
+  index_code: string
+  close_price: number | null
+  change_pct: number | null
+  rise_count: number | null
+  fall_count: number | null
+  flat_count: number | null
+  turnover_amount: number | null
+  turnover_rate: number | null
+  volatility_20d: number | null
+  northbound_amt: number | null
+  northbound_num: number | null
+  pe_ttm: number | null
+  pb: number | null
+  margin_balance: number | null
+  bond_yield_10y: number | null
+}
+
+export interface TemperatureDerived {
+  advance_decline_ratio: number | null
+  advance_decline_label: string | null
+  turnover_5d_avg: number | null
+  turnover_20d_avg: number | null
+  turnover_trend: string | null
+  northbound_5d_avg: number | null
+  northbound_20d_avg: number | null
+  northbound_trend: string | null
+  volatility_label: string | null
+  margin_balance_yi: number | null
+  pe_ttm: number | null
+  pe_percentile: number | null
+  pe_label: string | null
+  erp: number | null
+  erp_label: string | null
+}
+
+export interface MarketTemperatureResponse {
+  trade_date: string
+  latest: MarketSnapshot[]
+  derived: TemperatureDerived
+  history: MarketSnapshot[]
+  history_days: number
+}
+
 // API 路径：开发和生产都用相对路径（生产环境由 Cloudflare Route 转发）
 const API_BASE = '/api'
 
@@ -35,6 +84,15 @@ export async function fetchEventsByDate(date: string): Promise<DayResponse> {
   const response = await fetch(`${API_BASE}/events?date=${date}`)
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`)
+  }
+  return response.json()
+}
+
+/** 获取市场温度（最新快照 + 衍生指标 + 历史） */
+export async function fetchMarketTemperature(days = 20): Promise<MarketTemperatureResponse> {
+  const response = await fetch(`${API_BASE}/market-temperature?days=${days}`)
+  if (!response.ok) {
+    throw new Error(`Market temperature API error: ${response.status}`)
   }
   return response.json()
 }

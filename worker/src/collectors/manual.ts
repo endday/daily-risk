@@ -7,6 +7,7 @@
 
 import type { NormalizedEvent, RiskRule, ChinaEventsConfig } from '../../../shared/types';
 import { normalizeEvent, type NormalizerLogger } from '../../../shared/normalizer';
+import type { CollectorConfig, CollectorEnv, CollectorResult } from './base';
 
 export interface ManualEventsConfig {
   chinaEvents: ChinaEventsConfig;
@@ -41,3 +42,18 @@ export async function loadManualEvents(config: ManualEventsConfig): Promise<Norm
 
   return events;
 }
+
+// ============================================
+// Collector 接口包装
+// ============================================
+
+export const manualCollector: CollectorConfig = {
+  name: 'manual',
+  async collect(env: CollectorEnv): Promise<CollectorResult> {
+    const events = await loadManualEvents({
+      chinaEvents: env.CHINA_EVENTS,
+      rules: env.RISK_RULES,
+    });
+    return { events, meta: { source_count: 1, warnings: [] } };
+  },
+};

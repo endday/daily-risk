@@ -9,6 +9,8 @@
 
 import type { NormalizedEvent, RiskRule } from '../../../shared/types';
 import { normalizeEvent, type NormalizerLogger } from '../../../shared/normalizer';
+import type { CollectorConfig, CollectorEnv, CollectorResult } from './base';
+import { http } from './http';
 
 export interface AlphaVantageConfig {
   apiKey: string;
@@ -32,13 +34,7 @@ export async function fetchEarningsCalendar(config: AlphaVantageConfig): Promise
       `&apikey=${apiKey}`;
 
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        logger?.warn(`Alpha Vantage API error for ${symbol}: ${response.status}`);
-        continue;
-      }
-
-      const csvText = await response.text();
+      const csvText = await http.get(url).text();
       const parsed = parseEarningsCSV(csvText, symbol);
 
       for (const rawEvent of parsed) {
@@ -102,3 +98,20 @@ function parseEarningsCSV(csvText: string, symbol: string): Array<Record<string,
 
   return events;
 }
+
+// ============================================
+// Collector 接口包装
+// ============================================
+
+export const alphaVantageCollector: CollectorConfig = {
+  name: 'alpha_vantage',
+  canRun: (env: CollectorEnv) => !!env.ALPHA_VANTAGE_KEY,
+  async collect(env: CollectorEnv): Promise<CollectorResult> {
+    const events = await fetchEarningsCalendar({
+      apiKey: env.ALPHA_VANTAGE_KEY!,
+      symbols: env.EARNINGS_SYMBOLS,
+      rules: env.RISK_RULES,
+    });
+    return { events, meta: { source_count: env.EARNINGS_SYMBOLS.length, warnings: [] } };
+  },
+};

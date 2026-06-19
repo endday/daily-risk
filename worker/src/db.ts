@@ -257,3 +257,99 @@ function parseEventRow(row: any): any {
   };
 }
 
+// ============================================
+// Market Snapshots
+// ============================================
+
+import type { MarketSnapshotRow } from './collectors/base';
+
+const SNAPSHOT_COLUMNS = `
+  trade_date, index_code,
+  close_price, change_pct,
+  rise_count, fall_count, flat_count,
+  turnover_amount, turnover_rate,
+  volatility_20d,
+  northbound_amt, northbound_num,
+  pe_ttm, pb,
+  margin_balance, bond_yield_10y
+`;
+
+const SNAPSHOT_PLACEHOLDERS = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+
+const SNAPSHOT_CONFLICT = `
+  ON CONFLICT(trade_date, index_code) DO UPDATE SET
+    close_price = COALESCE(excluded.close_price, market_snapshots.close_price),
+    change_pct = COALESCE(excluded.change_pct, market_snapshots.change_pct),
+    rise_count = COALESCE(excluded.rise_count, market_snapshots.rise_count),
+    fall_count = COALESCE(excluded.fall_count, market_snapshots.fall_count),
+    flat_count = COALESCE(excluded.flat_count, market_snapshots.flat_count),
+    turnover_amount = COALESCE(excluded.turnover_amount, market_snapshots.turnover_amount),
+    turnover_rate = COALESCE(excluded.turnover_rate, market_snapshots.turnover_rate),
+    volatility_20d = COALESCE(excluded.volatility_20d, market_snapshots.volatility_20d),
+    northbound_amt = COALESCE(excluded.northbound_amt, market_snapshots.northbound_amt),
+    northbound_num = COALESCE(excluded.northbound_num, market_snapshots.northbound_num),
+    pe_ttm = COALESCE(excluded.pe_ttm, market_snapshots.pe_ttm),
+    pb = COALESCE(excluded.pb, market_snapshots.pb),
+    margin_balance = COALESCE(excluded.margin_balance, market_snapshots.margin_balance),
+    bond_yield_10y = COALESCE(excluded.bond_yield_10y, market_snapshots.bond_yield_10y),
+    created_at = datetime('now')
+`;
+
+function bindSnapshot(stmt: D1PreparedStatement, row: MarketSnapshotRow): D1PreparedStatement {
+  return stmt.bind(
+    row.trade_date, row.index_code,
+    row.close_price, row.change_pct,
+    row.rise_count, row.fall_count, row.flat_count,
+    row.turnover_amount, row.turnover_rate,
+    row.volatility_20d,
+    row.northbound_amt, row.northbound_num,
+    row.pe_ttm, row.pb,
+    row.margin_balance, row.bond_yield_10y,
+  );
+}
+
+/**
+ * 批量 upsert 市场快照
+ */
+export async function upsertSnapshots(db: D1Database, rows: MarketSnapshotRow[]): Promise<number> {
+  if (rows.length === 0) return 0;
+
+  const stmts = rows.map(row =>
+    bindSnapshot(
+      db.prepare(`INSERT INTO market_snapshots (${SNAPSHOT_COLUMNS}) VALUES ${SNAPSHOT_PLACEHOLDERS} ${SNAPSHOT_CONFLICT}`),
+      row,
+    )
+  );
+
+  await db.batch(stmts);
+  return rows.length;
+}
+
+/**
+ * 按日期范围查询快照
+ */
+export async function getSnapshotsByDateRange(
+  db: D1Database,
+  startDate: string,
+  endDate: string,
+): Promise<MarketSnapshotRow[]> {
+  const result = await db.prepare(`
+    SELECT * FROM market_snapshots
+    WHERE trade_date BETWEEN ? AND ?
+    ORDER BY trade_date DESC, index_code ASC
+  `).bind(startDate, endDate).all();
+  return result.results as MarketSnapshotRow[];
+}
+
+/**
+ * 获取最新一天的快照（所有指数）
+ */
+export async function getLatestSnapshots(db: D1Database): Promise<MarketSnapshotRow[]> {
+  const result = await db.prepare(`
+    SELECT * FROM market_snapshots
+    WHERE trade_date = (SELECT MAX(trade_date) FROM market_snapshots)
+    ORDER BY index_code ASC
+  `).all();
+  return result.results as MarketSnapshotRow[];
+}
+

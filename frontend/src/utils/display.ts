@@ -69,11 +69,11 @@ export function probColorClass(prob: number): string {
   return 'bar-neutral'
 }
 
-/** 概率 → 内联色值（AlmanacCard 的 dim-stats 使用） */
-export function probColorValue(prob: number): string {
-  if (prob > 0.55) return '#E8474C'
-  if (prob < 0.45) return '#2EAF7D'
-  return '#6B7280'
+/** 概率 → 文字色 CSS class（prob-up / prob-down / prob-neutral） */
+export function probTextClass(prob: number): string {
+  if (prob > 0.55) return 'prob-up'
+  if (prob < 0.45) return 'prob-down'
+  return 'prob-neutral'
 }
 
 // ============================================

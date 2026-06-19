@@ -10,6 +10,7 @@ import AlmanacCard from './AlmanacCard.vue'
 const props = defineProps<{
   calendarEffects: CalendarEffects
   date: string
+  holidays?: Record<string, { name: string; is_trading_day: boolean }>
 }>()
 
 const emit = defineEmits<{
@@ -156,6 +157,7 @@ const nextDayShort = computed(() => {
         :todayDay="dateParts.day"
         :month="dateParts.month"
         :year="dateParts.year"
+        :holidays="holidays"
         @selectDay="handleDayClick"
       />
     </div>

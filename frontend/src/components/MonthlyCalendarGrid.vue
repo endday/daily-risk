@@ -9,6 +9,7 @@ const props = defineProps<{
   month: number
   year: number
   compact?: boolean
+  holidays?: Record<string, { name: string; is_trading_day: boolean }>
 }>()
 
 const emit = defineEmits<{
@@ -55,6 +56,18 @@ function dayFormatter(day: any) {
 
   // 非当前数据月份的日期不显示评分
   if (!isDataMonth) {
+    return day
+  }
+
+  // 检查是否为法定假日（休市日）
+  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+  const holiday = props.holidays?.[dateStr]
+  const isHoliday = holiday && !holiday.is_trading_day
+
+  if (isHoliday) {
+    // 假日：灰显 + "休" 标记
+    day.className = (day.className || '') + ' is-holiday'
+    day.topInfo = '休'
     return day
   }
 
@@ -292,7 +305,7 @@ function changeClass(pct: number): string {
 }
 
 .calendar-wrapper .van-calendar__day.is-today .van-calendar__day-bottom-info {
-  color: rgba(255, 255, 255, 0.8);
+  color: $text-on-dark-muted;
 }
 
 .calendar-wrapper .van-calendar__day-top-info {
@@ -306,7 +319,7 @@ function changeClass(pct: number): string {
 }
 
 .calendar-wrapper .van-calendar__day.is-today .van-calendar__day-top-info {
-  color: rgba(255, 255, 255, 0.9);
+  color: $text-on-dark;
 }
 
 .calendar-wrapper .van-calendar__day--disabled {
@@ -326,6 +339,20 @@ function changeClass(pct: number): string {
 
 .calendar-wrapper.is-compact .van-calendar__day.is-weekend .van-calendar__day-text {
   color: $text-tertiary;
+}
+
+// 假日：灰底 + 休字
+.calendar-wrapper .van-calendar__day.is-holiday {
+  background: $bg-muted !important;
+}
+
+.calendar-wrapper .van-calendar__day.is-holiday .van-calendar__day-text {
+  color: $text-disabled;
+}
+
+.calendar-wrapper .van-calendar__day.is-holiday .van-calendar__day-top-info {
+  color: $color-down;
+  font-weight: $weight-bold;
 }
 </style>
 

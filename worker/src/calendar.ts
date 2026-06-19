@@ -62,17 +62,30 @@ function zScoreToRating(z: number): number {
 }
 
 /**
- * Calculate next trading day (skip weekends)
+ * Calculate next trading day (skip weekends + holidays)
+ * A 股从不在周末开市，调休补班日也休市
+ * @param holidays — optional set of holiday date strings (YYYY-MM-DD)
  */
-function getNextTradingDayStr(dateStr: string): string {
+function getNextTradingDayStr(dateStr: string, holidays?: Set<string>): string {
   const [year, month, day] = dateStr.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
-  // Skip to next weekday
-  const dayOfWeek = date.getUTCDay();
-  let skip = 1;
-  if (dayOfWeek === 5) skip = 3; // Friday → Monday
-  else if (dayOfWeek === 6) skip = 2; // Saturday → Monday
-  date.setUTCDate(date.getUTCDate() + skip);
+
+  for (let i = 1; i <= 30; i++) {
+    date.setUTCDate(date.getUTCDate() + 1);
+    const dow = date.getUTCDay();
+    const candidateStr = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+
+    // 周六日永远跳过（A 股从不在周末开市，包括调休补班）
+    if (dow === 0 || dow === 6) continue;
+
+    // 有假日表时：法定假日跳过
+    if (holidays?.has(candidateStr)) continue;
+
+    return candidateStr;
+  }
+
+  // 极端 fallback：30 天内无交易日（不应发生）
+  date.setUTCDate(date.getUTCDate() + 1);
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
@@ -195,7 +208,7 @@ function computeAlmanac(nextDayRating: number, nextMonthRating: number): Almanac
  * Get calendar effects for a given date string.
  * @param dateStr - The target date in YYYY-MM-DD format (Beijing time)
  */
-export function getActiveCalendarEffects(dateStr: string): CalendarEffects {
+export function getActiveCalendarEffects(dateStr: string, holidays?: Set<string>): CalendarEffects {
   // Parse date string directly to avoid timezone issues
   const [year, month, dayOfMonth] = dateStr.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, dayOfMonth));
@@ -284,7 +297,7 @@ export function getActiveCalendarEffects(dateStr: string): CalendarEffects {
   const worstMonth = sorted[sorted.length - 1];
 
   // 6. Next trading day & action signal
-  const nextDateStr = getNextTradingDayStr(dateStr);
+  const nextDateStr = getNextTradingDayStr(dateStr, holidays);
   const nextEffects = getActiveCalendarEffectsInner(nextDateStr);
   const nextTradingDay = {
     date: nextDateStr,
@@ -306,7 +319,7 @@ export function getActiveCalendarEffects(dateStr: string): CalendarEffects {
   const almanac = computeAlmanac(shortTermScore, swingScore);
 
   // 8. Almanac by index (三大指数各自的黄历)
-  const almanacByIndex = buildAlmanacByIndex(dateStr, month, allIndicesData);
+  const almanacByIndex = buildAlmanacByIndex(dateStr, month, allIndicesData, holidays);
 
   return {
     today,
@@ -373,7 +386,7 @@ function buildAllIndicesMonthlyData(): any {
 /**
  * Compute daily stats (today + next trading day) for a specific index.
  */
-function getDailyStatsForIndex(dateStr: string, indexCode: string): {
+function getDailyStatsForIndex(dateStr: string, indexCode: string, holidays?: Set<string>): {
   today: { up_probability: number; sample_count: number; rating: number };
   next_day: { up_probability: number; sample_count: number; rating: number };
 } {
@@ -389,7 +402,7 @@ function getDailyStatsForIndex(dateStr: string, indexCode: string): {
   const todayZ = todayStat ? zScore(todayStat.up_probability, dayMean, dayStd) : 0;
 
   // Next trading day's stats
-  const nextDateStr = getNextTradingDayStr(dateStr);
+  const nextDateStr = getNextTradingDayStr(dateStr, holidays);
   const [, nextMonth, nextDay] = nextDateStr.split('-').map(Number);
   const nextDailyMonthData = (calendarData as any).daily_by_month?.[indexCode]?.data?.[String(nextMonth)] || [];
   const nextStat = nextDailyMonthData.find((d: CalendarDayStat) => d.day === nextDay);
@@ -415,7 +428,7 @@ function getDailyStatsForIndex(dateStr: string, indexCode: string): {
 /**
  * Build almanac data for all three indices.
  */
-function buildAlmanacByIndex(dateStr: string, currentMonth: number, allIndicesData: any): any {
+function buildAlmanacByIndex(dateStr: string, currentMonth: number, allIndicesData: any, holidays?: Set<string>): any {
   const indices = ['000001', '000300', '000905'];
   const nextMonthNum = currentMonth % 12 + 1;
   const result: any = {};
@@ -426,7 +439,7 @@ function buildAlmanacByIndex(dateStr: string, currentMonth: number, allIndicesDa
     if (!indexMonthData) continue;
 
     // Daily stats for this index
-    const daily = getDailyStatsForIndex(dateStr, code);
+    const daily = getDailyStatsForIndex(dateStr, code, holidays);
 
     // Monthly stats for this index
     const thisMonthData = indexMonthData.data.find((m: any) => m.month === currentMonth);

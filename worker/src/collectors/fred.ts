@@ -6,6 +6,8 @@
  */
 
 import type { NormalizedEvent } from '../../../shared/types';
+import type { CollectorConfig, CollectorEnv, CollectorResult } from './base';
+import { http } from './http';
 
 /** 我们关心的 FRED 系列 */
 const FRED_SERIES = [
@@ -34,9 +36,7 @@ async function fetchObservations(seriesId: string, apiKey: string, units?: strin
   if (units) params.set('units', units);
 
   const url = `https://api.stlouisfed.org/fred/series/observations?${params}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`FRED API error: ${res.status}`);
-  return res.json();
+  return http.get(url).json();
 }
 
 /**
@@ -179,3 +179,16 @@ export async function collectFredData(config: FredCollectorConfig): Promise<Norm
 
   return events;
 }
+
+// ============================================
+// Collector 接口包装
+// ============================================
+
+export const fredCollector: CollectorConfig = {
+  name: 'fred',
+  canRun: (env: CollectorEnv) => !!env.FRED_API_KEY,
+  async collect(env: CollectorEnv): Promise<CollectorResult> {
+    const events = await collectFredData({ apiKey: env.FRED_API_KEY! });
+    return { events, meta: { source_count: FRED_SERIES.length, warnings: [] } };
+  },
+};

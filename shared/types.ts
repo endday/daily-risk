@@ -47,6 +47,12 @@ export interface RiskEvent {
   source: string;
 }
 
+export interface HolidayEntry {
+  date: string;
+  name: string;
+  is_trading_day: boolean;  // false = 休市（法定假日），true = 补班（周末变交易日）
+}
+
 export interface DayResponse {
   date: string;
   timezone: string;
@@ -54,6 +60,7 @@ export interface DayResponse {
   events: RiskEvent[];
   updated_at: string;
   calendar_effects?: CalendarEffects;
+  holidays?: HolidayEntry[];
 }
 
 export interface TodayTomorrowResponse {

@@ -1,103 +1,71 @@
 /**
- * 采集调度器 - 协调所有 collector 的运行
+ * 采集调度器 — 编排所有 collector 的运行
+ *
+ * 职责：
+ * 1. 注册所有采集器
+ * 2. 委托 runner.ts 统一执行
+ * 3. 保持 runDailyCollection 接口供 index.ts 调用
  */
 
-import { upsertEvents, logProviderRun } from './db';
-import { collectFredData } from './collectors/fred';
-import { collectChinaData } from './collectors/dbnomics';
-import { collectEastMoneyData, collectNorthboundFlow } from './collectors/eastmoney';
-import { fetchEarningsCalendar } from './collectors/alpha-vantage';
-import { loadManualEvents } from './collectors/manual';
+import type { CollectorEnv } from './collectors/base';
+import { runAllCollectors } from './collectors/runner';
+import { syncTradingCalendar } from './trading-calendar';
 
-export interface CollectorEnv {
-  DB: D1Database;
-  FRED_API_KEY?: string;
-  ALPHA_VANTAGE_KEY?: string;
-  RISK_RULES: Record<string, any>;
-  CHINA_EVENTS: any;
-  EARNINGS_SYMBOLS: string[];
-}
+// 事件类采集器
+import { fredCollector } from './collectors/fred';
+import { dbnomicsCollector } from './collectors/dbnomics';
+import { eastmoneyCpiCollector, northboundCollector } from './collectors/eastmoney';
+import { alphaVantageCollector } from './collectors/alpha-vantage';
+import { manualCollector } from './collectors/manual';
+
+// 快照类采集器
+import { marketSnapshotCollector } from './collectors/market-snapshot';
+import { chinabondCollector } from './collectors/chinabond';
+import { marginTradingCollector } from './collectors/margin-trading';
+import { valuationCollector } from './collectors/valuation';
+
+// 重新导出 CollectorEnv，供 index.ts 使用
+export type { CollectorEnv } from './collectors/base';
+
+// ============================================
+// 采集器注册表
+// ============================================
+
+const collectors = [
+  // 事件类（写 events 表）
+  fredCollector,
+  dbnomicsCollector,
+  eastmoneyCpiCollector,
+  northboundCollector,
+  alphaVantageCollector,
+  manualCollector,
+  // 快照类（写 market_snapshots 表）
+  marketSnapshotCollector,
+  chinabondCollector,
+  marginTradingCollector,
+  valuationCollector,
+];
+
+// ============================================
+// 每日采集入口
+// ============================================
 
 export async function runDailyCollection(env: CollectorEnv): Promise<void> {
-  const startTime = new Date().toISOString();
-  let totalUpserted = 0;
-  const errors: string[] = [];
+  console.log(`[Scheduler] Starting daily collection with ${collectors.length} collectors`);
 
-  // 1. FRED Data
-  if (env.FRED_API_KEY) {
-    try {
-      const fredEvents = await collectFredData({
-        apiKey: env.FRED_API_KEY,
-      });
-      const count = await upsertEvents(env.DB, fredEvents);
-      totalUpserted += count;
-    } catch (error) {
-      errors.push(`FRED: ${(error as Error).message}`);
-    }
-  }
-
-  // 2. China Data (DBnomics - PMI/M2)
+  // 同步交易日历（幂等，每次采集前跑一遍保持最新）
   try {
-    const chinaEvents = await collectChinaData();
-    const count = await upsertEvents(env.DB, chinaEvents);
-    totalUpserted += count;
-  } catch (error) {
-    errors.push(`China DBnomics: ${(error as Error).message}`);
+    const year = new Date().getFullYear();
+    await syncTradingCalendar(env.DB, year);
+  } catch (e) {
+    console.warn(`[Scheduler] Holiday sync failed (non-fatal): ${(e as Error).message}`);
   }
 
-  // 3. China Data (EastMoney - CPI/PPI)
-  try {
-    const emEvents = await collectEastMoneyData();
-    const count = await upsertEvents(env.DB, emEvents);
-    totalUpserted += count;
-  } catch (error) {
-    errors.push(`EastMoney: ${(error as Error).message}`);
-  }
+  const { results, total_events, total_errors } = await runAllCollectors(collectors, env);
 
-  // 3.5 Northbound Flow (EastMoney - 北向资金)
-  try {
-    const nbEvents = await collectNorthboundFlow();
-    const count = await upsertEvents(env.DB, nbEvents);
-    totalUpserted += count;
-  } catch (error) {
-    errors.push(`NorthboundFlow: ${(error as Error).message}`);
-  }
-
-  // 4. Alpha Vantage Earnings
-  if (env.ALPHA_VANTAGE_KEY) {
-    try {
-      const earningsEvents = await fetchEarningsCalendar({
-        apiKey: env.ALPHA_VANTAGE_KEY,
-        symbols: env.EARNINGS_SYMBOLS,
-        rules: env.RISK_RULES,
-      });
-      const count = await upsertEvents(env.DB, earningsEvents);
-      totalUpserted += count;
-    } catch (error) {
-      errors.push(`AlphaVantage: ${(error as Error).message}`);
-    }
-  }
-
-  // 4. Manual Events (China) - 备用，DBnomics 失败时使用
-  try {
-    const manualEvents = await loadManualEvents({
-      chinaEvents: env.CHINA_EVENTS,
-      rules: env.RISK_RULES,
-    });
-    const count = await upsertEvents(env.DB, manualEvents);
-    totalUpserted += count;
-  } catch (error) {
-    errors.push(`Manual: ${(error as Error).message}`);
-  }
-
-  // 记录运行日志
-  await logProviderRun(env.DB, {
-    provider: 'all',
-    run_type: 'daily_collection',
-    started_at: startTime,
-    finished_at: new Date().toISOString(),
-    status: errors.length > 0 ? 'partial_success' : 'success',
-    events_upserted: totalUpserted,
-    error: errors.length > 0 ? errors.join('; ') : undefined,
-  });
+  console.log(
+    `[Scheduler] Daily collection complete: ` +
+    `${total_events} events, ${total_errors} errors, ` +
+    `details: ${results.map(r => `${r.name}=${r.status}`).join(', ')}`
+  );
 }

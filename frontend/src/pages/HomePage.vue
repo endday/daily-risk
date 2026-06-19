@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchEventsByDate } from '../services/api'
+import { fetchEventsByDate, fetchMarketTemperature } from '../services/api'
 import { getToday, getMonday, offsetDate, dateLabel, dateShort, formatDateParts, WEEKDAYS } from '../../../shared/date-utils'
 import { formatPct, formatScore, signalClass, scoreColor } from '../utils/display'
-import type { CalendarEffects, RiskEvent } from '../services/api'
+import type { CalendarEffects, RiskEvent, MarketTemperatureResponse } from '../services/api'
 import CalendarStatsView from '../components/CalendarStatsView.vue'
 import MonthlyCalendarGrid from '../components/MonthlyCalendarGrid.vue'
 import DecisionPanel from '../components/DecisionPanel.vue'
+import MarketPulse from '../components/MarketPulse.vue'
 
 // ============================================
 // 共享状态
@@ -49,6 +50,12 @@ const loadingDay = ref(false)
 const lastCalendar = ref<CalendarEffects | null>(null)
 const decisionActive = ref(false)
 
+// 假日表（key: date, value: HolidayEntry）
+const holidayMap = ref<Record<string, { name: string; is_trading_day: boolean }>>({})
+
+// 市场温度
+const temperature = ref<MarketTemperatureResponse | null>(null)
+
 async function fetchDateEvents(date: string) {
   if (dateEventsMap.value[date] !== undefined) return
   try {
@@ -58,6 +65,12 @@ async function fetchDateEvents(date: string) {
     if (data.calendar_effects) {
       dateCalendarMap.value[date] = data.calendar_effects
       lastCalendar.value = data.calendar_effects
+    }
+    // 存储假日表（幂等：每次都覆盖，数据量很小）
+    if (data.holidays) {
+      for (const h of data.holidays) {
+        holidayMap.value[h.date] = { name: h.name, is_trading_day: h.is_trading_day }
+      }
     }
   } catch (e) {
     console.error(`Failed to fetch ${date}:`, e)
@@ -77,8 +90,13 @@ async function handleCalendarDateSelect(date: string) {
   await selectDate(date)
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchDateEvents(today)
+  try {
+    temperature.value = await fetchMarketTemperature()
+  } catch (e) {
+    console.error('Failed to fetch market temperature:', e)
+  }
 })
 
 // ============================================
@@ -93,8 +111,6 @@ const shortDesc = computed(() => calendar.value?.almanac?.short_term?.signal?.de
 const swingRating = computed(() => calendar.value?.almanac?.swing?.rating ?? null)
 const swingLabel = computed(() => calendar.value?.almanac?.swing?.signal?.label ?? '--')
 const advice = computed(() => calendar.value?.almanac?.advice ?? '--')
-const upProb = computed(() => calendar.value?.today?.up_probability ?? null)
-const sampleCount = computed(() => calendar.value?.today?.sample_count ?? null)
 
 const dailyCalendar = computed(() => calendar.value?.daily_calendar ?? [])
 
@@ -122,10 +138,26 @@ const baseMonday = ref(getMonday(today))
 
 const dateStrip = computed(() => {
   const labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-  const items: { date: string; label: string; short: string; isToday: boolean }[] = []
+  const items: {
+    date: string
+    label: string
+    short: string
+    isToday: boolean
+    isHoliday: boolean    // 法定假日休市（仅工作日，周末恒为休市）
+    holidayName: string
+  }[] = []
   for (let i = 0; i < 7; i++) {
     const date = offsetDate(baseMonday.value, i)
-    items.push({ date, label: labels[i], short: dateShort(date), isToday: date === today })
+    const h = holidayMap.value[date]
+    items.push({
+      date,
+      label: labels[i],
+      short: dateShort(date),
+      isToday: date === today,
+      // 周末恒为休市；工作日看假日表
+      isHoliday: i >= 5 ? true : (h ? !h.is_trading_day : false),
+      holidayName: h?.name || '',
+    })
   }
   return items
 })
@@ -170,12 +202,18 @@ function onOverviewCalendarSelect(dateStr: string) {
           v-for="item in dateStrip"
           :key="item.date"
           class="date-item"
-          :class="{ active: item.date === selectedDate, today: item.isToday }"
+          :class="{
+            active: item.date === selectedDate,
+            today: item.isToday,
+            holiday: item.isHoliday,
+          }"
           @click="selectDate(item.date)"
+          :title="item.holidayName"
         >
           <span class="date-day">{{ item.label }}</span>
           <span class="date-num">{{ item.short }}</span>
-          <span v-if="dateRiskMap[item.date] && dateRiskMap[item.date] > 0" class="date-dot" :class="scoreColor(dateRiskMap[item.date])"></span>
+          <span v-if="item.isHoliday && holidayMap[item.date]" class="date-badge">休</span>
+          <span v-else-if="dateRiskMap[item.date] && dateRiskMap[item.date] > 0" class="date-dot" :class="scoreColor(dateRiskMap[item.date])"></span>
         </div>
       </div>
       <button class="nav-btn nav-next" @click="changeWeek(1)">▶</button>
@@ -186,17 +224,13 @@ function onOverviewCalendarSelect(dateStr: string) {
     <!-- Tab: 概览                                     -->
     <!-- ============================================ -->
     <div v-show="activeTab === 'overview'" class="tab-panel">
-      <!-- 头条评分 -->
+      <!-- 头条研判 -->
       <section class="headline">
         <div class="hl-label">今日研判</div>
-        <div class="hl-score-row">
-          <span class="hl-score" :class="signalClass(shortRating)">{{ formatScore(shortRating) }}</span>
-          <span class="hl-unit">/ 10</span>
-        </div>
         <div class="hl-signal" :class="signalClass(shortRating)">
           <span class="hl-badge">{{ shortLabel }}</span>
-          <span class="hl-signal-desc">{{ shortDesc }}</span>
         </div>
+        <p class="hl-desc">{{ shortDesc }}</p>
       </section>
 
       <div class="rule-thin"></div>
@@ -215,21 +249,15 @@ function onOverviewCalendarSelect(dateStr: string) {
       <template v-if="!decisionActive">
         <div class="rule-thin"></div>
 
-        <!-- 双栏数据 -->
-        <section class="data-columns">
-          <div class="data-col">
-            <div class="col-head">短线 · 明日</div>
-            <div class="col-score" :class="signalClass(shortRating)">{{ formatScore(shortRating) }}</div>
-            <div class="col-meta">
-              <span class="meta-label">上涨概率</span>
-              <span class="meta-value" :class="signalClass(shortRating)">{{ formatPct(upProb) }}</span>
-            </div>
-            <div class="col-meta">
-              <span class="meta-label">历史样本</span>
-              <span class="meta-value">{{ sampleCount !== null ? `n=${sampleCount}` : '--' }}</span>
-            </div>
-          </div>
-          <div class="col-divider"></div>
+        <!-- 市场体温 -->
+        <MarketPulse
+          v-if="temperature"
+          :derived="temperature.derived"
+          :latest="temperature.latest"
+        />
+
+        <!-- 波段数据 -->
+        <section class="data-columns data-columns--single">
           <div class="data-col">
             <div class="col-head">波段 · {{ displayDate.month + 1 > 12 ? 1 : displayDate.month + 1 }}月</div>
             <div class="col-score" :class="signalClass(swingRating)">{{ formatScore(swingRating) }}</div>
@@ -276,6 +304,7 @@ function onOverviewCalendarSelect(dateStr: string) {
             :todayDay="todayParts.day"
             :month="displayDate.month"
             :year="displayDate.year"
+            :holidays="holidayMap"
             compact
             @selectDay="onOverviewCalendarSelect"
           />
@@ -301,25 +330,6 @@ function onOverviewCalendarSelect(dateStr: string) {
         </div>
         <div class="risk-bar">
           <div class="risk-fill" :class="scoreColor(selectedRisk)" :style="{ width: selectedRisk * 10 + '%' }"></div>
-        </div>
-      </div>
-
-      <!-- 操作信号摘要 -->
-      <div class="signal-summary" v-if="selectedCalendar?.almanac">
-        <div class="signal-item">
-          <span class="signal-label">短线</span>
-          <span class="signal-badge" :class="'signal-' + selectedCalendar.almanac.short_term.signal.action">
-            {{ selectedCalendar.almanac.short_term.signal.label }}
-          </span>
-          <span class="signal-rating">{{ selectedCalendar.almanac.short_term.rating.toFixed(1) }}</span>
-        </div>
-        <div class="signal-divider"></div>
-        <div class="signal-item">
-          <span class="signal-label">波段</span>
-          <span class="signal-badge" :class="'signal-' + selectedCalendar.almanac.swing.signal.action">
-            {{ selectedCalendar.almanac.swing.signal.label }}
-          </span>
-          <span class="signal-rating">{{ selectedCalendar.almanac.swing.rating.toFixed(1) }}</span>
         </div>
       </div>
 
@@ -383,6 +393,7 @@ function onOverviewCalendarSelect(dateStr: string) {
         v-if="selectedCalendar"
         :calendarEffects="selectedCalendar"
         :date="selectedDate"
+        :holidays="holidayMap"
         @selectDate="handleCalendarDateSelect"
       />
       <div v-else class="empty">
@@ -516,63 +527,48 @@ function onOverviewCalendarSelect(dateStr: string) {
   margin-bottom: $space-sm;
 }
 
-.hl-score-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: $space-xs;
-  margin-bottom: $space-md;
-}
-
-.hl-score {
-  font-size: $text-hero;
-  font-weight: $weight-black;
-  line-height: 1;
-  letter-spacing: -2px;
-
-  &.bullish { color: $color-up; }
-  &.neutral { color: $color-neutral; }
-  &.bearish { color: $color-down; }
-}
-
-.hl-unit {
-  font-size: $text-xl;
-  font-weight: $weight-normal;
-  color: $text-secondary;
-}
-
 .hl-signal {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: $space-md - 2;
-  flex-wrap: wrap;
+  margin-bottom: $space-sm;
 }
 
 .hl-badge {
   display: inline-block;
-  font-size: $text-md - 1;
+  font-size: $text-lg;
   font-weight: $weight-bold;
-  padding: 3px $space-md;
+  padding: $space-xs $space-xl;
   border-radius: $radius-sm;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
 
   .bullish & { background: $color-up; color: $text-inverse; }
   .neutral & { background: $color-neutral; color: $text-inverse; }
   .bearish & { background: $color-down; color: $text-inverse; }
 }
 
-.hl-signal-desc {
-  font-size: $text-md - 1;
+.hl-desc {
+  font-family: $font-serif;
+  font-size: $text-md;
+  line-height: $leading-relaxed;
   color: $text-secondary;
-  font-family: $font-sans;
+  text-align: center;
+  margin: 0;
 }
 
-// === 双栏数据 ===
+// === 波段数据 ===
 .data-columns {
   display: flex;
   align-items: stretch;
   padding: $space-lg-xl 0;
+
+  &--single {
+    justify-content: center;
+
+    .data-col {
+      max-width: 200px;
+    }
+  }
 }
 
 .data-col {
@@ -594,12 +590,6 @@ function onOverviewCalendarSelect(dateStr: string) {
   &.bullish { color: $color-up; }
   &.neutral { color: $color-neutral; }
   &.bearish { color: $color-down; }
-}
-
-.col-divider {
-  width: 1px;
-  background: $border;
-  margin: 0 $space-lg;
 }
 
 .col-meta {
@@ -791,9 +781,9 @@ function onOverviewCalendarSelect(dateStr: string) {
   white-space: nowrap;
   line-height: $leading-tight;
 
-  .date-item.active & { color: rgba(255, 255, 255, 0.65); }
+  .date-item.active & { color: $text-on-dark-muted; }
   .date-item.today & { color: $color-up; }
-  .date-item.active.today & { color: rgba(232, 71, 76, 0.8); }
+  .date-item.active.today & { color: $color-up; }
 }
 
 .date-num {
@@ -815,6 +805,24 @@ function onOverviewCalendarSelect(dateStr: string) {
   &.red { background: $color-up; }
   &.orange { background: $color-warn; }
   &.yellow { background: $color-neutral; }
+}
+
+// === 假日 / 调休 ===
+.date-badge {
+  font-size: 8px;
+  font-weight: $weight-bold;
+  color: $color-down-dark;
+  background: $color-down-light;
+  border-radius: $radius-sm;
+  padding: 0 3px;
+  margin-top: 2px;
+  line-height: 14px;
+  font-family: $font-sans;
+}
+
+.date-item.holiday {
+  .date-day { color: $text-disabled; }
+  .date-num { color: $text-disabled; }
 }
 
 // === 风险指数 ===
@@ -860,56 +868,6 @@ function onOverviewCalendarSelect(dateStr: string) {
   &.yellow { background: $color-neutral; }
 }
 
-// === 操作信号摘要 ===
-.signal-summary {
-  @include editorial-card;
-  display: flex;
-  align-items: center;
-  gap: $space-md;
-  padding: $space-md 0;
-  margin-bottom: 0;
-}
-
-.signal-item {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: $space-sm;
-}
-
-.signal-label {
-  font-family: $font-sans;
-  font-size: $text-sm;
-  color: $text-tertiary;
-  font-weight: $weight-medium;
-}
-
-.signal-badge {
-  font-family: $font-sans;
-  font-size: $text-sm;
-  font-weight: $weight-semibold;
-  padding: 2px $space-sm;
-  border-radius: $radius-sm;
-
-  &.signal-add { background: $color-up-light; color: $color-up-dark; }
-  &.signal-hold { background: $color-neutral-light; color: $color-neutral; }
-  &.signal-reduce { background: $color-down-light; color: $color-down-dark; }
-}
-
-.signal-rating {
-  font-family: $font-serif;
-  font-size: $text-md;
-  font-weight: $weight-bold;
-  color: $text-primary;
-  @include tabular-nums;
-}
-
-.signal-divider {
-  width: 1px;
-  height: 20px;
-  background: $border;
-}
-
 // === 事件卡片 ===
 .event-list {
   display: flex;
@@ -929,7 +887,7 @@ function onOverviewCalendarSelect(dateStr: string) {
   font-weight: $weight-medium;
   color: $color-warn;
   background: $color-neutral-light;
-  border: 1px solid rgba(184, 134, 11, 0.2);
+  border: 1px solid rgba($color-neutral, 0.2);
   border-radius: $radius-sm;
   padding: 1px 6px;
   margin-left: $space-sm;

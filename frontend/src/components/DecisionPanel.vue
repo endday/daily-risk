@@ -133,7 +133,13 @@ const recRatingClass = computed(() => {
         <span class="rec-day">{{ recommendation.dayLabel }}</span>
       </div>
 
-      <!-- 评分 + 概率 -->
+      <!-- 主结论 -->
+      <div class="rec-verdict" :class="recommendation.verdictClass">
+        <span class="verdict-mark">{{ recommendation.verdictClass === 'positive' ? '✅' : recommendation.verdictClass === 'caution' ? '⚠️' : '—' }}</span>
+        <span class="verdict-text">{{ recommendation.verdict }}</span>
+      </div>
+
+      <!-- 评分 + 概率（小字辅助） -->
       <div class="rec-stats">
         <div class="rec-stat">
           <span class="stat-label">评分</span>
@@ -157,14 +163,9 @@ const recRatingClass = computed(() => {
         </ul>
       </div>
 
-      <!-- 反面提醒 -->
-      <div v-if="recommendation.caveats.length" class="rec-caveats">
-        <div class="caveats-title">但你可能想知道</div>
-        <ul class="caveats-list">
-          <li v-for="(caveat, i) in recommendation.caveats" :key="i" class="caveat-item">
-            {{ caveat }}
-          </li>
-        </ul>
+      <!-- 底部一句软提醒 -->
+      <div v-if="recommendation.caveat" class="rec-caveat">
+        {{ recommendation.caveat }}
       </div>
     </div>
 
@@ -347,6 +348,30 @@ const recRatingClass = computed(() => {
   letter-spacing: 1px;
 }
 
+// === 主结论 ===
+.rec-verdict {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: $space-lg 0 $space-md;
+
+  &.positive { color: $color-up-dark; }
+  &.neutral { color: $text-secondary; }
+  &.caution { color: $color-warn; }
+}
+
+.verdict-mark {
+  font-size: $text-xl;
+  line-height: 1;
+}
+
+.verdict-text {
+  font-family: $font-serif;
+  font-size: $text-lg;
+  font-weight: $weight-bold;
+  letter-spacing: 1px;
+}
+
 .rec-stats {
   display: flex;
   gap: $space-2xl;
@@ -420,43 +445,14 @@ const recRatingClass = computed(() => {
   }
 }
 
-// === 反面提醒 ===
-.rec-caveats {
-  border-top: $rule-thin;
-  padding-top: $space-md;
-}
-
-.caveats-title {
-  font-family: $font-sans;
-  font-size: $text-sm;
-  font-weight: $weight-medium;
-  color: $text-tertiary;
-  margin-bottom: $space-sm;
-}
-
-.caveats-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  padding-top: $space-sm;
-}
-
-.caveat-item {
+// === 底部一句软提醒 ===
+.rec-caveat {
   font-family: $font-sans;
   font-size: $text-sm;
   color: $text-tertiary;
   line-height: $leading-relaxed;
-  padding: $space-xs 0;
-  padding-left: $space-lg;
-  position: relative;
-
-  &::before {
-    content: '⚠';
-    position: absolute;
-    left: 0;
-    font-size: $text-xs;
-    opacity: 0.5;
-  }
+  border-top: $rule-thin;
+  padding-top: $space-md;
 }
 
 // === 空状态 ===

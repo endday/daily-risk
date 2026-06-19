@@ -9,6 +9,9 @@
  */
 
 import type { NormalizedEvent } from '../../../shared/types';
+import type { CollectorConfig, CollectorResult, MarketSnapshotRow } from './base';
+import { getBeijingDate } from '../../../shared/date-utils';
+import { http } from './http';
 
 /** 东方财富宏观指标映射 */
 const EM_SERIES = [
@@ -48,10 +51,7 @@ async function fetchEastMoneyData(reportName: string, valueField: string) {
     `&source=WEB` +
     `&client=WEB`;
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`EastMoney API error: ${res.status}`);
-
-  const data = await res.json();
+  const data = await http.get(url).json<any>();
   const records = data.result?.data || [];
 
   if (records.length === 0) return null;
@@ -190,10 +190,7 @@ export async function collectNorthboundFlow(): Promise<NormalizedEvent[]> {
       `&client=WEB` +
       `&filter=(MUTUAL_TYPE%3D%22005%22)`;
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Northbound flow API error: ${res.status}`);
-
-    const data = await res.json();
+    const data = await http.get(url).json<any>();
     const records = data.result?.data || [];
 
     if (records.length === 0) {
@@ -257,3 +254,59 @@ export async function collectNorthboundFlow(): Promise<NormalizedEvent[]> {
 
   return events;
 }
+
+// ============================================
+// Collector 接口包装
+// ============================================
+
+export const eastmoneyCpiCollector: CollectorConfig = {
+  name: 'eastmoney_cpi',
+  async collect(): Promise<CollectorResult> {
+    const events = await collectEastMoneyData();
+    return { events, meta: { source_count: EM_SERIES.length, warnings: [] } };
+  },
+};
+
+export const northboundCollector: CollectorConfig = {
+  name: 'northbound',
+  async collect(): Promise<CollectorResult> {
+    const events = await collectNorthboundFlow();
+
+    // 同时写入 market_snapshots（北向资金 → 000300 行的 northbound_amt/num）
+    const snapshots: MarketSnapshotRow[] = [];
+    if (events.length > 0) {
+      const evt = events[0];
+      // 从 raw_json 提取成交额（万元）
+      let dealAmtWan: number | null = null;
+      let dealNum: number | null = null;
+      try {
+        const raw = JSON.parse(evt.raw_json || '{}');
+        dealAmtWan = raw.deal_amt_wan ?? null;
+        dealNum = raw.deal_num ?? null;
+      } catch { /* ignore */ }
+
+      if (dealAmtWan != null) {
+        snapshots.push({
+          trade_date: evt.event_date,
+          index_code: '000300',
+          close_price: null,
+          change_pct: null,
+          rise_count: null,
+          fall_count: null,
+          flat_count: null,
+          turnover_amount: null,
+          turnover_rate: null,
+          volatility_20d: null,
+          northbound_amt: dealAmtWan,
+          northbound_num: dealNum,
+          pe_ttm: null,
+          pb: null,
+          margin_balance: null,
+          bond_yield_10y: null,
+        });
+      }
+    }
+
+    return { events, snapshots, meta: { source_count: 1, warnings: [] } };
+  },
+};

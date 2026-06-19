@@ -8,6 +8,8 @@
  */
 
 import type { NormalizedEvent } from '../../../shared/types';
+import type { CollectorConfig, CollectorResult } from './base';
+import { http } from './http';
 
 /** 中国宏观指标映射（DBnomics NBS） */
 const CN_SERIES = [
@@ -62,15 +64,7 @@ export async function collectChinaData(): Promise<NormalizedEvent[]> {
       const url = `https://api.db.nomics.world/v22/series/NBS/${item.dataset_code}?observations=true&limit=2`;
       console.log('[DBnomics] Fetching:', url);
 
-      const res = await fetch(url);
-      console.log('[DBnomics] Response status:', res.status);
-
-      if (!res.ok) {
-        console.error(`[DBnomics] API error for ${item.dataset_code}: ${res.status}`);
-        continue;
-      }
-
-      const data = await res.json();
+      const data = await http.get(url).json<any>();
       const series = data.series?.docs?.[0];
 
       if (!series || !series.period || series.period.length === 0) {
@@ -153,3 +147,15 @@ export async function collectChinaData(): Promise<NormalizedEvent[]> {
 
   return events;
 }
+
+// ============================================
+// Collector 接口包装
+// ============================================
+
+export const dbnomicsCollector: CollectorConfig = {
+  name: 'dbnomics',
+  async collect(): Promise<CollectorResult> {
+    const events = await collectChinaData();
+    return { events, meta: { source_count: CN_SERIES.length, warnings: [] } };
+  },
+};

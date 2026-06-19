@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Almanac, AlmanacByIndex } from '../services/api'
-import { formatPct, signalClass, probColorValue } from '../utils/display'
+import { formatPct, signalClass, probTextClass } from '../utils/display'
 
 const props = defineProps<{
   almanacByIndex?: AlmanacByIndex
@@ -68,8 +68,8 @@ function signalColor(action: string): string {
         </div>
         <div class="dim-desc">{{ currentAlmanac.short_term.signal.description }}</div>
         <div class="dim-stats">
-          今日 <span :style="{ color: probColorValue(currentData.today_prob) }">{{ formatPct(currentData.today_prob) }}</span><span class="dim-sample">(n={{ currentData.today_sample_count }})</span>
-          · 明日 <span :style="{ color: probColorValue(currentData.next_day_prob) }">{{ formatPct(currentData.next_day_prob) }}</span><span class="dim-sample">(n={{ currentData.next_day_sample_count }})</span>
+          今日 <span :class="probTextClass(currentData.today_prob)">{{ formatPct(currentData.today_prob) }}</span><span class="dim-sample">(n={{ currentData.today_sample_count }})</span>
+          · 明日 <span :class="probTextClass(currentData.next_day_prob)">{{ formatPct(currentData.next_day_prob) }}</span><span class="dim-sample">(n={{ currentData.next_day_sample_count }})</span>
         </div>
         <div class="dim-confidence-warn" v-if="currentData.next_day_sample_count < 10">
           ⚠️ 样本量较少，评分仅供参考
@@ -92,8 +92,8 @@ function signalColor(action: string): string {
         </div>
         <div class="dim-desc">{{ currentAlmanac.swing.signal.description }}</div>
         <div class="dim-stats">
-          本月 <span :style="{ color: probColorValue(currentData.this_month_prob) }">{{ formatPct(currentData.this_month_prob) }}</span><span class="dim-sample">(n={{ currentData.this_month_sample_count }})</span>
-          · 下月 <span :style="{ color: probColorValue(currentData.next_month_prob) }">{{ formatPct(currentData.next_month_prob) }}</span><span class="dim-sample">(n={{ currentData.next_month_sample_count }})</span>
+          本月 <span :class="probTextClass(currentData.this_month_prob)">{{ formatPct(currentData.this_month_prob) }}</span><span class="dim-sample">(n={{ currentData.this_month_sample_count }})</span>
+          · 下月 <span :class="probTextClass(currentData.next_month_prob)">{{ formatPct(currentData.next_month_prob) }}</span><span class="dim-sample">(n={{ currentData.next_month_sample_count }})</span>
         </div>
         <div class="dim-confidence-warn" v-if="currentData.next_month_sample_count < 10">
           ⚠️ 样本量较少，评分仅供参考
@@ -276,6 +276,10 @@ function signalColor(action: string): string {
   font-weight: $weight-normal;
   margin-left: 2px;
 }
+
+.prob-up { color: $color-up; }
+.prob-down { color: $color-down; }
+.prob-neutral { color: $text-secondary; }
 
 .dim-confidence-warn {
   font-family: $font-sans;

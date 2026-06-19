@@ -46,6 +46,7 @@ INDICES = [
     {"code": "sh000001", "name": "上证指数", "short_code": "000001"},
     {"code": "sh000300", "name": "沪深300", "short_code": "000300"},
     {"code": "sh000905", "name": "中证500", "short_code": "000905"},
+    {"code": "sz399006", "name": "创业板指", "short_code": "399006"},
 ]
 YEARS = 20  # 统计年限
 OUTPUT_FILE = Path(__file__).parent.parent / "worker" / "data" / "calendar-effects.json"

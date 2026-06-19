@@ -12,7 +12,7 @@ import type { MarketSnapshotRow } from './base';
 import { http } from './http';
 import { upsertSnapshots } from '../db';
 
-const INDEX_CODES = ['000001', '000300', '000905'];
+const INDEX_CODES = ['000001', '000300', '000905', '399006'];
 
 /** 单采集器最大分页请求数（防封禁/防超时） */
 const MAX_PAGES = 100;

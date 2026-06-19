@@ -254,6 +254,7 @@ export interface AlmanacByIndex {
   '000001'?: IndexAlmanacData;
   '000300'?: IndexAlmanacData;
   '000905'?: IndexAlmanacData;
+  '399006'?: IndexAlmanacData;
 }
 
 export interface CalendarEffects {

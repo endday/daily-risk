@@ -30,7 +30,7 @@ import { http } from './http';
 const CSINDEX_PERF_URL = 'https://www.csindex.com.cn/csindex-home/perf/index-perf';
 
 /** 目标指数 */
-const INDEX_CODES = ['000001', '000300', '000905'];
+const INDEX_CODES = ['000001', '000300', '000905', '399006'];
 
 interface CSIndexPerfRow {
   tradeDate: string;      // e.g. "20260616"

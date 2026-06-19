@@ -9,7 +9,7 @@ const props = defineProps<{
   nextDayShort: string
 }>()
 
-const indexCodes = ['000001', '000300', '000905'] as const
+const indexCodes = ['000001', '000300', '000905', '399006'] as const
 const activeIndex = ref<string>('000001')
 
 const currentData = computed(() => {

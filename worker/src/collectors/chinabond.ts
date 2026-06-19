@@ -17,7 +17,7 @@ import { httpText } from './http';
 const YIELD_URL = 'https://yield.chinabond.com.cn/cbweb-pbc-web/pbc/historyQuery';
 
 /** 目标指数 — 10Y 收益率写入所有指数的行 */
-const INDEX_CODES = ['000001', '000300', '000905'];
+const INDEX_CODES = ['000001', '000300', '000905', '399006'];
 
 /**
  * 从 ChinaBond 获取国债收益率

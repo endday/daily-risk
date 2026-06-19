@@ -115,7 +115,7 @@ function getIndexMonthRating(idxCode: string, month: number): number | undefined
 }
 
 
-const indexCodes = ['000001', '000300', '000905'] as const
+const indexCodes = ['000001', '000300', '000905', '399006'] as const
 
 function getIndexData(idxCode: string) {
   if (!props.calendarEffects.indices_monthly) return null

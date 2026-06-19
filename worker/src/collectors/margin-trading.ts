@@ -21,7 +21,7 @@ import { http } from './http';
 const MARGIN_URL = 'https://datacenter-web.eastmoney.com/api/data/v1/get';
 
 /** 目标指数 — margin_balance 写入所有指数的行（市场级数据） */
-const INDEX_CODES = ['000001', '000300', '000905'];
+const INDEX_CODES = ['000001', '000300', '000905', '399006'];
 
 interface MarginData {
   date: string;

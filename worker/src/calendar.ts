@@ -351,7 +351,7 @@ export function getActiveCalendarEffects(dateStr: string, holidays?: Set<string>
  * Build full 12-month data for all indices with ratings.
  */
 function buildAllIndicesMonthlyData(): any {
-  const indices = ['000001', '000300', '000905'];
+  const indices = ['000001', '000300', '000905', '399006'];
   const result: any = {};
 
   for (const code of indices) {
@@ -429,7 +429,7 @@ function getDailyStatsForIndex(dateStr: string, indexCode: string, holidays?: Se
  * Build almanac data for all three indices.
  */
 function buildAlmanacByIndex(dateStr: string, currentMonth: number, allIndicesData: any, holidays?: Set<string>): any {
-  const indices = ['000001', '000300', '000905'];
+  const indices = ['000001', '000300', '000905', '399006'];
   const nextMonthNum = currentMonth % 12 + 1;
   const result: any = {};
 

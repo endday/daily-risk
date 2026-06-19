@@ -191,7 +191,7 @@ function onOverviewCalendarSelect(dateStr: string) {
     <header class="masthead">
       <span class="mast-date">{{ displayDate.month }}月{{ displayDate.day }}日 {{ WEEKDAYS[displayWeekday] }}</span>
       <span class="mast-sep">·</span>
-      <span class="mast-title">明日风险榜</span>
+      <span class="mast-title">投资黄历</span>
     </header>
 
     <!-- 日期条 (全局 sticky) -->

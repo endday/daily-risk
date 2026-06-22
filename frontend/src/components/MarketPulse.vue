@@ -7,6 +7,7 @@ import {
   erpColorClass,
   pePercentileColorClass,
 } from '../utils/temperature'
+import { formatTurnover } from '../utils/display'
 
 const props = defineProps<{
   derived: TemperatureDerived
@@ -29,13 +30,7 @@ const peColor = computed(() =>
 
 const hasData = computed(() => props.derived.erp != null || props.derived.pe_ttm != null)
 
-function formatTurnoverFn(v: number | null | undefined): string {
-  if (v == null) return '--'
-  if (v >= 10000) return `${(v / 10000).toFixed(1)}万亿`
-  return `${Math.round(v)}亿`
-}
-
-const formatTurnover = computed(() => formatTurnoverFn(props.derived.turnover_5d_avg))
+const turnoverDisplay = computed(() => formatTurnover(props.derived.turnover_5d_avg))
 
 const adColorClass = computed(() => {
   const r = props.derived.advance_decline_ratio
@@ -116,7 +111,7 @@ const turnoverColorClass = computed(() => {
         <div class="metric-row" v-if="derived.turnover_5d_avg != null">
           <span class="metric-icon">量</span>
           <span class="metric-name">量能</span>
-          <span class="metric-val">{{ formatTurnover }}</span>
+          <span class="metric-val">{{ turnoverDisplay }}</span>
           <span class="metric-tag" :class="turnoverColorClass">{{ derived.turnover_trend || '--' }}</span>
         </div>
       </div>

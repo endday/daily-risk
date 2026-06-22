@@ -6,6 +6,7 @@
  */
 
 import type { TemperatureDerived, MarketSnapshot } from '../services/api'
+import { getDayHash } from '../../../shared/date-utils'
 
 /**
  * 生成一句话市场天气
@@ -136,21 +137,6 @@ function getVolume(derived: TemperatureDerived): 'expanding' | 'normal' | 'shrin
   if (trend === '放量') return 'expanding'
   if (trend === '缩量') return 'shrinking'
   return 'normal'
-}
-
-/**
- * 基于当前日期生成稳定的哈希值（同一天返回相同值）
- */
-function getDayHash(): number {
-  const now = new Date()
-  const dateStr = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`
-  let hash = 0
-  for (let i = 0; i < dateStr.length; i++) {
-    const char = dateStr.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash // Convert to 32bit integer
-  }
-  return Math.abs(hash)
 }
 
 /**

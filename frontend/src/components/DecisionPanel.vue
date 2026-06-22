@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { CalendarDayStat, CalendarEffects, RiskEvent, MarketTemperatureResponse, WeekDayData } from '../services/api'
 import { fetchWeekEvents } from '../services/api'
 import { recommend, type Intent, type DateRange, type Recommendation } from '../utils/decision'
-import { formatScore, signalClass } from '../utils/display'
+import { formatScore, formatTurnover, signalClass } from '../utils/display'
 
 const props = defineProps<{
   dailyCalendar: CalendarDayStat[]
@@ -70,6 +70,13 @@ async function loadWeekData() {
   }
 }
 
+// 日期变化时刷新周数据
+watch(() => props.selectedDate, () => {
+  if (activeIntent.value) {
+    loadWeekData()
+  }
+})
+
 function setRange(range: DateRange) {
   dateRange.value = range
 }
@@ -93,17 +100,12 @@ const recRatingClass = computed(() => {
   return signalClass(recommendation.value.rating)
 })
 
-function formatTurnover(v: number | null | undefined): string {
-  if (v == null) return '--'
-  if (v >= 10000) return `${(v / 10000).toFixed(1)}万亿`
-  return `${Math.round(v)}亿`
-}
-
 function getScoreClass(rating: number | undefined): string {
-  if (rating == null) return ''
-  if (rating >= 6) return 'score-high'
-  if (rating >= 4) return 'score-medium'
-  return 'score-low'
+  const base = signalClass(rating)
+  if (base === 'bullish') return 'score-high'
+  if (base === 'neutral') return 'score-medium'
+  if (base === 'bearish') return 'score-low'
+  return ''
 }
 </script>
 
@@ -197,9 +199,9 @@ function getScoreClass(rating: number | undefined): string {
         </div>
       </div>
 
-      <!-- 7天评分日历 -->
+      <!-- 本周评分日历 -->
       <div v-if="weekDays.length > 0" class="rec-week-calendar">
-        <div class="week-label">未来7天评分</div>
+        <div class="week-label">本周评分</div>
         <div class="week-grid">
           <div
             v-for="day in weekDays"

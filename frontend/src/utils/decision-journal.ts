@@ -6,6 +6,7 @@
  */
 
 import type { Intent } from './decision'
+import { getDayHash } from '../../../shared/date-utils'
 
 const STORAGE_KEY = 'decision_journal'
 const MAX_ENTRIES = 30  // 最多保留 30 条记录
@@ -128,21 +129,6 @@ function generateReturnText(_intent: Intent, returnPct: number, daysPassed: numb
     `判断有依据，但结果${returnPct.toFixed(1)}%`,
   ]
   return phrases[dayHash % phrases.length]
-}
-
-/**
- * 基于当前日期生成稳定的哈希值
- */
-function getDayHash(): number {
-  const now = new Date()
-  const dateStr = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`
-  let hash = 0
-  for (let i = 0; i < dateStr.length; i++) {
-    const char = dateStr.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  return Math.abs(hash)
 }
 
 // ============================================

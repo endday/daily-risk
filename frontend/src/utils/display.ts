@@ -18,6 +18,13 @@ export function formatScore(v: number | null | undefined): string {
   return v != null ? v.toFixed(1) : '--'
 }
 
+/** 成交额（亿元） → 可读文本（万亿/亿），null/undefined 返回 "--" */
+export function formatTurnover(v: number | null | undefined): string {
+  if (v == null) return '--'
+  if (v >= 10000) return `${(v / 10000).toFixed(1)}万亿`
+  return `${Math.round(v)}亿`
+}
+
 // ============================================
 // 评分 → CSS class 映射
 // ============================================

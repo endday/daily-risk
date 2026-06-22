@@ -84,3 +84,23 @@ export function dateShort(dateStr: string): string {
   const [, m, d] = dateStr.split('-').map(Number)
   return `${m}/${d}`
 }
+
+// ============================================
+// 稳定随机（基于日期的哈希）
+// ============================================
+
+/**
+ * 基于当前日期生成稳定的哈希值（同一天返回相同值）
+ * 用于文案/选项的确定性选择，避免每次渲染随机变化
+ */
+export function getDayHash(): number {
+  const now = new Date()
+  const dateStr = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`
+  let hash = 0
+  for (let i = 0; i < dateStr.length; i++) {
+    const char = dateStr.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return Math.abs(hash)
+}

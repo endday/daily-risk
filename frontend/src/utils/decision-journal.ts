@@ -97,11 +97,14 @@ function calculateReturn(intent: Intent, buyPrice: number, currentPrice: number)
 }
 
 /**
- * 生成收益文案
+ * 生成收益文案（基于日期，同一天文案稳定）
  */
 function generateReturnText(_intent: Intent, returnPct: number, daysPassed: number): string {
   const absReturn = Math.abs(returnPct).toFixed(1)
   const sign = returnPct >= 0 ? '+' : ''
+
+  // 基于日期生成稳定索引
+  const dayHash = getDayHash()
 
   // 赚了
   if (returnPct > 0.5) {
@@ -110,7 +113,7 @@ function generateReturnText(_intent: Intent, returnPct: number, daysPassed: numb
       `判断正确，赚了${absReturn}%`,
       `数据支持你，${sign}${returnPct.toFixed(1)}%`,
     ]
-    return phrases[Math.floor(Math.random() * phrases.length)]
+    return phrases[dayHash % phrases.length]
   }
 
   // 小赚小亏
@@ -124,7 +127,22 @@ function generateReturnText(_intent: Intent, returnPct: number, daysPassed: numb
     `这次不太对，${returnPct.toFixed(1)}%`,
     `判断有依据，但结果${returnPct.toFixed(1)}%`,
   ]
-  return phrases[Math.floor(Math.random() * phrases.length)]
+  return phrases[dayHash % phrases.length]
+}
+
+/**
+ * 基于当前日期生成稳定的哈希值
+ */
+function getDayHash(): number {
+  const now = new Date()
+  const dateStr = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`
+  let hash = 0
+  for (let i = 0; i < dateStr.length; i++) {
+    const char = dateStr.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return Math.abs(hash)
 }
 
 // ============================================

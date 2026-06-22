@@ -4,7 +4,7 @@
  */
 
 // 类型统一从 shared/types 导入，避免重复定义
-import type { DayResponse } from '../../../shared/types'
+import type { DayResponse, RiskEvent, CalendarEffects } from '../../../shared/types'
 
 export type {
   RiskEvent,
@@ -93,6 +93,34 @@ export async function fetchMarketTemperature(days = 20): Promise<MarketTemperatu
   const response = await fetch(`${API_BASE}/market-temperature?days=${days}`)
   if (!response.ok) {
     throw new Error(`Market temperature API error: ${response.status}`)
+  }
+  return response.json()
+}
+
+// ============================================
+// 周日历 API 类型
+// ============================================
+
+export interface WeekDayData {
+  date: string
+  day_label: string
+  risk_index: number
+  events: RiskEvent[]
+  calendar_effects: CalendarEffects | null
+}
+
+export interface WeekResponse {
+  timezone: string
+  week_start: string
+  days: WeekDayData[]
+  holidays?: Array<{ date: string; name: string; is_trading_day: boolean }>
+}
+
+/** 获取一周的事件和日历效应 */
+export async function fetchWeekEvents(date: string): Promise<WeekResponse> {
+  const response = await fetch(`${API_BASE}/events?week=${date}`)
+  if (!response.ok) {
+    throw new Error(`Week events API error: ${response.status}`)
   }
   return response.json()
 }

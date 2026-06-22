@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { CalendarDayStat, CalendarEffects, RiskEvent } from '../services/api'
+import type { CalendarDayStat, CalendarEffects, RiskEvent, MarketTemperatureResponse, WeekDayData } from '../services/api'
+import { fetchWeekEvents } from '../services/api'
 import { recommend, type Intent, type DateRange, type Recommendation } from '../utils/decision'
 import { formatScore, signalClass } from '../utils/display'
 
@@ -10,6 +11,7 @@ const props = defineProps<{
   events: RiskEvent[]
   today: string
   selectedDate: string
+  marketTemperature?: MarketTemperatureResponse | null
 }>()
 
 const emit = defineEmits<{
@@ -22,6 +24,7 @@ const emit = defineEmits<{
 
 const activeIntent = ref<Intent | null>(null)
 const dateRange = ref<DateRange>('month')
+const weekDays = ref<WeekDayData[]>([])
 
 // ============================================
 // 推荐结果
@@ -49,10 +52,22 @@ function setIntent(intent: Intent) {
   }
   activeIntent.value = intent
   emit('decision', intent)
+  // 获取本周数据
+  loadWeekData()
 }
 
 function closeDecision() {
   activeIntent.value = null
+}
+
+async function loadWeekData() {
+  try {
+    const response = await fetchWeekEvents(props.selectedDate)
+    weekDays.value = response.days
+  } catch (e) {
+    console.error('Failed to load week data:', e)
+    weekDays.value = []
+  }
 }
 
 function setRange(range: DateRange) {
@@ -77,6 +92,19 @@ const recRatingClass = computed(() => {
   if (!recommendation.value) return ''
   return signalClass(recommendation.value.rating)
 })
+
+function formatTurnover(v: number | null | undefined): string {
+  if (v == null) return '--'
+  if (v >= 10000) return `${(v / 10000).toFixed(1)}万亿`
+  return `${Math.round(v)}亿`
+}
+
+function getScoreClass(rating: number | undefined): string {
+  if (rating == null) return ''
+  if (rating >= 6) return 'score-high'
+  if (rating >= 4) return 'score-medium'
+  return 'score-low'
+}
 </script>
 
 <template>
@@ -138,6 +166,25 @@ const recRatingClass = computed(() => {
         <span class="verdict-text">{{ recommendation.verdict }}</span>
       </div>
 
+      <!-- 市场体温摘要（紧凑版） -->
+      <div v-if="marketTemperature?.derived" class="rec-temperature">
+        <div class="temp-row">
+          <span class="temp-label">估值</span>
+          <span class="temp-value">{{ marketTemperature.derived.erp_label || '--' }}</span>
+          <span class="temp-sub">PE {{ marketTemperature.derived.pe_percentile != null ? `${marketTemperature.derived.pe_percentile}%位` : '--' }}</span>
+        </div>
+        <div class="temp-row">
+          <span class="temp-label">情绪</span>
+          <span class="temp-value">{{ marketTemperature.derived.advance_decline_label || '--' }}</span>
+          <span class="temp-sub">涨跌比 {{ marketTemperature.derived.advance_decline_ratio != null ? `${marketTemperature.derived.advance_decline_ratio.toFixed(0)}%` : '--' }}</span>
+        </div>
+        <div class="temp-row">
+          <span class="temp-label">量能</span>
+          <span class="temp-value">{{ marketTemperature.derived.turnover_trend || '--' }}</span>
+          <span class="temp-sub">{{ formatTurnover(marketTemperature.derived.turnover_5d_avg) }}</span>
+        </div>
+      </div>
+
       <!-- 评分 + 概率（小字辅助） -->
       <div class="rec-stats">
         <div class="rec-stat">
@@ -147,6 +194,27 @@ const recRatingClass = computed(() => {
         <div class="rec-stat">
           <span class="stat-label">上涨概率</span>
           <span class="stat-value" :class="recRatingClass">{{ Math.round(recommendation.upProbability * 100) }}%</span>
+        </div>
+      </div>
+
+      <!-- 7天评分日历 -->
+      <div v-if="weekDays.length > 0" class="rec-week-calendar">
+        <div class="week-label">未来7天评分</div>
+        <div class="week-grid">
+          <div
+            v-for="day in weekDays"
+            :key="day.date"
+            class="week-day"
+            :class="{
+              'is-today': day.date === props.today,
+              'is-recommended': recommendation && day.date === recommendation.date,
+            }"
+          >
+            <div class="week-day-label">{{ day.day_label.split(' ')[0] }}</div>
+            <div class="week-day-score" :class="getScoreClass(day.calendar_effects?.almanac?.short_term?.rating)">
+              {{ day.calendar_effects?.almanac?.short_term?.rating?.toFixed(0) || '--' }}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -369,6 +437,99 @@ const recRatingClass = computed(() => {
   font-size: $text-lg;
   font-weight: $weight-bold;
   letter-spacing: 1px;
+}
+
+// === 市场体温摘要 ===
+.rec-temperature {
+  margin: $space-md 0;
+  padding: $space-md;
+  background: $bg-muted;
+  border-radius: $radius-sm;
+}
+
+.temp-row {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: $space-xs 0;
+  font-family: $font-sans;
+  font-size: $text-sm;
+
+  & + .temp-row {
+    border-top: 1px solid $border;
+  }
+}
+
+.temp-label {
+  color: $text-tertiary;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.temp-value {
+  font-weight: $weight-medium;
+  color: $text-primary;
+  flex: 1;
+}
+
+.temp-sub {
+  color: $text-tertiary;
+  font-size: $text-xs;
+  @include tabular-nums;
+}
+
+// === 7天评分日历 ===
+.rec-week-calendar {
+  margin: $space-md 0;
+}
+
+.week-label {
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-secondary;
+  margin-bottom: $space-sm;
+}
+
+.week-grid {
+  display: flex;
+  gap: $space-xs;
+}
+
+.week-day {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $space-xs;
+  padding: $space-sm $space-xs;
+  border-radius: $radius-sm;
+  background: $bg-muted;
+
+  &.is-today {
+    background: $color-neutral-light;
+  }
+
+  &.is-recommended {
+    background: $color-up-light;
+    border: 1px solid $color-up;
+  }
+}
+
+.week-day-label {
+  font-family: $font-sans;
+  font-size: $text-xs;
+  color: $text-secondary;
+}
+
+.week-day-score {
+  font-family: $font-serif;
+  font-size: $text-lg;
+  font-weight: $weight-bold;
+  @include tabular-nums;
+
+  &.score-high { color: $color-up; }
+  &.score-medium { color: $color-neutral; }
+  &.score-low { color: $color-down; }
 }
 
 .rec-stats {

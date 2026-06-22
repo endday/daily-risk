@@ -260,6 +260,7 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
         :events="selectedDayEvents"
         :today="today"
         :selectedDate="selectedDate"
+        :marketTemperature="temperature"
         @decision="handleRecordDecision"
       />
 

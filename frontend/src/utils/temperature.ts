@@ -95,9 +95,10 @@ function generateWeather(
     ],
   }
 
-  // 选择基础天气
+  // 选择基础天气（基于日期，确保同一天文案稳定）
   const options = weatherMap[temp]
-  let weather = options[Math.floor(Math.random() * options.length)]
+  const dayHash = getDayHash()
+  let weather = options[dayHash % options.length]
 
   // 情绪修饰
   if (sentiment === 'good' && (temp === 'normal' || temp === 'warm' || temp === 'hot')) {
@@ -135,6 +136,21 @@ function getVolume(derived: TemperatureDerived): 'expanding' | 'normal' | 'shrin
   if (trend === '放量') return 'expanding'
   if (trend === '缩量') return 'shrinking'
   return 'normal'
+}
+
+/**
+ * 基于当前日期生成稳定的哈希值（同一天返回相同值）
+ */
+function getDayHash(): number {
+  const now = new Date()
+  const dateStr = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`
+  let hash = 0
+  for (let i = 0; i < dateStr.length; i++) {
+    const char = dateStr.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return Math.abs(hash)
 }
 
 /**

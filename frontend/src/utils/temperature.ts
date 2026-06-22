@@ -8,73 +8,133 @@
 import type { TemperatureDerived, MarketSnapshot } from '../services/api'
 
 /**
- * 生成一句话市场温度点评
+ * 生成一句话市场天气
  *
- * 示例输出：
- * "沪深300 PE 14.84 倍，处于历史中位；股债利差 5.01%，股票相对债券仍有吸引力。但今日涨跌比仅 34%，短线情绪偏弱。"
+ * 风格：像老黄历一样，用比喻描述市场状态
+ * 示例：
+ * - "估值便宜，情绪不错，适合做事"
+ * - "天冷，少出门"
+ * - "市场在打瞌睡，没什么方向"
  */
 export function generateTemperatureNarrative(
   derived: TemperatureDerived,
   _latest: MarketSnapshot[],
 ): string {
-  const parts: string[] = []
+  // 判断市场温度
+  const temp = getMarketTemperature(derived)
 
-  // 1) 估值
-  if (derived.pe_ttm != null) {
-    const pePart = `沪深300 PE ${derived.pe_ttm.toFixed(1)} 倍`
-    if (derived.pe_label) {
-      parts.push(`${pePart}，${derived.pe_label}`)
-    } else {
-      parts.push(pePart)
-    }
-  }
-
-  // 2) 股债利差（ERP）
-  if (derived.erp != null) {
-    const erpVal = derived.erp.toFixed(2)
-    const erpDesc = erpInterpretation(derived.erp)
-    parts.push(`股债利差 ${erpVal}%，${erpDesc}`)
-  }
-
-  // 3) 情绪（涨跌比）
-  if (derived.advance_decline_label != null && derived.advance_decline_ratio != null) {
-    const ratio = derived.advance_decline_ratio.toFixed(0)
-    parts.push(`涨跌比 ${ratio}%，${derived.advance_decline_label}`)
-  }
-
-  // 4) 量能
-  if (derived.turnover_trend != null && derived.turnover_5d_avg != null) {
-    const amt = formatAmount(derived.turnover_5d_avg)
-    parts.push(`成交额 ${amt}，${derived.turnover_trend}`)
-  }
-
-  // 5) 融资融券（补充）
-  if (derived.margin_balance_yi != null) {
-    parts.push(`两融余额 ${derived.margin_balance_yi.toLocaleString()} 亿`)
-  }
-
-  if (parts.length === 0) return '数据积累中，稍后呈现'
-
-  return parts.join('；') + '。'
+  // 根据温度 + 修饰词生成天气
+  return generateWeather(temp, derived)
 }
 
 /**
- * ERP → 解释文案
+ * 判断市场温度等级
  */
-function erpInterpretation(erp: number): string {
-  if (erp > 8) return '股票相对债券极具吸引力'
-  if (erp > 5) return '股票相对债券仍有吸引力'
-  if (erp > 2) return '股债吸引力相当'
-  if (erp > 0) return '债券相对更有吸引力'
-  return '债券吸引力显著高于股票'
+function getMarketTemperature(derived: TemperatureDerived): 'hot' | 'warm' | 'normal' | 'cool' | 'cold' {
+  const erp = derived.erp
+  const pePct = derived.pe_percentile
+
+  // ERP 优先（最核心的估值指标）
+  if (erp != null) {
+    if (erp > 8) return 'hot'
+    if (erp > 5) return 'warm'
+    if (erp > 2) return 'normal'
+    if (erp > 0) return 'cool'
+    return 'cold'
+  }
+
+  // 其次 PE 百分位
+  if (pePct != null) {
+    if (pePct <= 20) return 'hot'
+    if (pePct <= 40) return 'warm'
+    if (pePct <= 60) return 'normal'
+    if (pePct <= 80) return 'cool'
+    return 'cold'
+  }
+
+  return 'normal'
 }
 
 /**
- * 亿元数值 → 可读文本（万亿/亿）
+ * 根据温度 + 市场状态生成天气文案
  */
-function formatAmount(yi: number): string {
-  if (yi >= 10000) return `${(yi / 10000).toFixed(1)} 万亿`
-  return `${Math.round(yi)} 亿`
+function generateWeather(
+  temp: 'hot' | 'warm' | 'normal' | 'cool' | 'cold',
+  derived: TemperatureDerived,
+): string {
+  // 情绪和量能修饰
+  const sentiment = getSentiment(derived)
+  const volume = getVolume(derived)
+
+  // 核心天气文案
+  const weatherMap: Record<string, string[]> = {
+    hot: [
+      '估值很便宜，市场给机会',
+      '股票打折卖，别错过',
+      '天热，适合出手',
+    ],
+    warm: [
+      '估值不贵，可以做事',
+      '市场偏暖，适合布局',
+      '价格合适，值得关注',
+    ],
+    normal: [
+      '不贵不便宜，看着办',
+      '市场平稳，没啥特别的',
+      '估值中性，正常操作',
+    ],
+    cool: [
+      '有点贵，别急',
+      '估值偏高，轻仓为宜',
+      '天凉，少出手',
+    ],
+    cold: [
+      '太贵了，等等吧',
+      '估值高企，谨慎为上',
+      '天冷，少出门',
+    ],
+  }
+
+  // 选择基础天气
+  const options = weatherMap[temp]
+  let weather = options[Math.floor(Math.random() * options.length)]
+
+  // 情绪修饰
+  if (sentiment === 'good' && (temp === 'normal' || temp === 'warm' || temp === 'hot')) {
+    weather += '，情绪也不错'
+  } else if (sentiment === 'bad' && (temp === 'warm' || temp === 'normal')) {
+    weather += '，但情绪偏弱'
+  }
+
+  // 量能修饰
+  if (volume === 'shrinking' && (temp === 'normal' || temp === 'cool')) {
+    weather += '，成交缩量，市场在打瞌睡'
+  } else if (volume === 'expanding' && temp === 'hot') {
+    weather += '，放量上涨，势头不错'
+  }
+
+  return weather
+}
+
+/**
+ * 判断市场情绪
+ */
+function getSentiment(derived: TemperatureDerived): 'good' | 'neutral' | 'bad' {
+  const ratio = derived.advance_decline_ratio
+  if (ratio == null) return 'neutral'
+  if (ratio >= 60) return 'good'
+  if (ratio >= 45) return 'neutral'
+  return 'bad'
+}
+
+/**
+ * 判断量能状态
+ */
+function getVolume(derived: TemperatureDerived): 'expanding' | 'normal' | 'shrinking' {
+  const trend = derived.turnover_trend
+  if (trend === '放量') return 'expanding'
+  if (trend === '缩量') return 'shrinking'
+  return 'normal'
 }
 
 /**

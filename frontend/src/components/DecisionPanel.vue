@@ -12,6 +12,10 @@ const props = defineProps<{
   selectedDate: string
 }>()
 
+const emit = defineEmits<{
+  decision: [intent: Intent]
+}>()
+
 // ============================================
 // 状态
 // ============================================
@@ -44,6 +48,7 @@ function setIntent(intent: Intent) {
     return
   }
   activeIntent.value = intent
+  emit('decision', intent)
 }
 
 function closeDecision() {

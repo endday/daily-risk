@@ -5,10 +5,12 @@ import { fetchEventsByDate, fetchMarketTemperature } from '../services/api'
 import { getToday, getMonday, offsetDate, dateLabel, dateShort, formatDateParts, WEEKDAYS } from '../../../shared/date-utils'
 import { signalClass, scoreColor } from '../utils/display'
 import type { CalendarEffects, RiskEvent, MarketTemperatureResponse } from '../services/api'
+import { recordDecision, getReviewableDecisions, type DecisionReviewItem } from '../utils/decision-journal'
 import CalendarStatsView from '../components/CalendarStatsView.vue'
 import DecisionPanel from '../components/DecisionPanel.vue'
 import MarketPulse from '../components/MarketPulse.vue'
 import AlmanacCard from '../components/AlmanacCard.vue'
+import DecisionReview from '../components/DecisionReview.vue'
 
 // ============================================
 // 共享状态
@@ -53,6 +55,30 @@ const holidayMap = ref<Record<string, { name: string; is_trading_day: boolean }>
 
 // 市场温度
 const temperature = ref<MarketTemperatureResponse | null>(null)
+
+// 决策回看
+const showReview = ref(true)
+const reviews = computed<DecisionReviewItem[]>(() => {
+  if (!temperature.value) return []
+  // 从 latest 提取各指数当前价格
+  const currentPrices: Record<string, number> = {}
+  for (const snap of temperature.value.latest) {
+    if (snap.close_price != null) {
+      currentPrices[snap.index_code] = snap.close_price
+    }
+  }
+  return getReviewableDecisions(currentPrices)
+})
+
+// 记录决策（DecisionPanel 调用）
+function handleRecordDecision(intent: 'buy' | 'sell') {
+  // 默认用沪深300作为参考指数
+  const indexCode = '000300'
+  const currentPrice = temperature.value?.latest.find(s => s.index_code === indexCode)?.close_price
+  if (currentPrice) {
+    recordDecision(intent, indexCode, currentPrice)
+  }
+}
 
 async function fetchDateEvents(date: string) {
   if (dateEventsMap.value[date] !== undefined) return
@@ -205,6 +231,13 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
       <button v-if="selectedDate !== today" class="today-btn" @click="goToday">今天</button>
     </div>
 
+    <!-- 决策回看 -->
+    <DecisionReview
+      v-if="showReview && reviews.length > 0"
+      :reviews="reviews"
+      @dismiss="showReview = false"
+    />
+
     <!-- ============================================ -->
     <!-- Tab: 概览                                     -->
     <!-- ============================================ -->
@@ -227,6 +260,7 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
         :events="selectedDayEvents"
         :today="today"
         :selectedDate="selectedDate"
+        @decision="handleRecordDecision"
       />
 
       <div class="rule-thin"></div>

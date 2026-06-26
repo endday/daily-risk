@@ -34,6 +34,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             vendor: ['vue'],
+            echarts: ['echarts/core', 'echarts/charts', 'echarts/components', 'echarts/renderers', 'vue-echarts'],
           },
         },
       },

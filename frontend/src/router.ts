@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { defineAsyncComponent } from 'vue'
 import HomePage from './pages/HomePage.vue'
-import ErpPage from './pages/ErpPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -8,7 +8,7 @@ const router = createRouter({
     {
       path: '/erp',
       name: 'erp',
-      component: ErpPage,
+      component: defineAsyncComponent(() => import('./pages/ErpPage.vue')),
     },
     {
       path: '/:tab(events|stats)?',

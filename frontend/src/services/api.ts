@@ -66,6 +66,18 @@ export interface TemperatureDerived {
   pe_label: string | null
   erp: number | null
   erp_label: string | null
+  // 巴菲特指数
+  total_market_cap: number | null
+  buffett_ratio: number | null
+  buffett_label: string | null
+  // 全球宏观（FRED）
+  us_2y_yield: number | null
+  fed_funds_rate: number | null
+  usd_index: number | null
+  usd_trend: string | null
+  oil_wti: number | null
+  us_yield_spread: number | null
+  yield_curve_label: string | null
 }
 
 export interface MarketTemperatureResponse {

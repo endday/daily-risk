@@ -76,6 +76,13 @@ export interface MarketSnapshotRow {
   pb: number | null;
   margin_balance: number | null;
   bond_yield_10y: number | null;
+  // 全球宏观指标
+  us_2y_yield: number | null;
+  fed_funds_rate: number | null;
+  usd_index: number | null;
+  oil_wti: number | null;
+  us_yield_spread: number | null;
+  total_market_cap: number | null;
 }
 
 // ============================================

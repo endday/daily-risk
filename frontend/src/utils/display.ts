@@ -26,6 +26,46 @@ export function formatTurnover(v: number | null | undefined): string {
 }
 
 // ============================================
+// 差值计算（前值 vs 公布值）
+// ============================================
+
+/**
+ * 解析字符串中的数值（如 "2.8%" → 2.8, "-1.5" → -1.5）
+ * 返回 null 表示无法解析
+ */
+function parseNumericValue(s: string | null | undefined): number | null {
+  if (!s || s === '--') return null
+  const cleaned = s.replace(/[,，\s]/g, '').replace(/[%％]/g, '')
+  const num = parseFloat(cleaned)
+  return isNaN(num) ? null : num
+}
+
+export interface DeltaInfo {
+  text: string   // 格式化文本，如 "+0.3%", "-1.2"
+  class: string  // 'delta-up' | 'delta-down' | 'delta-flat'
+}
+
+/**
+ * 计算前值与公布值的差值
+ * 返回 { text, class }，任意为空时返回 null
+ */
+export function computeDelta(previous: string | null | undefined, actual: string | null | undefined): DeltaInfo | null {
+  const prevNum = parseNumericValue(previous)
+  const actualNum = parseNumericValue(actual)
+  if (prevNum === null || actualNum === null) return null
+
+  const diff = actualNum - prevNum
+  const absDiff = Math.abs(diff)
+  const hasPct = (previous?.includes('%') ?? false) || (actual?.includes('%') ?? false)
+  const decimals = absDiff < 1 ? 2 : 1
+  const suffix = hasPct ? '%' : ''
+  const sign = diff > 0 ? '+' : diff < 0 ? '-' : ''
+  const text = `${sign}${absDiff.toFixed(decimals)}${suffix}`
+  const cls = diff > 0 ? 'delta-up' : diff < 0 ? 'delta-down' : 'delta-flat'
+  return { text, class: cls }
+}
+
+// ============================================
 // 评分 → CSS class 映射
 // ============================================
 

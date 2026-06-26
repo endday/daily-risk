@@ -11,6 +11,7 @@ import { getBeijingDate } from '../../shared/date-utils';
 import riskRulesData from '../data/risk-rules.json';
 import chinaEventsData from '../data/china-events.json';
 import calendarEffectsData from '../data/calendar-effects.json';
+import chinaGdpData from '../data/china-gdp.json';
 
 export interface Env {
   DB: D1Database;
@@ -644,7 +645,28 @@ function formatSnapshotForAPI(row: any): any {
     pb: row.pb,
     margin_balance: row.margin_balance,
     bond_yield_10y: row.bond_yield_10y,
+    us_2y_yield: row.us_2y_yield,
+    fed_funds_rate: row.fed_funds_rate,
+    usd_index: row.usd_index,
+    oil_wti: row.oil_wti,
+    us_yield_spread: row.us_yield_spread,
+    total_market_cap: row.total_market_cap,
   };
+}
+
+/**
+ * 获取最近一年的中国名义 GDP（万亿元人民币）
+ * 从 china-gdp.json 读取，按年份降序取最新的非零值
+ */
+function getLatestChinaGDP(): number | null {
+  const data = (chinaGdpData as any).data;
+  if (!data) return null;
+  const years = Object.keys(data).map(Number).sort((a, b) => b - a);
+  for (const year of years) {
+    const val = data[year];
+    if (val > 0) return val;
+  }
+  return null;
 }
 
 function computeDerivedMetrics(history: any[], hs300History: any[], latest300: any): any {
@@ -730,6 +752,42 @@ function computeDerivedMetrics(history: any[], hs300History: any[], latest300: a
       result.erp > 5 ? '股票偏低估' :
       result.erp > 2 ? '合理' :
       result.erp > 0 ? '偏高估' : '极度高估';
+  }
+
+  // === 巴菲特指数 = A 股总市值 / 中国名义 GDP ===
+  const totalMarketCap = latest?.total_market_cap;
+  if (totalMarketCap != null && totalMarketCap > 0) {
+    result.total_market_cap = totalMarketCap;
+    const gdp = getLatestChinaGDP();
+    if (gdp != null && gdp > 0) {
+      const ratio = totalMarketCap / gdp;
+      result.buffett_ratio = Math.round(ratio * 100) / 100;
+      result.buffett_label =
+        ratio < 0.5 ? '极度低估' :
+        ratio < 0.7 ? '偏低估' :
+        ratio < 0.9 ? '合理' :
+        ratio < 1.1 ? '偏高估' : '极度高估';
+    }
+  }
+
+  // === 全球宏观指标（FRED）===
+  if (latest?.us_2y_yield != null) result.us_2y_yield = latest.us_2y_yield;
+  if (latest?.fed_funds_rate != null) result.fed_funds_rate = latest.fed_funds_rate;
+  if (latest?.usd_index != null) {
+    result.usd_index = latest.usd_index;
+    // 美元指数趋势：与 5 日均值对比
+    const usd5 = avgField(history.slice(0, 5), 'usd_index');
+    if (usd5 != null) {
+      result.usd_trend = latest.usd_index > usd5 * 1.01 ? '美元走强' :
+                         latest.usd_index < usd5 * 0.99 ? '美元走弱' : '美元平稳';
+    }
+  }
+  if (latest?.oil_wti != null) result.oil_wti = latest.oil_wti;
+  if (latest?.us_yield_spread != null) {
+    result.us_yield_spread = latest.us_yield_spread;
+    result.yield_curve_label =
+      latest.us_yield_spread < 0 ? '倒挂（衰退预警）' :
+      latest.us_yield_spread < 0.5 ? '偏平' : '正常';
   }
 
   return result;

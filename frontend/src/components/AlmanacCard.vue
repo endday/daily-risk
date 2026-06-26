@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Almanac, AlmanacByIndex } from '../services/api'
 import { formatPct, signalClass, probTextClass } from '../utils/display'
 
@@ -9,8 +9,27 @@ const props = defineProps<{
   nextDayShort: string
 }>()
 
+const emit = defineEmits<{
+  (e: 'indexChange', indexCode: string): void
+}>()
+
 const indexCodes = ['000001', '000300', '000905', '399006'] as const
-const activeIndex = ref<string>('000001')
+const STORAGE_KEY = 'almanac_active_index'
+
+function loadSavedIndex(): string {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved && indexCodes.includes(saved as any)) return saved
+  } catch {}
+  return '000001'
+}
+
+const activeIndex = ref<string>(loadSavedIndex())
+
+watch(activeIndex, (val) => {
+  try { localStorage.setItem(STORAGE_KEY, val) } catch {}
+  emit('indexChange', val)
+})
 
 const currentData = computed(() => {
   if (props.almanacByIndex) {

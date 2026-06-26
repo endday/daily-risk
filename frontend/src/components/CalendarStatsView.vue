@@ -15,11 +15,11 @@ const emit = defineEmits<{
   (e: 'selectDate', date: string): void
 }>()
 
-// 折叠状态（默认折叠）
+// 折叠状态（默认展开）
 const collapsed = ref({
-  features: true,
-  indices: true,
-  specialWindows: true,
+  features: false,
+  indices: false,
+  specialWindows: false,
 })
 
 function toggleCollapse(key: keyof typeof collapsed.value) {

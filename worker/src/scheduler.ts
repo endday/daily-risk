@@ -23,6 +23,8 @@ import { marketSnapshotCollector } from './collectors/market-snapshot';
 import { chinabondCollector } from './collectors/chinabond';
 import { marginTradingCollector } from './collectors/margin-trading';
 import { valuationCollector } from './collectors/valuation';
+import { fredMacroCollector } from './collectors/fred-macro';
+import { marketCapCollector } from './collectors/market-cap';
 
 // 重新导出 CollectorEnv，供 index.ts 使用
 export type { CollectorEnv } from './collectors/base';
@@ -44,6 +46,8 @@ const collectors = [
   chinabondCollector,
   marginTradingCollector,
   valuationCollector,
+  fredMacroCollector,
+  marketCapCollector,
 ];
 
 // ============================================

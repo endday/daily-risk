@@ -31,6 +31,7 @@ function emptyRow(trade_date: string, index_code: string): MarketSnapshotRow {
     turnover_amount: null, turnover_rate: null, volatility_20d: null,
     northbound_amt: null, northbound_num: null,
     pe_ttm: null, pb: null, margin_balance: null, bond_yield_10y: null,
+    us_2y_yield: null, fed_funds_rate: null, usd_index: null, oil_wti: null, us_yield_spread: null, total_market_cap: null,
   };
 }
 

@@ -3,14 +3,15 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchEventsByDate, fetchMarketTemperature } from '../services/api'
 import { getToday, getMonday, offsetDate, dateLabel, dateShort, formatDateParts, WEEKDAYS } from '../../../shared/date-utils'
-import { signalClass, scoreColor } from '../utils/display'
+import { signalClass, scoreColor, computeDelta } from '../utils/display'
 import type { CalendarEffects, RiskEvent, MarketTemperatureResponse } from '../services/api'
-import { recordDecision, getReviewableDecisions, type DecisionReviewItem } from '../utils/decision-journal'
+import { recordDecision, getReviewableDecisions, getAllDecisions, clearAllDecisions, type DecisionReviewItem } from '../utils/decision-journal'
 import CalendarStatsView from '../components/CalendarStatsView.vue'
 import DecisionPanel from '../components/DecisionPanel.vue'
 import MarketPulse from '../components/MarketPulse.vue'
 import AlmanacCard from '../components/AlmanacCard.vue'
 import DecisionReview from '../components/DecisionReview.vue'
+import DecisionHistory from '../components/DecisionHistory.vue'
 
 // ============================================
 // 共享状态
@@ -58,22 +59,42 @@ const temperature = ref<MarketTemperatureResponse | null>(null)
 
 // 决策回看
 const showReview = ref(true)
-const reviews = computed<DecisionReviewItem[]>(() => {
-  if (!temperature.value) return []
-  // 从 latest 提取各指数当前价格
-  const currentPrices: Record<string, number> = {}
+const showHistory = ref(false)
+const currentPrices = computed<Record<string, number>>(() => {
+  if (!temperature.value) return {}
+  const prices: Record<string, number> = {}
   for (const snap of temperature.value.latest) {
     if (snap.close_price != null) {
-      currentPrices[snap.index_code] = snap.close_price
+      prices[snap.index_code] = snap.close_price
     }
   }
-  return getReviewableDecisions(currentPrices)
+  return prices
 })
+const reviews = computed<DecisionReviewItem[]>(() => {
+  return getReviewableDecisions(currentPrices.value)
+})
+const allDecisions = computed<DecisionReviewItem[]>(() => {
+  return getAllDecisions(currentPrices.value)
+})
+
+function handleClearDecisions() {
+  clearAllDecisions()
+  showHistory.value = false
+}
+
+// 决策记录用的参考指数（跟随用户在 AlmanacCard 的选择，默认 000300）
+function loadSavedIndex(): string {
+  try { return localStorage.getItem('almanac_active_index') || '000300' } catch { return '000300' }
+}
+const decisionIndexCode = ref<string>(loadSavedIndex())
+
+function handleIndexChange(indexCode: string) {
+  decisionIndexCode.value = indexCode
+}
 
 // 记录决策（DecisionPanel 调用）
 function handleRecordDecision(intent: 'buy' | 'sell') {
-  // 默认用沪深300作为参考指数
-  const indexCode = '000300'
+  const indexCode = decisionIndexCode.value
   const currentPrice = temperature.value?.latest.find(s => s.index_code === indexCode)?.close_price
   if (currentPrice) {
     recordDecision(intent, indexCode, currentPrice)
@@ -191,6 +212,26 @@ function goToday() {
   selectDate(today)
 }
 
+function goToDate(date: string) {
+  baseMonday.value = getMonday(date)
+  selectDate(date)
+}
+
+const showDatePicker = ref(false)
+const pickerDate = ref(today)
+
+function toggleDatePicker() {
+  showDatePicker.value = !showDatePicker.value
+  pickerDate.value = selectedDate.value
+}
+
+function handlePickerChange() {
+  if (pickerDate.value) {
+    goToDate(pickerDate.value)
+    showDatePicker.value = false
+  }
+}
+
 const selectedEvents = computed(() => dateEventsMap.value[selectedDate.value] || [])
 const selectedRisk = computed(() => dateRiskMap.value[selectedDate.value] || 0)
 const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value] ?? lastCalendar.value)
@@ -228,7 +269,27 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
         </div>
       </div>
       <button class="nav-btn nav-next" @click="changeWeek(1)">▶</button>
+      <button class="calendar-btn" @click="toggleDatePicker" title="跳转到指定日期">📅</button>
       <button v-if="selectedDate !== today" class="today-btn" @click="goToday">今天</button>
+    </div>
+
+    <!-- 日期跳转面板 -->
+    <div v-if="showDatePicker" class="date-picker-panel">
+      <div class="picker-row">
+        <span class="picker-label">选择日期</span>
+        <input
+          type="date"
+          v-model="pickerDate"
+          class="picker-input"
+          @change="handlePickerChange"
+        />
+        <button class="picker-close" @click="showDatePicker = false">×</button>
+      </div>
+      <div class="picker-shortcuts">
+        <button class="shortcut-btn" @click="goToDate(offsetDate(today, 1))">明天</button>
+        <button class="shortcut-btn" @click="goToDate(offsetDate(today, 7))">+7天</button>
+        <button class="shortcut-btn" @click="goToDate(offsetDate(today, 30))">+30天</button>
+      </div>
     </div>
 
     <!-- 决策回看 -->
@@ -238,13 +299,24 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
       @dismiss="showReview = false"
     />
 
+    <!-- 决策历史 Modal -->
+    <DecisionHistory
+      v-if="showHistory"
+      :decisions="allDecisions"
+      @close="showHistory = false"
+      @clear="handleClearDecisions"
+    />
+
     <!-- ============================================ -->
     <!-- Tab: 概览                                     -->
     <!-- ============================================ -->
     <div v-show="activeTab === 'overview'" class="tab-panel">
       <!-- 头条研判 -->
       <section class="headline">
-        <div class="hl-label">今日研判</div>
+        <div class="hl-label">
+          今日研判
+          <span v-if="allDecisions.length > 0" class="hl-history-link" @click="showHistory = true">回看</span>
+        </div>
         <div class="hl-signal" :class="signalClass(shortRating)">
           <span class="hl-badge">{{ shortLabel }}</span>
         </div>
@@ -271,6 +343,7 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
           v-if="temperature"
           :derived="temperature.derived"
           :latest="temperature.latest"
+          :history="temperature.history"
         />
 
         <div class="rule-thin"></div>
@@ -296,6 +369,7 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
           :almanacByIndex="calendar.almanac_by_index"
           :nextMonthName="nextMonthName"
           :nextDayShort="nextDayShort"
+          @indexChange="handleIndexChange"
         />
 
       <!-- 底部 -->
@@ -361,6 +435,13 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
             <div class="val">
               <span class="val-label">公布值</span>
               <span class="val-num">{{ event.actual_value || '--' }}</span>
+              <span
+                v-if="computeDelta(event.previous_value, event.actual_value)"
+                class="val-delta"
+                :class="computeDelta(event.previous_value, event.actual_value)?.class"
+              >
+                {{ computeDelta(event.previous_value, event.actual_value)?.text }}
+              </span>
             </div>
           </div>
           <div class="event-bottom">
@@ -446,7 +527,7 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
   top: 0;
   z-index: 100;
   background: $bg-page;
-  margin-bottom: $space-sm;
+  margin-bottom: 0;
   padding: $space-sm $space-xl;
   border-bottom: $rule-thin;
 }
@@ -512,6 +593,21 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
 .hl-label {
   @include editorial-label;
   margin-bottom: $space-sm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-md;
+}
+
+.hl-history-link {
+  font-family: $font-sans;
+  font-size: $text-xs;
+  font-weight: $weight-medium;
+  color: $color-info;
+  letter-spacing: 0;
+  cursor: pointer;
+
+  &:active { opacity: 0.6; }
 }
 
 .hl-signal {
@@ -862,6 +958,18 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
   @include tabular-nums;
 }
 
+.val-delta {
+  display: block;
+  font-size: $text-xs;
+  font-weight: $weight-medium;
+  margin-top: 1px;
+  @include tabular-nums;
+
+  &.delta-up { color: $color-up; }
+  &.delta-down { color: $color-down; }
+  &.delta-flat { color: $text-tertiary; }
+}
+
 .event-bottom {
   display: flex;
   gap: $space-lg;
@@ -887,6 +995,94 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
   font-weight: $weight-medium;
 
   &:active { opacity: 0.6; }
+}
+
+// === 日历按钮 ===
+.calendar-btn {
+  position: absolute;
+  top: $space-xs;
+  right: $space-xl + $space-md;
+  background: none;
+  border: none;
+  font-size: $text-md;
+  cursor: pointer;
+  padding: $space-xs;
+  opacity: 0.7;
+
+  &:active { opacity: 1; }
+}
+
+// === 日期跳转面板 ===
+.date-picker-panel {
+  position: absolute;
+  top: 100%;
+  left: $space-xl;
+  right: $space-xl;
+  z-index: 99;
+  background: $bg-page;
+  border: 1px solid $border;
+  border-top: none;
+  padding: $space-md;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  margin-bottom: $space-sm;
+}
+
+.picker-label {
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: $text-secondary;
+}
+
+.picker-input {
+  flex: 1;
+  font-family: $font-sans;
+  font-size: $text-sm;
+  padding: $space-xs $space-sm;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  background: $bg-card;
+  color: $text-primary;
+}
+
+.picker-close {
+  background: none;
+  border: none;
+  font-size: $text-lg;
+  color: $text-tertiary;
+  cursor: pointer;
+  padding: 0 $space-xs;
+  line-height: 1;
+
+  &:active { color: $text-primary; }
+}
+
+.picker-shortcuts {
+  display: flex;
+  gap: $space-sm;
+}
+
+.shortcut-btn {
+  flex: 1;
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: $weight-medium;
+  color: $text-secondary;
+  background: $bg-muted;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  padding: $space-xs 0;
+  cursor: pointer;
+
+  &:active {
+    background: $text-primary;
+    color: $text-inverse;
+  }
 }
 
 // === Skeleton ===

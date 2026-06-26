@@ -70,6 +70,12 @@ function parseSnapshotRow(raw: any, config: typeof INDEX_CONFIG[number]): Market
     pb: null,
     margin_balance: null,
     bond_yield_10y: null,
+    us_2y_yield: null,
+    fed_funds_rate: null,
+    usd_index: null,
+    oil_wti: null,
+    us_yield_spread: null,
+    total_market_cap: null,
   };
 }
 

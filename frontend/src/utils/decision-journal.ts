@@ -149,6 +149,47 @@ function saveEntries(entries: DecisionRecord[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries))
 }
 
+/**
+ * 获取全部决策记录（带当前价格对比）
+ */
+export function getAllDecisions(
+  currentPrices: Record<string, number>,
+): DecisionReviewItem[] {
+  const entries = loadEntries()
+  const today = new Date(getTodayStr() + 'T00:00:00+08:00')
+  return entries.map(entry => {
+    const currentPrice = currentPrices[entry.indexCode] ?? entry.closePrice
+    const daysPassed = daysBetween(entry.date, today)
+    const returnPct = calculateReturn(entry.intent, entry.closePrice, currentPrice)
+    const returnText = generateReturnText(entry.intent, returnPct, daysPassed)
+    return { ...entry, daysPassed, currentPrice, returnPct, returnText }
+  })
+}
+
+/**
+ * 清空全部决策记录
+ */
+export function clearAllDecisions(): void {
+  localStorage.removeItem(STORAGE_KEY)
+}
+
+/**
+ * 获取决策统计
+ */
+export function getDecisionStats(entries: DecisionReviewItem[]): {
+  total: number
+  wins: number
+  winRate: number
+} {
+  const withReturn = entries.filter(e => e.daysPassed >= 1)
+  const wins = withReturn.filter(e => e.returnPct > 0.5).length
+  return {
+    total: withReturn.length,
+    wins,
+    winRate: withReturn.length > 0 ? wins / withReturn.length * 100 : 0,
+  }
+}
+
 // ============================================
 // 辅助函数
 // ============================================

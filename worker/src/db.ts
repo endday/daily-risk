@@ -271,10 +271,11 @@ const SNAPSHOT_COLUMNS = `
   volatility_20d,
   northbound_amt, northbound_num,
   pe_ttm, pb,
-  margin_balance, bond_yield_10y
+  margin_balance, bond_yield_10y,
+  us_2y_yield, fed_funds_rate, usd_index, oil_wti, us_yield_spread, total_market_cap
 `;
 
-const SNAPSHOT_PLACEHOLDERS = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+const SNAPSHOT_PLACEHOLDERS = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
 const SNAPSHOT_CONFLICT = `
   ON CONFLICT(trade_date, index_code) DO UPDATE SET
@@ -292,6 +293,12 @@ const SNAPSHOT_CONFLICT = `
     pb = COALESCE(excluded.pb, market_snapshots.pb),
     margin_balance = COALESCE(excluded.margin_balance, market_snapshots.margin_balance),
     bond_yield_10y = COALESCE(excluded.bond_yield_10y, market_snapshots.bond_yield_10y),
+    us_2y_yield = COALESCE(excluded.us_2y_yield, market_snapshots.us_2y_yield),
+    fed_funds_rate = COALESCE(excluded.fed_funds_rate, market_snapshots.fed_funds_rate),
+    usd_index = COALESCE(excluded.usd_index, market_snapshots.usd_index),
+    oil_wti = COALESCE(excluded.oil_wti, market_snapshots.oil_wti),
+    us_yield_spread = COALESCE(excluded.us_yield_spread, market_snapshots.us_yield_spread),
+    total_market_cap = COALESCE(excluded.total_market_cap, market_snapshots.total_market_cap),
     created_at = datetime('now')
 `;
 
@@ -305,6 +312,7 @@ function bindSnapshot(stmt: D1PreparedStatement, row: MarketSnapshotRow): D1Prep
     row.northbound_amt, row.northbound_num,
     row.pe_ttm, row.pb,
     row.margin_balance, row.bond_yield_10y,
+    row.us_2y_yield, row.fed_funds_rate, row.usd_index, row.oil_wti, row.us_yield_spread, row.total_market_cap,
   );
 }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import type { TemperatureDerived, MarketSnapshot } from '../services/api'
 import {
   generateTemperatureNarrative,
@@ -12,7 +13,14 @@ import { formatTurnover } from '../utils/display'
 const props = defineProps<{
   derived: TemperatureDerived
   latest: MarketSnapshot[]
+  history?: MarketSnapshot[]
 }>()
+
+const router = useRouter()
+
+function goToErp() {
+  router.push('/erp')
+}
 
 const narrative = computed(() => generateTemperatureNarrative(props.derived, props.latest))
 
@@ -46,6 +54,42 @@ const turnoverColorClass = computed(() => {
   if (t === '缩量') return 'tag-bad'
   return 'tag-neutral'
 })
+
+// 巴菲特指数颜色
+const buffettColorClass = computed(() => {
+  const r = props.derived.buffett_ratio
+  if (r == null) return 'tag-neutral'
+  if (r < 0.5) return 'erp-extreme-cheap'
+  if (r < 0.7) return 'erp-cheap'
+  if (r < 0.9) return 'erp-fair'
+  if (r < 1.1) return 'erp-expensive'
+  return 'erp-extreme-expensive'
+})
+
+// 全球宏观：是否有数据
+const hasGlobalMacro = computed(() =>
+  props.derived.usd_index != null ||
+  props.derived.us_yield_spread != null ||
+  props.derived.oil_wti != null ||
+  props.derived.fed_funds_rate != null
+)
+
+// 美元趋势标签颜色
+const usdTagClass = computed(() => {
+  const t = props.derived.usd_trend
+  if (t === '美元走强') return 'tag-bad'   // 强美元对 A 股不利
+  if (t === '美元走弱') return 'tag-good'
+  return 'tag-neutral'
+})
+
+// 收益率曲线标签颜色
+const yieldCurveClass = computed(() => {
+  const s = props.derived.us_yield_spread
+  if (s == null) return 'tag-neutral'
+  if (s < 0) return 'tag-bad'    // 倒挂 = 风险
+  if (s < 0.5) return 'tag-neutral'
+  return 'tag-good'
+})
 </script>
 
 <template>
@@ -59,12 +103,13 @@ const turnoverColorClass = computed(() => {
     </div>
 
     <template v-else>
-      <!-- ERP 温度条 -->
-      <div class="erp-section">
+      <!-- ERP 温度条（股债利差） -->
+      <div class="erp-section" @click="goToErp">
         <div class="erp-header">
           <span class="erp-label" :class="erpColor">{{ derived.erp_label || '--' }}</span>
           <span v-if="derived.erp != null" class="erp-value">{{ derived.erp.toFixed(2) }}%</span>
         </div>
+        <div class="erp-subtitle">股债利差 (ERP) · 查看完整走势 →</div>
         <div class="erp-track">
           <div
             class="erp-fill"
@@ -85,13 +130,20 @@ const turnoverColorClass = computed(() => {
         </div>
       </div>
 
-      <!-- 四行指标 -->
+      <!-- 核心指标 -->
       <div class="metric-rows">
         <div class="metric-row" v-if="derived.pe_ttm != null">
           <span class="metric-icon">估</span>
           <span class="metric-name">估值</span>
           <span class="metric-val">PE {{ derived.pe_ttm.toFixed(1) }}</span>
           <span class="metric-tag" :class="peColor">{{ derived.pe_label || derived.pe_percentile != null ? `历史${derived.pe_percentile}%位` : '--' }}</span>
+        </div>
+
+        <div class="metric-row" v-if="derived.buffett_ratio != null">
+          <span class="metric-icon">巴</span>
+          <span class="metric-name">巴菲特</span>
+          <span class="metric-val">市值/GDP {{ derived.buffett_ratio.toFixed(2) }}</span>
+          <span class="metric-tag" :class="buffettColorClass">{{ derived.buffett_label || '--' }}</span>
         </div>
 
         <div class="metric-row" v-if="derived.margin_balance_yi != null">
@@ -116,9 +168,38 @@ const turnoverColorClass = computed(() => {
         </div>
       </div>
 
+      <!-- 全球宏观 -->
+      <div class="metric-rows global-section" v-if="hasGlobalMacro">
+        <div class="metric-row" v-if="derived.usd_index != null">
+          <span class="metric-icon icon-global">美</span>
+          <span class="metric-name">美元</span>
+          <span class="metric-val">{{ derived.usd_index.toFixed(1) }}</span>
+          <span class="metric-tag" :class="usdTagClass">{{ derived.usd_trend || '--' }}</span>
+        </div>
+        <div class="metric-row" v-if="derived.us_yield_spread != null">
+          <span class="metric-icon icon-global">差</span>
+          <span class="metric-name">期限利差</span>
+          <span class="metric-val">10Y-2Y {{ derived.us_yield_spread.toFixed(2) }}%</span>
+          <span class="metric-tag" :class="yieldCurveClass">{{ derived.yield_curve_label || '--' }}</span>
+        </div>
+        <div class="metric-row" v-if="derived.oil_wti != null">
+          <span class="metric-icon icon-global">油</span>
+          <span class="metric-name">WTI</span>
+          <span class="metric-val">${{ derived.oil_wti.toFixed(1) }}/桶</span>
+          <span class="metric-tag tag-neutral">--</span>
+        </div>
+        <div class="metric-row" v-if="derived.fed_funds_rate != null">
+          <span class="metric-icon icon-global"> Fed</span>
+          <span class="metric-name">利率</span>
+          <span class="metric-val">{{ derived.fed_funds_rate.toFixed(2) }}%</span>
+          <span class="metric-tag tag-neutral">--</span>
+        </div>
+      </div>
+
       <!-- 编辑点评 -->
       <p class="pulse-narrative">{{ narrative }}</p>
     </template>
+
   </section>
 </template>
 
@@ -161,12 +242,22 @@ const turnoverColorClass = computed(() => {
 // === ERP 温度条 ===
 .erp-section {
   margin-bottom: $space-lg;
+  cursor: pointer;
+
+  &:active { opacity: 0.8; }
 }
 
 .erp-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  margin-bottom: 2px;
+}
+
+.erp-subtitle {
+  font-family: $font-sans;
+  font-size: $text-xs;
+  color: $text-tertiary;
   margin-bottom: $space-sm;
 }
 
@@ -303,6 +394,18 @@ const turnoverColorClass = computed(() => {
   &.erp-extreme-expensive { background: $color-down-medium; color: $color-down-dark; }
 }
 
+// === 全球宏观 ===
+.global-section {
+  border-top: $rule-heavy;
+  margin-top: $space-sm;
+  padding-top: $space-sm;
+}
+
+.icon-global {
+  background: $color-info;
+  font-size: $text-xs;
+}
+
 // === 编辑点评 ===
 .pulse-narrative {
   font-family: $font-serif;
@@ -312,4 +415,5 @@ const turnoverColorClass = computed(() => {
   margin: $space-md 0 0;
   text-indent: 2em;
 }
+
 </style>

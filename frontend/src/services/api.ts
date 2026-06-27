@@ -4,7 +4,13 @@
  */
 
 // 类型统一从 shared/types 导入，避免重复定义
-import type { DayResponse, RiskEvent, CalendarEffects } from '../../../shared/types'
+import type {
+  DayResponse,
+  RiskEvent,
+  CalendarEffects,
+  MarketTemperatureResponse,
+  MarketTemperatureCompactResponse,
+} from '../../../shared/types'
 
 export type {
   RiskEvent,
@@ -23,70 +29,13 @@ export type {
   IndexAlmanacData,
   AlmanacByIndex,
   DayResponse,
+  MarketSnapshot,
+  TemperatureDerived,
+  MarketTemperatureResponse,
+  MarketTemperatureCompactResponse,
 } from '../../../shared/types'
 
 import { getToday, getTomorrow } from '../../../shared/date-utils'
-
-// ============================================
-// 市场温度 API 类型
-// ============================================
-
-export interface MarketSnapshot {
-  trade_date: string
-  index_code: string
-  close_price: number | null
-  change_pct: number | null
-  rise_count: number | null
-  fall_count: number | null
-  flat_count: number | null
-  turnover_amount: number | null
-  turnover_rate: number | null
-  volatility_20d: number | null
-  northbound_amt: number | null
-  northbound_num: number | null
-  pe_ttm: number | null
-  pb: number | null
-  margin_balance: number | null
-  bond_yield_10y: number | null
-}
-
-export interface TemperatureDerived {
-  advance_decline_ratio: number | null
-  advance_decline_label: string | null
-  turnover_5d_avg: number | null
-  turnover_20d_avg: number | null
-  turnover_trend: string | null
-  northbound_5d_avg: number | null
-  northbound_20d_avg: number | null
-  northbound_trend: string | null
-  volatility_label: string | null
-  margin_balance_yi: number | null
-  pe_ttm: number | null
-  pe_percentile: number | null
-  pe_label: string | null
-  erp: number | null
-  erp_label: string | null
-  // 巴菲特指数
-  total_market_cap: number | null
-  buffett_ratio: number | null
-  buffett_label: string | null
-  // 全球宏观（FRED）
-  us_2y_yield: number | null
-  fed_funds_rate: number | null
-  usd_index: number | null
-  usd_trend: string | null
-  oil_wti: number | null
-  us_yield_spread: number | null
-  yield_curve_label: string | null
-}
-
-export interface MarketTemperatureResponse {
-  trade_date: string
-  latest: MarketSnapshot[]
-  derived: TemperatureDerived
-  history: MarketSnapshot[]
-  history_days: number
-}
 
 // API 路径：开发和生产都用相对路径（生产环境由 Cloudflare Route 转发）
 const API_BASE = '/api'
@@ -105,6 +54,20 @@ export async function fetchMarketTemperature(days = 20): Promise<MarketTemperatu
   const response = await fetch(`${API_BASE}/market-temperature?days=${days}`)
   if (!response.ok) {
     throw new Error(`Market temperature API error: ${response.status}`)
+  }
+  return response.json()
+}
+
+/** 获取 ERP 详情页长历史，走轻量响应避免移动端加载过重 */
+export async function fetchErpHistory(
+  years = 8,
+  indexCode = '000300',
+  maxPoints = 320,
+): Promise<MarketTemperatureCompactResponse> {
+  const days = years * 365
+  const response = await fetch(`${API_BASE}/market-temperature?days=${days}&compact=1&indexCode=${indexCode}&maxPoints=${maxPoints}`)
+  if (!response.ok) {
+    throw new Error(`ERP history API error: ${response.status}`)
   }
   return response.json()
 }

@@ -14,10 +14,6 @@ const props = defineProps<{
   marketTemperature?: MarketTemperatureResponse | null
 }>()
 
-const emit = defineEmits<{
-  decision: [intent: Intent]
-}>()
-
 // ============================================
 // 状态
 // ============================================
@@ -51,7 +47,6 @@ function setIntent(intent: Intent) {
     return
   }
   activeIntent.value = intent
-  emit('decision', intent)
   // 获取本周数据
   loadWeekData()
 }

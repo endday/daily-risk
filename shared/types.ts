@@ -273,3 +273,83 @@ export interface CalendarEffects {
     worst_month: { month: number; up_probability: number; label: string | null };
   };
 }
+
+export interface MarketSnapshotRowLike {
+  trade_date: string;
+  index_code: string;
+  close_price: number | null;
+  change_pct: number | null;
+  rise_count: number | null;
+  fall_count: number | null;
+  flat_count: number | null;
+  turnover_amount: number | null;
+  turnover_rate: number | null;
+  volatility_20d: number | null;
+  northbound_amt: number | null;
+  pe_ttm: number | null;
+  pb: number | null;
+  margin_balance: number | null;
+  bond_yield_10y: number | null;
+  us_2y_yield: number | null;
+  fed_funds_rate: number | null;
+  usd_index: number | null;
+  oil_wti: number | null;
+  us_yield_spread: number | null;
+  total_market_cap: number | null;
+}
+
+export interface MarketSnapshot extends MarketSnapshotRowLike {
+  northbound_num?: number | null;
+}
+
+export interface TemperatureDerived {
+  advance_decline_ratio: number | null;
+  advance_decline_label: string | null;
+  turnover_5d_avg: number | null;
+  turnover_20d_avg: number | null;
+  turnover_trend: string | null;
+  northbound_5d_avg: number | null;
+  northbound_20d_avg: number | null;
+  northbound_trend: string | null;
+  volatility_label: string | null;
+  margin_balance_yi: number | null;
+  pe_ttm: number | null;
+  pe_percentile: number | null;
+  pe_label: string | null;
+  erp: number | null;
+  erp_label: string | null;
+  total_market_cap: number | null;
+  buffett_ratio: number | null;
+  buffett_label: string | null;
+  us_2y_yield: number | null;
+  fed_funds_rate: number | null;
+  usd_index: number | null;
+  usd_trend: string | null;
+  oil_wti: number | null;
+  us_yield_spread: number | null;
+  yield_curve_label: string | null;
+}
+
+export interface MarketTemperatureResponse {
+  trade_date: string;
+  latest: MarketSnapshot[];
+  derived: TemperatureDerived;
+  history: MarketSnapshot[];
+  history_days: number;
+}
+
+export interface MarketTemperatureCompactResponse {
+  trade_date: string;
+  latest: MarketSnapshot[];
+  derived: TemperatureDerived;
+  history: MarketSnapshot[];
+  history_days: number;
+  compact: true;
+  index_code: string;
+  sampled?: boolean;
+  sample_step?: number;
+}
+
+export interface ChinaGdpData {
+  data: Record<string, number>;
+}

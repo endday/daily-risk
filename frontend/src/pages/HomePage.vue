@@ -1,240 +1,40 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { fetchEventsByDate, fetchMarketTemperature } from '../services/api'
-import { getToday, getMonday, offsetDate, dateLabel, dateShort, formatDateParts, WEEKDAYS } from '../../../shared/date-utils'
-import { signalClass, scoreColor, computeDelta } from '../utils/display'
-import type { CalendarEffects, RiskEvent, MarketTemperatureResponse } from '../services/api'
-import { recordDecision, getReviewableDecisions, getAllDecisions, clearAllDecisions, type DecisionReviewItem } from '../utils/decision-journal'
-import CalendarStatsView from '../components/CalendarStatsView.vue'
-import DecisionPanel from '../components/DecisionPanel.vue'
-import MarketPulse from '../components/MarketPulse.vue'
-import AlmanacCard from '../components/AlmanacCard.vue'
-import DecisionReview from '../components/DecisionReview.vue'
-import DecisionHistory from '../components/DecisionHistory.vue'
+import { WEEKDAYS } from '../../../shared/date-utils'
+import { scoreColor } from '../utils/display'
+import OverviewTab from '../components/tabs/OverviewTab.vue'
+import EventsTab from '../components/tabs/EventsTab.vue'
+import StatsTab from '../components/tabs/StatsTab.vue'
+import { useHomePage } from '../composables/useHomePage'
 
-// ============================================
-// 共享状态
-// ============================================
-
-const route = useRoute()
-const router = useRouter()
-
-const today = getToday()
-
-// masthead 日期跟随 selectedDate
-const displayDate = computed(() => formatDateParts(selectedDate.value))
-const displayWeekday = computed(() => {
-  const { year, month, day } = displayDate.value
-  return new Date(year, month - 1, day).getDay()
-})
-
-type TabName = 'overview' | 'events' | 'stats'
-const activeTab = computed<TabName>(() => (route.params.tab as TabName) || 'overview')
-
-function setTab(tab: TabName) {
-  if (tab === 'overview') {
-    router.push({ path: '/' })
-  } else {
-    router.push({ name: 'home', params: { tab } })
-  }
-}
-
-// ============================================
-// 数据层：按日期缓存
-// ============================================
-
-const dateEventsMap = ref<Record<string, RiskEvent[]>>({})
-const dateRiskMap = ref<Record<string, number>>({})
-const dateCalendarMap = ref<Record<string, CalendarEffects | null>>({})
-const selectedDate = ref(today)
-const loadingDay = ref(false)
-const lastCalendar = ref<CalendarEffects | null>(null)
-
-// 假日表（key: date, value: HolidayEntry）
-const holidayMap = ref<Record<string, { name: string; is_trading_day: boolean }>>({})
-
-// 市场温度
-const temperature = ref<MarketTemperatureResponse | null>(null)
-
-// 决策回看
-const showReview = ref(true)
-const showHistory = ref(false)
-const currentPrices = computed<Record<string, number>>(() => {
-  if (!temperature.value) return {}
-  const prices: Record<string, number> = {}
-  for (const snap of temperature.value.latest) {
-    if (snap.close_price != null) {
-      prices[snap.index_code] = snap.close_price
-    }
-  }
-  return prices
-})
-const reviews = computed<DecisionReviewItem[]>(() => {
-  return getReviewableDecisions(currentPrices.value)
-})
-const allDecisions = computed<DecisionReviewItem[]>(() => {
-  return getAllDecisions(currentPrices.value)
-})
-
-function handleClearDecisions() {
-  clearAllDecisions()
-  showHistory.value = false
-}
-
-// 决策记录用的参考指数（跟随用户在 AlmanacCard 的选择，默认 000300）
-function loadSavedIndex(): string {
-  try { return localStorage.getItem('almanac_active_index') || '000300' } catch { return '000300' }
-}
-const decisionIndexCode = ref<string>(loadSavedIndex())
-
-function handleIndexChange(indexCode: string) {
-  decisionIndexCode.value = indexCode
-}
-
-// 记录决策（DecisionPanel 调用）
-function handleRecordDecision(intent: 'buy' | 'sell') {
-  const indexCode = decisionIndexCode.value
-  const currentPrice = temperature.value?.latest.find(s => s.index_code === indexCode)?.close_price
-  if (currentPrice) {
-    recordDecision(intent, indexCode, currentPrice)
-  }
-}
-
-async function fetchDateEvents(date: string) {
-  if (dateEventsMap.value[date] !== undefined) return
-  try {
-    const data = await fetchEventsByDate(date)
-    dateEventsMap.value[date] = data.events || []
-    dateRiskMap.value[date] = data.risk_index || 0
-    if (data.calendar_effects) {
-      dateCalendarMap.value[date] = data.calendar_effects
-      lastCalendar.value = data.calendar_effects
-    }
-    // 存储假日表（幂等：每次都覆盖，数据量很小）
-    if (data.holidays) {
-      for (const h of data.holidays) {
-        holidayMap.value[h.date] = { name: h.name, is_trading_day: h.is_trading_day }
-      }
-    }
-  } catch (e) {
-    console.error(`Failed to fetch ${date}:`, e)
-    dateEventsMap.value[date] = []
-    dateRiskMap.value[date] = 0
-  }
-}
-
-async function selectDate(date: string) {
-  selectedDate.value = date
-  loadingDay.value = true
-  await fetchDateEvents(date)
-  loadingDay.value = false
-}
-
-async function handleCalendarDateSelect(date: string) {
-  await selectDate(date)
-}
-
-onMounted(async () => {
-  fetchDateEvents(today)
-  try {
-    temperature.value = await fetchMarketTemperature()
-  } catch (e) {
-    console.error('Failed to fetch market temperature:', e)
-  }
-})
-
-// ============================================
-// 概览 Tab 数据（跟随 selectedDate）
-// ============================================
-
-const calendar = computed(() => dateCalendarMap.value[selectedDate.value] ?? null)
-
-const shortRating = computed(() => calendar.value?.almanac?.short_term?.rating ?? null)
-const shortLabel = computed(() => calendar.value?.almanac?.short_term?.signal?.label ?? '--')
-const shortDesc = computed(() => calendar.value?.almanac?.short_term?.signal?.description ?? '--')
-
-const dailyCalendar = computed(() => calendar.value?.daily_calendar ?? [])
-
-// AlmanacCard 需要的 props
-const monthNames = ['', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
-const nextMonthName = computed(() => monthNames[displayDate.value.month % 12 + 1])
-const nextDayShort = computed(() => {
-  const nd = calendar.value?.next_trading_day
-  if (!nd?.date) return ''
-  return dateShort(nd.date)
-})
-
-// 概览：选中日期事件摘要（取前 2 条最重要的）
-const selectedDayEvents = computed(() => dateEventsMap.value[selectedDate.value] || [])
-const topEvents = computed(() => selectedDayEvents.value.slice(0, 2))
-
-// ============================================
-// 事件 Tab 数据（用 selectedDate）
-// ============================================
-
-const baseMonday = ref(getMonday(today))
-
-const dateStrip = computed(() => {
-  const labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-  const items: {
-    date: string
-    label: string
-    short: string
-    isToday: boolean
-    isHoliday: boolean    // 法定假日休市（仅工作日，周末恒为休市）
-    holidayName: string
-  }[] = []
-  for (let i = 0; i < 7; i++) {
-    const date = offsetDate(baseMonday.value, i)
-    const h = holidayMap.value[date]
-    items.push({
-      date,
-      label: labels[i],
-      short: dateShort(date),
-      isToday: date === today,
-      // 周末恒为休市；工作日看假日表
-      isHoliday: i >= 5 ? true : (h ? !h.is_trading_day : false),
-      holidayName: h?.name || '',
-    })
-  }
-  return items
-})
-
-function changeWeek(offset: number) {
-  const [y, m, d] = baseMonday.value.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, m - 1, d + offset * 7))
-  baseMonday.value = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
-}
-
-function goToday() {
-  baseMonday.value = getMonday(today)
-  selectDate(today)
-}
-
-function goToDate(date: string) {
-  baseMonday.value = getMonday(date)
-  selectDate(date)
-}
-
-const showDatePicker = ref(false)
-const pickerDate = ref(today)
-
-function toggleDatePicker() {
-  showDatePicker.value = !showDatePicker.value
-  pickerDate.value = selectedDate.value
-}
-
-function handlePickerChange() {
-  if (pickerDate.value) {
-    goToDate(pickerDate.value)
-    showDatePicker.value = false
-  }
-}
-
-const selectedEvents = computed(() => dateEventsMap.value[selectedDate.value] || [])
-const selectedRisk = computed(() => dateRiskMap.value[selectedDate.value] || 0)
-const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value] ?? lastCalendar.value)
+const {
+  activeTab,
+  calendar,
+  changeWeek,
+  dailyCalendar,
+  dateRiskMap,
+  dateStrip,
+  displayDate,
+  displayWeekday,
+  goToday,
+  handleCalendarDateSelect,
+  holidayMap,
+  loadingDay,
+  nextDayShort,
+  nextMonthName,
+  selectDate,
+  selectedCalendar,
+  selectedDate,
+  selectedDayEvents,
+  selectedEvents,
+  selectedRisk,
+  setTab,
+  shortDesc,
+  shortLabel,
+  shortRating,
+  temperature,
+  today,
+  topEvents,
+} = useHomePage()
 </script>
 
 <template>
@@ -269,206 +69,51 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
         </div>
       </div>
       <button class="nav-btn nav-next" @click="changeWeek(1)">▶</button>
-      <button class="calendar-btn" @click="toggleDatePicker" title="跳转到指定日期">📅</button>
       <button v-if="selectedDate !== today" class="today-btn" @click="goToday">今天</button>
     </div>
-
-    <!-- 日期跳转面板 -->
-    <div v-if="showDatePicker" class="date-picker-panel">
-      <div class="picker-row">
-        <span class="picker-label">选择日期</span>
-        <input
-          type="date"
-          v-model="pickerDate"
-          class="picker-input"
-          @change="handlePickerChange"
-        />
-        <button class="picker-close" @click="showDatePicker = false">×</button>
-      </div>
-      <div class="picker-shortcuts">
-        <button class="shortcut-btn" @click="goToDate(offsetDate(today, 1))">明天</button>
-        <button class="shortcut-btn" @click="goToDate(offsetDate(today, 7))">+7天</button>
-        <button class="shortcut-btn" @click="goToDate(offsetDate(today, 30))">+30天</button>
-      </div>
-    </div>
-
-    <!-- 决策回看 -->
-    <DecisionReview
-      v-if="showReview && reviews.length > 0"
-      :reviews="reviews"
-      @dismiss="showReview = false"
-    />
-
-    <!-- 决策历史 Modal -->
-    <DecisionHistory
-      v-if="showHistory"
-      :decisions="allDecisions"
-      @close="showHistory = false"
-      @clear="handleClearDecisions"
-    />
 
     <!-- ============================================ -->
     <!-- Tab: 概览                                     -->
     <!-- ============================================ -->
-    <div v-show="activeTab === 'overview'" class="tab-panel">
-      <!-- 头条研判 -->
-      <section class="headline">
-        <div class="hl-label">
-          今日研判
-          <span v-if="allDecisions.length > 0" class="hl-history-link" @click="showHistory = true">回看</span>
-        </div>
-        <div class="hl-signal" :class="signalClass(shortRating)">
-          <span class="hl-badge">{{ shortLabel }}</span>
-        </div>
-        <p class="hl-desc">{{ shortDesc }}</p>
-      </section>
-
-      <div class="rule-thin"></div>
-
-      <!-- 买/卖决策面板（就地展开，不遮挡其他内容） -->
-      <DecisionPanel
-        :dailyCalendar="dailyCalendar"
-        :calendar="calendar"
-        :events="selectedDayEvents"
-        :today="today"
-        :selectedDate="selectedDate"
-        :marketTemperature="temperature"
-        @decision="handleRecordDecision"
-      />
-
-      <div class="rule-thin"></div>
-
-      <!-- 市场体温 -->
-        <MarketPulse
-          v-if="temperature"
-          :derived="temperature.derived"
-          :latest="temperature.latest"
-          :history="temperature.history"
-        />
-
-        <div class="rule-thin"></div>
-
-        <!-- 今日要事 -->
-        <section class="today-events" v-if="topEvents.length > 0">
-          <div class="section-label">今日要事</div>
-          <div v-for="evt in topEvents" :key="evt.event_key" class="event-brief">
-            <span class="event-brief-name">{{ evt.display_name }}</span>
-            <span class="event-brief-score" :class="scoreColor(evt.score)">{{ evt.score }}</span>
-            <span v-if="evt.event_time" class="event-brief-time">{{ evt.event_time }}</span>
-          </div>
-          <div class="event-more" v-if="selectedDayEvents.length > 2" @click="setTab('events')">
-            查看全部 {{ selectedDayEvents.length }} 个事件 →
-          </div>
-        </section>
-
-        <div class="rule-thin" v-if="topEvents.length > 0"></div>
-
-        <!-- 三指数黄历 -->
-        <AlmanacCard
-          v-if="calendar?.almanac_by_index"
-          :almanacByIndex="calendar.almanac_by_index"
-          :nextMonthName="nextMonthName"
-          :nextDayShort="nextDayShort"
-          @indexChange="handleIndexChange"
-        />
-
-      <!-- 底部 -->
-      <footer class="editorial-footer">
-        <div class="footer-rule"></div>
-        <span>历史统计不代表未来表现 · 仅供参考，不构成投资建议</span>
-      </footer>
-    </div>
+    <OverviewTab
+      v-show="activeTab === 'overview'"
+      :calendar="calendar"
+      :dailyCalendar="dailyCalendar"
+      :nextDayShort="nextDayShort"
+      :nextMonthName="nextMonthName"
+      :selectedDate="selectedDate"
+      :selectedDayEvents="selectedDayEvents"
+      :shortDesc="shortDesc"
+      :shortLabel="shortLabel"
+      :shortRating="shortRating"
+      :temperature="temperature"
+      :today="today"
+      :topEvents="topEvents"
+      @showEvents="setTab('events')"
+    />
 
     <!-- ============================================ -->
     <!-- Tab: 事件                                     -->
     <!-- ============================================ -->
-    <div v-show="activeTab === 'events'" class="tab-panel">
-      <!-- 风险指数 -->
-      <div class="risk-section" v-if="selectedEvents.length > 0">
-        <div class="risk-header">
-          <span class="risk-title">{{ dateLabel(selectedDate) }} {{ dateShort(selectedDate) }} 风险指数</span>
-          <span class="risk-value" :class="scoreColor(selectedRisk)">{{ selectedRisk.toFixed(1) }} / 10</span>
-        </div>
-        <div class="risk-bar">
-          <div class="risk-fill" :class="scoreColor(selectedRisk)" :style="{ width: selectedRisk * 10 + '%' }"></div>
-        </div>
-      </div>
-
-      <!-- 加载 -->
-      <div v-if="loadingDay" class="skeleton-list">
-        <div class="skeleton-card">
-          <div class="skeleton-line short"></div>
-          <div class="skeleton-line medium"></div>
-          <div class="skeleton-line"></div>
-        </div>
-        <div class="skeleton-card">
-          <div class="skeleton-line short"></div>
-          <div class="skeleton-line medium"></div>
-          <div class="skeleton-line"></div>
-        </div>
-      </div>
-
-      <!-- 事件列表 -->
-      <div v-else-if="selectedEvents.length === 0" class="empty">
-        <div class="empty-icon">📭</div>
-        <div>{{ dateLabel(selectedDate) }} {{ dateShort(selectedDate) }} 无重大风险事件</div>
-      </div>
-
-      <div v-else class="event-list">
-        <div v-for="event in selectedEvents" :key="event.event_key" class="event-card" :class="{ estimated: event.confidence === 'estimated' }">
-          <div class="event-top">
-            <span class="event-name">
-              {{ event.display_name }}
-              <span v-if="event.confidence === 'estimated'" class="confidence-badge" title="发布日期为推算，可能与实际不符">推算</span>
-            </span>
-            <span class="event-score" :class="scoreColor(event.score)">{{ event.score }}</span>
-          </div>
-          <div class="event-values">
-            <div class="val">
-              <span class="val-label">前值</span>
-              <span class="val-num">{{ event.previous_value || '--' }}</span>
-            </div>
-            <div class="val">
-              <span class="val-label">预测值</span>
-              <span class="val-num">{{ event.forecast_value || '--' }}</span>
-            </div>
-            <div class="val">
-              <span class="val-label">公布值</span>
-              <span class="val-num">{{ event.actual_value || '--' }}</span>
-              <span
-                v-if="computeDelta(event.previous_value, event.actual_value)"
-                class="val-delta"
-                :class="computeDelta(event.previous_value, event.actual_value)?.class"
-              >
-                {{ computeDelta(event.previous_value, event.actual_value)?.text }}
-              </span>
-            </div>
-          </div>
-          <div class="event-bottom">
-            <span v-if="event.event_time" class="event-time">🕐 {{ event.event_time }}</span>
-            <span v-if="event.market_impact?.length" class="event-impact">影响: {{ event.market_impact.join(' / ') }}</span>
-            <span class="event-history-link" @click="setTab('stats')">📊 历史</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <EventsTab
+      v-show="activeTab === 'events'"
+      :loadingDay="loadingDay"
+      :selectedDate="selectedDate"
+      :selectedEvents="selectedEvents"
+      :selectedRisk="selectedRisk"
+      @showStats="setTab('stats')"
+    />
 
     <!-- ============================================ -->
     <!-- Tab: 统计                                     -->
     <!-- ============================================ -->
-    <div v-show="activeTab === 'stats'" class="tab-panel">
-      <CalendarStatsView
-        v-if="selectedCalendar"
-        :calendarEffects="selectedCalendar"
-        :date="selectedDate"
-        :holidays="holidayMap"
-        @selectDate="handleCalendarDateSelect"
-      />
-      <div v-else class="empty">
-        <div class="empty-icon">📊</div>
-        <div>暂无历史统计数据</div>
-      </div>
-    </div>
+    <StatsTab
+      v-show="activeTab === 'stats'"
+      :holidays="holidayMap"
+      :selectedCalendar="selectedCalendar"
+      :selectedDate="selectedDate"
+      @selectDate="handleCalendarDateSelect"
+    />
 
     <!-- 底部 Tab 栏 -->
     <nav class="bottom-tab-bar">
@@ -995,94 +640,6 @@ const selectedCalendar = computed(() => dateCalendarMap.value[selectedDate.value
   font-weight: $weight-medium;
 
   &:active { opacity: 0.6; }
-}
-
-// === 日历按钮 ===
-.calendar-btn {
-  position: absolute;
-  top: $space-xs;
-  right: $space-xl + $space-md;
-  background: none;
-  border: none;
-  font-size: $text-md;
-  cursor: pointer;
-  padding: $space-xs;
-  opacity: 0.7;
-
-  &:active { opacity: 1; }
-}
-
-// === 日期跳转面板 ===
-.date-picker-panel {
-  position: absolute;
-  top: 100%;
-  left: $space-xl;
-  right: $space-xl;
-  z-index: 99;
-  background: $bg-page;
-  border: 1px solid $border;
-  border-top: none;
-  padding: $space-md;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.picker-row {
-  display: flex;
-  align-items: center;
-  gap: $space-sm;
-  margin-bottom: $space-sm;
-}
-
-.picker-label {
-  font-family: $font-sans;
-  font-size: $text-sm;
-  color: $text-secondary;
-}
-
-.picker-input {
-  flex: 1;
-  font-family: $font-sans;
-  font-size: $text-sm;
-  padding: $space-xs $space-sm;
-  border: 1px solid $border;
-  border-radius: $radius-sm;
-  background: $bg-card;
-  color: $text-primary;
-}
-
-.picker-close {
-  background: none;
-  border: none;
-  font-size: $text-lg;
-  color: $text-tertiary;
-  cursor: pointer;
-  padding: 0 $space-xs;
-  line-height: 1;
-
-  &:active { color: $text-primary; }
-}
-
-.picker-shortcuts {
-  display: flex;
-  gap: $space-sm;
-}
-
-.shortcut-btn {
-  flex: 1;
-  font-family: $font-sans;
-  font-size: $text-sm;
-  font-weight: $weight-medium;
-  color: $text-secondary;
-  background: $bg-muted;
-  border: 1px solid $border;
-  border-radius: $radius-sm;
-  padding: $space-xs 0;
-  cursor: pointer;
-
-  &:active {
-    background: $text-primary;
-    color: $text-inverse;
-  }
 }
 
 // === Skeleton ===

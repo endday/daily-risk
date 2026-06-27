@@ -1,40 +1,48 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
-import VChart from 'vue-echarts'
-import { use } from 'echarts/core'
-import { LineChart } from 'echarts/charts'
-import {
-  GridComponent,
-  TooltipComponent,
-  DataZoomComponent,
-  MarkAreaComponent,
-  LegendComponent,
-} from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-import { fetchMarketTemperature } from '../services/api'
-import type { MarketTemperatureResponse } from '../services/api'
+import { fetchErpHistory } from '../services/api'
+import type { MarketTemperatureCompactResponse } from '../services/api'
 import { erpToTemperaturePosition, erpColorClass } from '../utils/temperature'
 
-use([
-  LineChart,
-  GridComponent,
-  TooltipComponent,
-  DataZoomComponent,
-  MarkAreaComponent,
-  LegendComponent,
-  CanvasRenderer,
-])
+const ErpChart = defineAsyncComponent(() => import('../components/ErpChart.vue'))
+const ERP_HISTORY_OPTIONS = [
+  { label: '3年', years: 3 },
+  { label: '5年', years: 5 },
+  { label: '8年', years: 8 },
+] as const
+const ERP_MAX_POINTS = 320
 
 const router = useRouter()
 const loading = ref(true)
-const data = ref<MarketTemperatureResponse | null>(null)
+const data = ref<MarketTemperatureCompactResponse | null>(null)
+const selectedYears = ref<(typeof ERP_HISTORY_OPTIONS)[number]['years']>(8)
+
+async function loadErpHistory() {
+  loading.value = true
+  try {
+    data.value = await fetchErpHistory(selectedYears.value, '000300', ERP_MAX_POINTS)
+  } catch (e) {
+    console.error('Failed to fetch ERP data:', e)
+    data.value = null
+  } finally {
+    loading.value = false
+  }
+}
 
 onMounted(() => {
-  fetchMarketTemperature(365)
-    .then(res => { data.value = res })
-    .catch(e => { console.error('Failed to fetch ERP data:', e) })
-    .finally(() => { loading.value = false })
+  void loadErpHistory()
+})
+
+function handleYearsChange(years: (typeof ERP_HISTORY_OPTIONS)[number]['years']) {
+  if (years === selectedYears.value) return
+  selectedYears.value = years
+  void loadErpHistory()
+}
+
+const sampledHint = computed(() => {
+  if (!data.value?.sampled || !data.value.sample_step || data.value.sample_step <= 1) return ''
+  return `为保证加载速度，已按约 ${data.value.sample_step} 个交易日采样`
 })
 
 function goHome() {
@@ -53,6 +61,23 @@ interface ErpPoint {
   date: string
   erp: number | null
   close: number | null
+}
+
+function computeRollingMean(values: number[], windowSize: number): number[] {
+  const result: number[] = []
+  let sum = 0
+
+  for (let i = 0; i < values.length; i += 1) {
+    sum += values[i]
+    if (i >= windowSize) {
+      sum -= values[i - windowSize]
+    }
+
+    const divisor = Math.min(i + 1, windowSize)
+    result.push(Math.round((sum / divisor) * 100) / 100)
+  }
+
+  return result
 }
 
 const chartData = computed<ErpPoint[]>(() => {
@@ -84,49 +109,21 @@ const chartOption = computed(() => {
   const dates = points.map(p => p.date)
   const erpValues = points.map(p => p.erp!)
   const closeValues = points.map(p => p.close)
-
-  // 极贵区间 (<0) 和各阈值线
-  const markAreas: any[] = [
-    [
-      { yAxis: -5, name: '极贵' },
-      { yAxis: 0 },
-    ],
-    [
-      { yAxis: 0 },
-      { yAxis: 2 },
-    ],
-    [
-      { yAxis: 2 },
-      { yAxis: 5 },
-    ],
-    [
-      { yAxis: 5 },
-      { yAxis: 8 },
-    ],
-    [
-      { yAxis: 8 },
-      { yAxis: 15 },
-    ],
-  ]
-
-  const zoneColors = [
-    'rgba(46,175,125,0.06)',   // 极贵 (淡绿)
-    'rgba(26,26,26,0.02)',     // 偏高估 (极淡灰)
-    'rgba(26,26,26,0.015)',    // 合理 (几乎透明)
-    'rgba(232,71,76,0.04)',    // 偏低估 (淡红)
-    'rgba(196,30,58,0.07)',    // 极便宜 (稍深红)
+  const erpMeanValues = computeRollingMean(erpValues, 60)
+  const thresholdLines = [
+    { yAxis: 0, lineStyle: { color: 'rgba(180, 83, 9, 0.35)', type: 'dashed' } },
+    { yAxis: 2, lineStyle: { color: 'rgba(217, 119, 6, 0.25)', type: 'dashed' } },
+    { yAxis: 5, lineStyle: { color: 'rgba(100, 116, 139, 0.3)', type: 'dashed' } },
+    { yAxis: 8, lineStyle: { color: 'rgba(21, 128, 61, 0.3)', type: 'dashed' } },
   ]
 
   return {
     animation: false,
     grid: {
-      left: 50,
-      right: 50,
+      left: 4,
+      right: 18,
       top: 30,
-      bottom: 70,
-      backgroundColor: '#FFFFFF',
-      show: true,
-      borderWidth: 0,
+      bottom: 84,
     },
     tooltip: {
       trigger: 'axis',
@@ -143,7 +140,7 @@ const chartOption = computed(() => {
       },
     },
     legend: {
-      data: ['股债利差', '沪深300'],
+      data: ['股债利差', 'ERP中枢', '沪深300'],
       bottom: 36,
       textStyle: { fontFamily: 'sans-serif', fontSize: 12, color: '#6B7280' },
       icon: 'roundRect',
@@ -167,16 +164,12 @@ const chartOption = computed(() => {
     yAxis: [
       {
         type: 'value',
-        name: 'ERP %',
-        nameTextStyle: { fontSize: 11, color: '#9CA3AF', padding: [0, 30, 0, 0] },
-        axisLabel: { fontSize: 11, color: '#9CA3AF' },
+        axisLabel: { fontSize: 11, color: '#9CA3AF', margin: 4 },
         axisLine: { show: false },
         splitLine: { lineStyle: { color: '#F3F4F6' } },
       },
       {
         type: 'value',
-        name: '指数',
-        nameTextStyle: { fontSize: 11, color: '#9CA3AF', padding: [0, 0, 0, 30] },
         axisLabel: { fontSize: 11, color: '#9CA3AF' },
         axisLine: { show: false },
         splitLine: { show: false },
@@ -211,16 +204,24 @@ const chartOption = computed(() => {
         data: erpValues,
         yAxisIndex: 0,
         symbol: 'none',
-        lineStyle: { width: 2, color: '#E8474C' },
-        itemStyle: { color: '#E8474C' },
-        markArea: {
+        lineStyle: { width: 2, color: '#5B8FF9' },
+        itemStyle: { color: '#5B8FF9' },
+        markLine: {
           silent: true,
-          data: markAreas.map((area, i) => ({
-            itemStyle: { color: zoneColors[i] },
-            name: ['极贵', '偏高估', '合理', '偏低估', '极便宜'][i],
-            ...area,
-          })),
+          symbol: 'none',
+          label: { show: false },
+          data: thresholdLines,
         },
+      },
+      {
+        name: 'ERP中枢',
+        type: 'line',
+        data: erpMeanValues,
+        yAxisIndex: 0,
+        symbol: 'none',
+        smooth: true,
+        lineStyle: { width: 1.5, color: '#F59E0B', opacity: 0.95 },
+        itemStyle: { color: '#F59E0B' },
       },
       {
         name: '沪深300',
@@ -228,8 +229,8 @@ const chartOption = computed(() => {
         data: closeValues,
         yAxisIndex: 1,
         symbol: 'none',
-        lineStyle: { width: 1.5, color: '#1A1A1A' },
-        itemStyle: { color: '#1A1A1A' },
+        lineStyle: { width: 1.5, color: '#111827' },
+        itemStyle: { color: '#111827' },
       },
     ],
   }
@@ -278,6 +279,16 @@ const chartOption = computed(() => {
           <span>极便宜</span>
         </div>
 
+        <div class="erp-range-switch" role="tablist" aria-label="ERP 历史范围">
+          <button
+            v-for="option in ERP_HISTORY_OPTIONS"
+            :key="option.years"
+            class="range-chip"
+            :class="{ active: option.years === selectedYears }"
+            @click="handleYearsChange(option.years)"
+          >{{ option.label }}</button>
+        </div>
+
         <!-- 区间释义 -->
         <div class="erp-zone-legend">
           <span class="zone-item"><span class="zone-dot dot-expensive"></span>ERP < 0 极贵</span>
@@ -292,8 +303,9 @@ const chartOption = computed(() => {
 
       <!-- 图表 -->
       <section class="erp-chart-section">
-        <VChart v-if="chartOption" :option="chartOption" autoresize class="erp-chart" />
+        <ErpChart v-if="chartOption" :option="chartOption" class="erp-chart" />
         <div v-else class="erp-chart-empty">历史数据不足，暂无法展示走势</div>
+        <p v-if="sampledHint" class="erp-chart-note">{{ sampledHint }}</p>
       </section>
 
       <!-- 底部 -->
@@ -467,6 +479,30 @@ const chartOption = computed(() => {
   &.dot-extreme-cheap { background: $color-up-medium; }
 }
 
+.erp-range-switch {
+  display: flex;
+  gap: $space-sm;
+  margin-top: $space-md;
+}
+
+.range-chip {
+  min-width: 52px;
+  padding: $space-xs $space-sm;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $text-secondary;
+  font-family: $font-sans;
+  font-size: $text-sm;
+  cursor: pointer;
+
+  &.active {
+    background: $text-primary;
+    border-color: $text-primary;
+    color: $text-inverse;
+  }
+}
+
 // === 分割线 ===
 .rule-thin {
   height: 1px;
@@ -489,6 +525,14 @@ const chartOption = computed(() => {
   color: $text-disabled;
   font-family: $font-sans;
   font-size: $text-md;
+}
+
+.erp-chart-note {
+  margin: $space-sm 0 0;
+  font-family: $font-sans;
+  font-size: $text-xs;
+  color: $text-tertiary;
+  text-align: center;
 }
 
 .erp-loading,

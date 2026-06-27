@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     server: {
+      host: mode === 'remote' ? '0.0.0.0' : undefined,
       port: 5173,
       proxy: {
         '/api': {

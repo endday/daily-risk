@@ -6,8 +6,8 @@
     "worker"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:worker\"",
-    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "cd frontend && npm run dev:remote",
+    "dev:frontend": "cd frontend && npm run dev:remote",
     "dev:remote": "cd frontend && npm run dev:remote",
     "dev:worker": "cd worker && npm run dev",
     "build": "npm run build:frontend",

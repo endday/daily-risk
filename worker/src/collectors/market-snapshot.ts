@@ -13,13 +13,10 @@
 import type { CollectorConfig, CollectorResult, MarketSnapshotRow } from './base';
 import { getBeijingDate } from '../../../shared/date-utils';
 import { http } from './http';
+import { SNAPSHOT_MARKET_INSTRUMENTS } from '../market-universe';
 
 /** push2 字段映射 */
-const INDEX_CONFIG = [
-  { secid: '1.000001', index_code: '000001', name: '上证指数' },
-  { secid: '1.000300', index_code: '000300', name: '沪深300' },
-  { secid: '1.000905', index_code: '000905', name: '中证500' },
-];
+const INDEX_CONFIG = SNAPSHOT_MARKET_INSTRUMENTS;
 
 /** 请求的 push2 字段列表 */
 const FIELDS = 'f2,f3,f5,f6,f8,f104,f105,f106,f12,f14';
@@ -47,7 +44,7 @@ function parseSnapshotRow(raw: any, config: typeof INDEX_CONFIG[number]): Market
 
   return {
     trade_date: tradeDate,
-    index_code: config.index_code,
+    index_code: config.code,
 
     // 行情：push2 返回的是整数（需除以 100 还原小数）
     close_price: raw.f2 != null ? raw.f2 / 100 : null,

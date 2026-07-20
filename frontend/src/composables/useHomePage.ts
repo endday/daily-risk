@@ -4,7 +4,7 @@ import { fetchEventsByDate, fetchMarketTemperature } from '../services/api'
 import type { CalendarEffects, MarketTemperatureResponse, RiskEvent } from '../services/api'
 import type { HolidayEntry } from '../../../shared/types'
 import { getMonday, getToday, dateShort, formatDateParts, offsetDate } from '../../../shared/date-utils'
-export type TabName = 'overview' | 'events' | 'stats'
+export type TabName = 'overview' | 'industries' | 'events' | 'stats'
 
 export function useHomePage() {
   const route = useRoute()

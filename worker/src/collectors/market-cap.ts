@@ -12,9 +12,10 @@
 import type { CollectorConfig, CollectorResult, MarketSnapshotRow } from './base';
 import { getBeijingDate } from '../../../shared/date-utils';
 import { http } from './http';
+import { BROAD_MARKET_INDEX_CODES } from '../market-universe';
 
 /** 目标指数 — 总市值是市场级数据，写入所有指数行 */
-const INDEX_CODES = ['000001', '000300', '000905', '399006'];
+const INDEX_CODES = BROAD_MARKET_INDEX_CODES;
 
 const CLIST_URL = 'https://push2.eastmoney.com/api/qt/clist/get';
 

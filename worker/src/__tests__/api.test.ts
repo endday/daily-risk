@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { calculateRiskIndex } from '../db'
 
 describe('Daily Risk Worker', () => {
   it('should export default handler', async () => {
@@ -14,23 +15,31 @@ describe('Daily Risk Worker', () => {
   })
 
   it('should calculate risk index correctly', () => {
-    // Test risk index calculation
     const events = [
       { importance: 10 },
       { importance: 8 },
       { importance: 7 },
     ]
 
-    const sumScore = events.reduce((sum, e) => sum + e.importance, 0)
-    const sumScoreSquared = events.reduce((sum, e) => sum + e.importance ** 2, 0)
-    const riskIndex = sumScoreSquared / sumScore
-
-    expect(riskIndex).toBeCloseTo(8.53, 1)
+    expect(calculateRiskIndex(events)).toBe(10)
   })
 
   it('should return 0 for empty events', () => {
-    const events: any[] = []
-    const sumScore = events.reduce((sum, e) => sum + (e.importance || 0), 0)
-    expect(sumScore).toBe(0)
+    expect(calculateRiskIndex([])).toBe(0)
+  })
+
+  it('should return the single event score directly', () => {
+    expect(calculateRiskIndex([{ importance: 6.4 }])).toBe(6.4)
+  })
+
+  it('should cap accumulated risk index at 10', () => {
+    const events = [
+      { importance: 10 },
+      { importance: 10 },
+      { importance: 10 },
+      { importance: 10 },
+    ]
+
+    expect(calculateRiskIndex(events)).toBe(10)
   })
 })

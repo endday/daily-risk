@@ -29,6 +29,7 @@ export interface CollectorResult {
   events: NormalizedEvent[];
   /** 市场快照数据，写入 market_snapshots 表（可选） */
   snapshots?: MarketSnapshotRow[];
+  instrumentDailyRows?: InstrumentDailyRow[];
   /** 运行元数据 */
   meta: {
     /** 调用了多少个外部数据源 */
@@ -83,6 +84,51 @@ export interface MarketSnapshotRow {
   oil_wti: number | null;
   us_yield_spread: number | null;
   total_market_cap: number | null;
+}
+
+export interface InstrumentDailyRow {
+  trade_date: string;
+  instrument_code: string;
+  instrument_name: string;
+  instrument_type: string;
+  provider: string;
+  open_price: number | null;
+  high_price: number | null;
+  low_price: number | null;
+  close_price: number | null;
+  pre_close_price: number | null;
+  change_pct: number | null;
+  change_amount: number | null;
+  amplitude: number | null;
+  volume: number | null;
+  amount: number | null;
+  turnover_rate: number | null;
+  pe_ttm: number | null;
+  pb: number | null;
+  total_market_cap: number | null;
+  float_market_cap: number | null;
+  is_st: number | null;
+  source_updated_at: string | null;
+}
+
+export interface IndustryFundFlowRow {
+  trade_date: string;
+  board_code: string;
+  board_name: string;
+  provider: string;
+  close_price: number | null;
+  change_pct: number | null;
+  main_net_inflow: number | null;
+  small_net_inflow: number | null;
+  medium_net_inflow: number | null;
+  large_net_inflow: number | null;
+  super_large_net_inflow: number | null;
+  main_net_inflow_ratio: number | null;
+  small_net_inflow_ratio: number | null;
+  medium_net_inflow_ratio: number | null;
+  large_net_inflow_ratio: number | null;
+  super_large_net_inflow_ratio: number | null;
+  source_updated_at: string | null;
 }
 
 // ============================================

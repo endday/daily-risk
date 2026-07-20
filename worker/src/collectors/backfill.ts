@@ -11,8 +11,9 @@
 import type { MarketSnapshotRow } from './base';
 import { http } from './http';
 import { upsertSnapshots } from '../db';
+import { BROAD_MARKET_INDEX_CODES } from '../market-universe';
 
-const INDEX_CODES = ['000001', '000300', '000905', '399006'];
+const INDEX_CODES = BROAD_MARKET_INDEX_CODES;
 
 /** 单采集器最大分页请求数（防封禁/防超时） */
 const MAX_PAGES = 100;

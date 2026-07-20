@@ -4,62 +4,17 @@
 
 import * as db from './db';
 import * as scheduler from './scheduler';
+import { handleEvents } from './api/events';
+import { handleMarketTemperature } from './api/market-temperature';
+import { handleIndustryRotation } from './api/industry-rotation';
+import { syncIndustryFundFlows } from './collectors/industry-fund-flow';
 import { backfillSnapshots } from './collectors/backfill';
-import { getActiveCalendarEffects } from './calendar';
+import type { InstrumentDailyRow } from './collectors/base';
 import { syncTradingCalendar } from './trading-calendar';
 import { getBeijingDate } from '../../shared/date-utils';
-import riskRulesData from '../data/risk-rules.json';
-import chinaEventsData from '../data/china-events.json';
 import calendarEffectsData from '../data/calendar-effects.json';
 import chinaGdpData from '../data/china-gdp.json';
-
-export interface Env {
-  DB: D1Database;
-  ADMIN_TOKEN?: string;
-  FRED_API_KEY?: string;
-  BLS_API_KEY?: string;
-  ALPHA_VANTAGE_KEY?: string;
-}
-
-const EARNINGS_SYMBOLS = ['NVDA', 'AAPL', 'MSFT', 'META', 'GOOGL', 'AMZN', 'TSLA', 'TSM'];
-
-// 从 JSON 文件加载风险规则（唯一数据源）
-const RISK_RULES: Record<string, any> = (riskRulesData as any).rules;
-
-// 从 JSON 文件加载中国宏观事件日历（按年份自动选择）
-const CHINA_EVENTS: any = chinaEventsData;
-
-/** 假日条目（返回给前端） */
-interface HolidayEntry { date: string; name: string; is_trading_day: boolean }
-
-/**
- * 从 D1 加载假日数据
- * 返回：{ set: 仅休市日集合（给日历计算用）, list: 全部条目（给前端展示用） }
- * 查不到表时 set=undefined → 回退"只跳周末"
- */
-async function loadHolidayData(db: D1Database, year: number): Promise<{
-  set: Set<string> | undefined;
-  list: HolidayEntry[];
-}> {
-  try {
-    const { results } = await db
-      .prepare(`SELECT date, name, is_holiday FROM trading_holidays WHERE date LIKE ?1 ORDER BY date`)
-      .bind(`${year}-%`)
-      .all<{ date: string; name: string; is_holiday: number }>();
-
-    if (results.length === 0) return { set: undefined, list: [] };
-
-    const set = new Set<string>();
-    const list: HolidayEntry[] = [];
-    for (const r of results) {
-      list.push({ date: r.date, name: r.name, is_trading_day: r.is_holiday === 0 });
-      if (r.is_holiday === 1) set.add(r.date);
-    }
-    return { set, list };
-  } catch {
-    return { set: undefined, list: [] };
-  }
-}
+import { CHINA_EVENTS, EARNINGS_SYMBOLS, Env, RISK_RULES } from './env';
 
 // ============================================
 // HTTP Handler
@@ -89,7 +44,11 @@ export default {
     }
 
     if (url.pathname === '/api/market-temperature') {
-      return handleMarketTemperature(request, env, corsHeaders);
+      return handleMarketTemperature(request, env, corsHeaders, chinaGdpData);
+    }
+
+    if (url.pathname === '/api/industry-rotation') {
+      return handleIndustryRotation(request, env, corsHeaders);
     }
 
     if (url.pathname === '/admin/collect' && request.method === 'POST') {
@@ -106,6 +65,14 @@ export default {
 
     if (url.pathname === '/admin/backfill' && request.method === 'POST') {
       return handleBackfill(request, env, ctx, corsHeaders);
+    }
+
+    if (url.pathname === '/admin/init-instrument-daily' && request.method === 'POST') {
+      return handleInitInstrumentDaily(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/admin/sync-industry-flow' && request.method === 'POST') {
+      return handleSyncIndustryFlow(request, env, corsHeaders);
     }
 
     if (url.pathname === '/admin/debug-chinabond' && request.method === 'GET') {
@@ -134,105 +101,20 @@ export default {
       EARNINGS_SYMBOLS,
     };
 
-    if (controller.cron === '0 22 * * *') {
+    if (controller.cron === '0 10 * * *') {
       ctx.waitUntil(scheduler.runDailyCollection(collectorEnv));
+    } else if (controller.cron === '15 10 * * *') {
+      ctx.waitUntil(syncIndustryFundFlows(env.DB).then((result) => {
+        console.log(
+          `[Cron] Industry flow complete: ${result.boards} boards, ` +
+          `${result.rows} rows, ${result.failedBoards.length} failures`,
+        );
+      }));
     } else if (controller.cron === '30 * * * *') {
       ctx.waitUntil(runActualValueUpdater(env));
     }
   },
 };
-
-// ============================================
-// Route Handlers
-// ============================================
-
-async function handleEvents(request: Request, env: Env, headers: Record<string, string>): Promise<Response> {
-  const url = new URL(request.url);
-  const date = url.searchParams.get('date');
-  const range = url.searchParams.get('range');
-  const week = url.searchParams.get('week');
-
-  try {
-    // 加载假日表（查不到表时回退到"只跳周末"）
-    const currentYear = new Date().getFullYear();
-    const holidayData = await loadHolidayData(env.DB, currentYear);
-    const holidays = holidayData.set;
-
-    // 参数校验
-    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return new Response(JSON.stringify({ error: 'Invalid date format, expected YYYY-MM-DD' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', ...headers },
-      });
-    }
-
-    // 周批量查询：?week=YYYY-MM-DD (该周任意一天)
-    // 预留接口：前端当前按天逐个请求 + 客户端预加载，未来可切换为周批量查询减少请求数
-    if (week) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(week)) {
-        return new Response(JSON.stringify({ error: 'Invalid week format, expected YYYY-MM-DD' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', ...headers },
-        });
-      }
-      const days = await db.getWeekEvents(env.DB, week);
-      return new Response(JSON.stringify({
-        timezone: 'Asia/Shanghai',
-        week_start: days[0]?.date || week,
-        days: days.map(d => ({
-          date: d.date,
-          day_label: d.dayLabel,
-          risk_index: d.risk_index,
-          events: d.events.map(formatEventForAPI),
-          calendar_effects: getActiveCalendarEffects(d.date, holidays),
-        })),
-        holidays: holidayData.list,
-      }), {
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...headers },
-      });
-    }
-
-    // 今日+明日批量查询：?range=today_tomorrow
-    // 预留接口：前端当前未使用，可用于"明日风险榜"首页同时展示今明两天
-    if (range === 'today_tomorrow') {
-      const groups = await db.getTodayTomorrowEvents(env.DB);
-      return new Response(JSON.stringify({
-        timezone: 'Asia/Shanghai',
-        days: groups.map(g => ({
-          date: g.date,
-          risk_index: db.calculateRiskIndex(g.events),
-          events: g.events.map(formatEventForAPI),
-          calendar_effects: getActiveCalendarEffects(g.date, holidays),
-        })),
-        holidays: holidayData.list,
-      }), {
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...headers },
-      });
-    }
-
-    // 单日查询
-    const targetDate = date || getBeijingDate(1);
-    const results = await db.getEventsByDate(env.DB, targetDate);
-
-    return new Response(JSON.stringify({
-      date: targetDate,
-      timezone: 'Asia/Shanghai',
-      risk_index: db.calculateRiskIndex(results),
-      events: results.map(formatEventForAPI),
-      updated_at: new Date().toISOString(),
-      calendar_effects: getActiveCalendarEffects(targetDate, holidays),
-      holidays: holidayData.list,
-    }), {
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...headers },
-    });
-  } catch (error) {
-    console.error('[API] Error:', error);
-    return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...headers },
-    });
-  }
-}
 
 async function handleCollect(request: Request, env: Env, ctx: ExecutionContext, headers: Record<string, string>): Promise<Response> {
   // 安全底线：必须配置 ADMIN_TOKEN 且请求携带有效 token
@@ -266,6 +148,36 @@ async function handleCollect(request: Request, env: Env, ctx: ExecutionContext, 
   return new Response(JSON.stringify({ status: 'accepted', message: 'Collection started' }), {
     headers: { 'Content-Type': 'application/json', ...headers },
   });
+}
+
+async function handleSyncIndustryFlow(
+  request: Request,
+  env: Env,
+  headers: Record<string, string>,
+): Promise<Response> {
+  const authError = assertAdminToken(request, env, headers);
+  if (authError) return authError;
+
+  const url = new URL(request.url);
+  const requestedLimit = Number(url.searchParams.get('days') ?? 140);
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 250)
+    : 140;
+
+  try {
+    const result = await syncIndustryFundFlows(env.DB, limit);
+    return new Response(JSON.stringify({ status: 'ok', limit, ...result }), {
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({
+      error: 'Industry fund flow sync failed',
+      detail: error instanceof Error ? error.message : String(error),
+    }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
 }
 
 async function runActualValueUpdater(env: Env): Promise<void> {
@@ -431,6 +343,96 @@ async function handleBackfill(
   });
 }
 
+type InitInstrumentDailyPayload = {
+  rows?: InstrumentDailyRow[];
+};
+
+function assertAdminToken(request: Request, env: Env, headers: Record<string, string>): Response | null {
+  if (!env.ADMIN_TOKEN) {
+    return new Response(JSON.stringify({ error: 'Admin endpoint not available' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+
+  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+  if (token !== env.ADMIN_TOKEN) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+
+  return null;
+}
+
+function normalizeInstrumentDailyRow(raw: InstrumentDailyRow): InstrumentDailyRow {
+  return {
+    trade_date: raw.trade_date,
+    instrument_code: raw.instrument_code,
+    instrument_name: raw.instrument_name,
+    instrument_type: raw.instrument_type,
+    provider: raw.provider || 'free-stockdb',
+    open_price: raw.open_price ?? null,
+    high_price: raw.high_price ?? null,
+    low_price: raw.low_price ?? null,
+    close_price: raw.close_price ?? null,
+    pre_close_price: raw.pre_close_price ?? null,
+    change_pct: raw.change_pct ?? null,
+    change_amount: raw.change_amount ?? null,
+    amplitude: raw.amplitude ?? null,
+    volume: raw.volume ?? null,
+    amount: raw.amount ?? null,
+    turnover_rate: raw.turnover_rate ?? null,
+    pe_ttm: raw.pe_ttm ?? null,
+    pb: raw.pb ?? null,
+    total_market_cap: raw.total_market_cap ?? null,
+    float_market_cap: raw.float_market_cap ?? null,
+    is_st: raw.is_st ?? null,
+    source_updated_at: raw.source_updated_at ?? null,
+  };
+}
+
+async function handleInitInstrumentDaily(
+  request: Request,
+  env: Env,
+  headers: Record<string, string>,
+): Promise<Response> {
+  const authError = assertAdminToken(request, env, headers);
+  if (authError) return authError;
+
+  let payload: InitInstrumentDailyPayload;
+  try {
+    payload = await request.json<InitInstrumentDailyPayload>();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+
+  const rows = (payload.rows || []).map(normalizeInstrumentDailyRow);
+  if (rows.length === 0) {
+    return new Response(JSON.stringify({ error: 'rows is required' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+
+  const upserted = await db.upsertInstrumentDailyRows(env.DB, rows);
+  const coverage = await db.getInstrumentDailyCoverage(env.DB, rows[0].instrument_code);
+
+  return new Response(JSON.stringify({
+    status: 'completed',
+    mode: 'idempotent_init',
+    upserted,
+    first_instrument: rows[0].instrument_code,
+    coverage,
+  }), {
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
+}
+
 // ============================================
 // Debug: chinabond HTML
 // ============================================
@@ -538,264 +540,3 @@ async function handleSyncHolidays(
     });
   }
 }
-
-// ============================================
-// Utilities
-// ============================================
-
-function formatEventForAPI(event: any): any {
-  return {
-    event_key: event.event_key,
-    score: event.importance,
-    display_name: event.display_name,
-    description: event.description || null,
-    previous_value: event.previous_value || null,
-    actual_value: event.actual_value || null,
-    forecast_value: event.forecast_value || null,
-    confidence: event.confidence || 'estimated',
-    source_url: event.source_url || null,
-    event_time: event.event_time || null,
-    timezone: event.timezone || 'Asia/Shanghai',
-    country: event.country,
-    market_impact: typeof event.market_impact === 'string' ? JSON.parse(event.market_impact) : (event.market_impact || []),
-    status: event.status || 'scheduled',
-    source: event.source,
-  };
-}
-
-// ============================================
-// Market Temperature API
-// ============================================
-
-async function handleMarketTemperature(
-  request: Request,
-  env: Env,
-  headers: Record<string, string>,
-): Promise<Response> {
-  const url = new URL(request.url);
-  const daysParam = url.searchParams.get('days') || '20';
-  const days = Math.min(parseInt(daysParam) || 20, 365);
-
-  try {
-    // 获取最新快照
-    const latest = await db.getLatestSnapshots(env.DB);
-
-    if (latest.length === 0) {
-      return new Response(JSON.stringify({
-        error: 'No market temperature data available yet. Run /admin/collect first.',
-      }), {
-        status: 503,
-        headers: { 'Content-Type': 'application/json', ...headers },
-      });
-    }
-
-    // 获取历史数据
-    const latestDate = latest[0].trade_date;
-    const startDate = new Date(latestDate + 'T00:00:00Z');
-    startDate.setDate(startDate.getDate() - days);
-    const startDateStr = startDate.toISOString().split('T')[0];
-
-    const history = await db.getSnapshotsByDateRange(env.DB, startDateStr, latestDate);
-
-    // 按指数分组历史数据
-    const historyByIndex: Record<string, typeof history> = {};
-    for (const row of history) {
-      if (!historyByIndex[row.index_code]) historyByIndex[row.index_code] = [];
-      historyByIndex[row.index_code].push(row);
-    }
-
-    // 计算衍生指标
-    const shHistory = historyByIndex['000001'] || [];
-    const hs300History = historyByIndex['000300'] || [];
-    const latest300 = hs300History[0] || latest.find(r => r.index_code === '000300') || latest[0];
-    const derived = computeDerivedMetrics(shHistory, hs300History, latest300);
-
-    return new Response(JSON.stringify({
-      trade_date: latestDate,
-      latest: latest.map(formatSnapshotForAPI),
-      derived,
-      history: history.map(formatSnapshotForAPI),
-      history_days: days,
-    }), {
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...headers },
-    });
-  } catch (error) {
-    console.error('[MarketTemp] Error:', error);
-    return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...headers },
-    });
-  }
-}
-
-function formatSnapshotForAPI(row: any): any {
-  return {
-    trade_date: row.trade_date,
-    index_code: row.index_code,
-    close_price: row.close_price,
-    change_pct: row.change_pct,
-    rise_count: row.rise_count,
-    fall_count: row.fall_count,
-    flat_count: row.flat_count,
-    turnover_amount: row.turnover_amount,
-    turnover_rate: row.turnover_rate,
-    volatility_20d: row.volatility_20d,
-    northbound_amt: row.northbound_amt,
-    pe_ttm: row.pe_ttm,
-    pb: row.pb,
-    margin_balance: row.margin_balance,
-    bond_yield_10y: row.bond_yield_10y,
-    us_2y_yield: row.us_2y_yield,
-    fed_funds_rate: row.fed_funds_rate,
-    usd_index: row.usd_index,
-    oil_wti: row.oil_wti,
-    us_yield_spread: row.us_yield_spread,
-    total_market_cap: row.total_market_cap,
-  };
-}
-
-/**
- * 获取最近一年的中国名义 GDP（万亿元人民币）
- * 从 china-gdp.json 读取，按年份降序取最新的非零值
- */
-function getLatestChinaGDP(): number | null {
-  const data = (chinaGdpData as any).data;
-  if (!data) return null;
-  const years = Object.keys(data).map(Number).sort((a, b) => b - a);
-  for (const year of years) {
-    const val = data[year];
-    if (val > 0) return val;
-  }
-  return null;
-}
-
-function computeDerivedMetrics(history: any[], hs300History: any[], latest300: any): any {
-  const latest = history[0]; // history 按日期倒序
-  const result: Record<string, any> = {};
-
-  if (!latest) return result;
-
-  // 涨跌比
-  if (latest.rise_count != null && latest.fall_count != null) {
-    const total = latest.rise_count + latest.fall_count;
-    result.advance_decline_ratio = total > 0
-      ? Math.round(latest.rise_count / total * 1000) / 10
-      : null;
-    result.advance_decline_label =
-      result.advance_decline_ratio >= 60 ? '赚钱效应强' :
-      result.advance_decline_ratio >= 45 ? '涨跌互现' :
-      '亏钱效应明显';
-  }
-
-  // 成交额趋势（5日均值 vs 20日均值）
-  const turnover5 = avgField(history.slice(0, 5), 'turnover_amount');
-  const turnover20 = avgField(history.slice(0, 20), 'turnover_amount');
-  if (turnover5 && turnover20 && turnover20 > 0) {
-    result.turnover_5d_avg = Math.round(turnover5 / 1e8);     // 亿元
-    result.turnover_20d_avg = Math.round(turnover20 / 1e8);   // 亿元
-    result.turnover_trend = turnover5 > turnover20 * 1.1 ? '放量' :
-                            turnover5 < turnover20 * 0.9 ? '缩量' : '平稳';
-  }
-
-  // 北向资金趋势
-  const nb5 = avgField(hs300History.slice(0, 5), 'northbound_amt');
-  const nb20 = avgField(hs300History.slice(0, 20), 'northbound_amt');
-  if (nb5 && nb20 && nb20 > 0) {
-    result.northbound_5d_avg = Math.round(nb5 / 10000);        // 亿元 (from 万元)
-    result.northbound_20d_avg = Math.round(nb20 / 10000);      // 亿元
-    result.northbound_trend = nb5 > nb20 * 1.2 ? '外资放量' :
-                              nb5 < nb20 * 0.8 ? '外资缩量' : '外资平稳';
-  }
-
-  // 波动率状态
-  if (latest.volatility_20d != null) {
-    result.volatility_label =
-      latest.volatility_20d > 25 ? '高波动' :
-      latest.volatility_20d > 15 ? '正常波动' : '低波动';
-  }
-
-  // 融资融券状态
-  if (latest.margin_balance != null) {
-    result.margin_balance_yi = Math.round(latest.margin_balance); // 亿元
-  }
-
-  // === 估值指标（基于沪深300数据）===
-  const pe = latest300?.pe_ttm;
-  const bondYield = latest300?.bond_yield_10y;
-
-  if (pe != null && pe > 0) {
-    result.pe_ttm = pe;
-
-    // PE 百分位：当前 PE 在历史区间中的位置
-    const peValues = hs300History
-      .map(h => h.pe_ttm)
-      .filter((v): v is number => v != null && v > 0)
-      .sort((a, b) => a - b);
-    if (peValues.length >= 5) {
-      const rank = peValues.filter(v => v <= pe).length;
-      result.pe_percentile = Math.round(rank / peValues.length * 100);
-      result.pe_label =
-        result.pe_percentile <= 20 ? '极低估' :
-        result.pe_percentile <= 40 ? '偏低估' :
-        result.pe_percentile <= 60 ? '合理' :
-        result.pe_percentile <= 80 ? '偏高估' : '极度高估';
-    }
-  }
-
-  // ERP（股权风险溢价）= 1/PE - 10Y 国债收益率
-  // ERP 越高 → 股票相对债券越便宜 → 市场温度越低
-  if (pe != null && pe > 0 && bondYield != null) {
-    const earningsYield = 1 / pe * 100; // 盈利收益率（%）
-    result.erp = Math.round((earningsYield - bondYield) * 100) / 100; // 百分点
-    result.erp_label =
-      result.erp > 8 ? '股票极便宜' :
-      result.erp > 5 ? '股票偏低估' :
-      result.erp > 2 ? '合理' :
-      result.erp > 0 ? '偏高估' : '极度高估';
-  }
-
-  // === 巴菲特指数 = A 股总市值 / 中国名义 GDP ===
-  const totalMarketCap = latest?.total_market_cap;
-  if (totalMarketCap != null && totalMarketCap > 0) {
-    result.total_market_cap = totalMarketCap;
-    const gdp = getLatestChinaGDP();
-    if (gdp != null && gdp > 0) {
-      const ratio = totalMarketCap / gdp;
-      result.buffett_ratio = Math.round(ratio * 100) / 100;
-      result.buffett_label =
-        ratio < 0.5 ? '极度低估' :
-        ratio < 0.7 ? '偏低估' :
-        ratio < 0.9 ? '合理' :
-        ratio < 1.1 ? '偏高估' : '极度高估';
-    }
-  }
-
-  // === 全球宏观指标（FRED）===
-  if (latest?.us_2y_yield != null) result.us_2y_yield = latest.us_2y_yield;
-  if (latest?.fed_funds_rate != null) result.fed_funds_rate = latest.fed_funds_rate;
-  if (latest?.usd_index != null) {
-    result.usd_index = latest.usd_index;
-    // 美元指数趋势：与 5 日均值对比
-    const usd5 = avgField(history.slice(0, 5), 'usd_index');
-    if (usd5 != null) {
-      result.usd_trend = latest.usd_index > usd5 * 1.01 ? '美元走强' :
-                         latest.usd_index < usd5 * 0.99 ? '美元走弱' : '美元平稳';
-    }
-  }
-  if (latest?.oil_wti != null) result.oil_wti = latest.oil_wti;
-  if (latest?.us_yield_spread != null) {
-    result.us_yield_spread = latest.us_yield_spread;
-    result.yield_curve_label =
-      latest.us_yield_spread < 0 ? '倒挂（衰退预警）' :
-      latest.us_yield_spread < 0.5 ? '偏平' : '正常';
-  }
-
-  return result;
-}
-
-function avgField(rows: any[], field: string): number | null {
-  const values = rows.map(r => r[field]).filter((v): v is number => v != null);
-  if (values.length === 0) return null;
-  return values.reduce((a, b) => a + b, 0) / values.length;
-}
-

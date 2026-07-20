@@ -350,6 +350,29 @@ export interface MarketTemperatureCompactResponse {
   sample_step?: number;
 }
 
+export type RotationPeriod = 'week' | 'month' | 'half_year';
+
+export interface IndustryRotationMetric {
+  board_code: string;
+  board_name: string;
+  trading_days: number;
+  cumulative_main_net_inflow: number;
+  period_return_pct: number | null;
+  log_bias_20_pct: number | null;
+}
+
+export interface IndustryRotationWindow {
+  trading_days: number;
+  industries: IndustryRotationMetric[];
+}
+
+export interface IndustryRotationMatrixResponse {
+  trade_date: string;
+  industry_count: number;
+  annual_available: boolean;
+  windows: Record<RotationPeriod, IndustryRotationWindow>;
+}
+
 export interface ChinaGdpData {
   data: Record<string, number>;
 }

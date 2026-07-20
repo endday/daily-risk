@@ -15,9 +15,10 @@
 import type { CollectorConfig, CollectorEnv, CollectorResult, MarketSnapshotRow } from './base';
 import { getBeijingDate } from '../../../shared/date-utils';
 import { http } from './http';
+import { BROAD_MARKET_INDEX_CODES } from '../market-universe';
 
 /** 目标指数 — 全球指标写入所有指数行（市场级数据） */
-const INDEX_CODES = ['000001', '000300', '000905', '399006'];
+const INDEX_CODES = BROAD_MARKET_INDEX_CODES;
 
 /** FRED 全球宏观 series → snapshot 字段映射 */
 const FRED_MACRO_SERIES = [

@@ -10,6 +10,8 @@
 import type { CollectorEnv } from './collectors/base';
 import { runAllCollectors } from './collectors/runner';
 import { syncTradingCalendar } from './trading-calendar';
+import { initializeInstrumentDaily } from './collectors/instrument-daily-init';
+import { getBeijingDate, offsetDate } from '../../shared/date-utils';
 
 // 事件类采集器
 import { fredCollector } from './collectors/fred';
@@ -66,6 +68,20 @@ export async function runDailyCollection(env: CollectorEnv): Promise<void> {
   }
 
   const { results, total_events, total_errors } = await runAllCollectors(collectors, env);
+
+  // 日线数据按最近 7 个自然日回补，覆盖周末和节假日后的首个交易日。
+  try {
+    const endDate = getBeijingDate(0);
+    const startDate = offsetDate(endDate, -7);
+    const instrumentResult = await initializeInstrumentDaily(env.DB, startDate, endDate);
+    console.log(
+      `[Scheduler] Instrument daily sync complete: ` +
+      `${instrumentResult.instruments} instruments, ${instrumentResult.rows} rows, ` +
+      `${startDate} -> ${endDate}`,
+    );
+  } catch (error) {
+    console.warn(`[Scheduler] Instrument daily sync failed (non-fatal): ${(error as Error).message}`);
+  }
 
   console.log(
     `[Scheduler] Daily collection complete: ` +

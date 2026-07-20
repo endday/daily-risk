@@ -14,11 +14,13 @@ routes = [
 binding = "DB"
 database_name = "daily-risk"
 database_id = "e2772393-32af-42f2-aa2d-800d3b1b816f"
+remote = true
 
 # Cron Triggers
 [triggers]
 crons = [
-  "0 22 * * *",   # 北京时间 06:00，每日全量采集
+  "0 10 * * *",   # 北京时间 18:00，收盘后同步日线与每日数据
+  "15 10 * * *",  # 北京时间 18:15，独立同步行业资金流
   "30 * * * *",   # 每小时 :30 分，更新实际值（只拉 FRED）
 ]
 

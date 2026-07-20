@@ -261,7 +261,7 @@ function parseEventRow(row: any): any {
 // Market Snapshots
 // ============================================
 
-import type { MarketSnapshotRow } from './collectors/base';
+import type { IndustryFundFlowRow, InstrumentDailyRow, MarketSnapshotRow } from './collectors/base';
 
 const SNAPSHOT_COLUMNS = `
   trade_date, index_code,
@@ -349,6 +349,20 @@ export async function getSnapshotsByDateRange(
   return result.results as MarketSnapshotRow[];
 }
 
+export async function getSnapshotsByDateRangeAndIndex(
+  db: D1Database,
+  indexCode: string,
+  startDate: string,
+  endDate: string,
+): Promise<MarketSnapshotRow[]> {
+  const result = await db.prepare(`
+    SELECT * FROM market_snapshots
+    WHERE index_code = ? AND trade_date BETWEEN ? AND ?
+    ORDER BY trade_date DESC
+  `).bind(indexCode, startDate, endDate).all();
+  return result.results as MarketSnapshotRow[];
+}
+
 /**
  * 获取最新一天的快照（所有指数）
  */
@@ -361,3 +375,223 @@ export async function getLatestSnapshots(db: D1Database): Promise<MarketSnapshot
   return result.results as MarketSnapshotRow[];
 }
 
+// ============================================
+// Instrument Daily
+// ============================================
+
+const INSTRUMENT_DAILY_COLUMNS = `
+  trade_date, instrument_code, instrument_name, instrument_type, provider,
+  open_price, high_price, low_price, close_price, pre_close_price,
+  change_pct, change_amount, amplitude, volume, amount, turnover_rate,
+  pe_ttm, pb, total_market_cap, float_market_cap, is_st, source_updated_at
+`;
+
+const INSTRUMENT_DAILY_PLACEHOLDERS = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+
+const INSTRUMENT_DAILY_CONFLICT = `
+  ON CONFLICT(trade_date, instrument_code) DO UPDATE SET
+    instrument_name = excluded.instrument_name,
+    instrument_type = excluded.instrument_type,
+    provider = excluded.provider,
+    open_price = COALESCE(excluded.open_price, instrument_daily.open_price),
+    high_price = COALESCE(excluded.high_price, instrument_daily.high_price),
+    low_price = COALESCE(excluded.low_price, instrument_daily.low_price),
+    close_price = COALESCE(excluded.close_price, instrument_daily.close_price),
+    pre_close_price = COALESCE(excluded.pre_close_price, instrument_daily.pre_close_price),
+    change_pct = COALESCE(excluded.change_pct, instrument_daily.change_pct),
+    change_amount = COALESCE(excluded.change_amount, instrument_daily.change_amount),
+    amplitude = COALESCE(excluded.amplitude, instrument_daily.amplitude),
+    volume = COALESCE(excluded.volume, instrument_daily.volume),
+    amount = COALESCE(excluded.amount, instrument_daily.amount),
+    turnover_rate = COALESCE(excluded.turnover_rate, instrument_daily.turnover_rate),
+    pe_ttm = COALESCE(excluded.pe_ttm, instrument_daily.pe_ttm),
+    pb = COALESCE(excluded.pb, instrument_daily.pb),
+    total_market_cap = COALESCE(excluded.total_market_cap, instrument_daily.total_market_cap),
+    float_market_cap = COALESCE(excluded.float_market_cap, instrument_daily.float_market_cap),
+    is_st = COALESCE(excluded.is_st, instrument_daily.is_st),
+    source_updated_at = COALESCE(excluded.source_updated_at, instrument_daily.source_updated_at),
+    updated_at = datetime('now')
+`;
+
+function bindInstrumentDaily(stmt: D1PreparedStatement, row: InstrumentDailyRow): D1PreparedStatement {
+  return stmt.bind(
+    row.trade_date,
+    row.instrument_code,
+    row.instrument_name,
+    row.instrument_type,
+    row.provider,
+    row.open_price,
+    row.high_price,
+    row.low_price,
+    row.close_price,
+    row.pre_close_price,
+    row.change_pct,
+    row.change_amount,
+    row.amplitude,
+    row.volume,
+    row.amount,
+    row.turnover_rate,
+    row.pe_ttm,
+    row.pb,
+    row.total_market_cap,
+    row.float_market_cap,
+    row.is_st,
+    row.source_updated_at,
+  );
+}
+
+export async function upsertInstrumentDailyRows(db: D1Database, rows: InstrumentDailyRow[]): Promise<number> {
+  if (rows.length === 0) return 0;
+
+  const chunkSize = 200;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const stmts = chunk.map((row) =>
+      bindInstrumentDaily(
+        db.prepare(
+          `INSERT INTO instrument_daily (${INSTRUMENT_DAILY_COLUMNS}) VALUES ${INSTRUMENT_DAILY_PLACEHOLDERS} ${INSTRUMENT_DAILY_CONFLICT}`,
+        ),
+        row,
+      ),
+    );
+    await db.batch(stmts);
+  }
+
+  return rows.length;
+}
+
+export async function getInstrumentDailyCoverage(
+  db: D1Database,
+  instrumentCode: string,
+): Promise<{ count: number; min_date: string | null; max_date: string | null }> {
+  const result = await db.prepare(`
+    SELECT
+      COUNT(*) AS count,
+      MIN(trade_date) AS min_date,
+      MAX(trade_date) AS max_date
+    FROM instrument_daily
+    WHERE instrument_code = ?
+  `).bind(instrumentCode).first<{ count: number; min_date: string | null; max_date: string | null }>();
+
+  return result ?? { count: 0, min_date: null, max_date: null };
+}
+
+export async function getInstrumentDailyByDateRange(
+  db: D1Database,
+  instrumentCode: string,
+  startDate: string,
+  endDate: string,
+): Promise<InstrumentDailyRow[]> {
+  const result = await db.prepare(`
+    SELECT
+      trade_date, instrument_code, instrument_name, instrument_type, provider,
+      open_price, high_price, low_price, close_price, pre_close_price,
+      change_pct, change_amount, amplitude, volume, amount, turnover_rate,
+      pe_ttm, pb, total_market_cap, float_market_cap, is_st, source_updated_at
+    FROM instrument_daily
+    WHERE instrument_code = ? AND trade_date BETWEEN ? AND ?
+    ORDER BY trade_date DESC
+  `).bind(instrumentCode, startDate, endDate).all();
+
+  return result.results as InstrumentDailyRow[];
+}
+
+// ============================================
+// Industry Fund Flow Daily
+// ============================================
+
+const INDUSTRY_FLOW_COLUMNS = `
+  trade_date, board_code, board_name, provider, close_price, change_pct,
+  main_net_inflow, small_net_inflow, medium_net_inflow, large_net_inflow,
+  super_large_net_inflow, main_net_inflow_ratio, small_net_inflow_ratio,
+  medium_net_inflow_ratio, large_net_inflow_ratio, super_large_net_inflow_ratio,
+  source_updated_at
+`;
+
+const INDUSTRY_FLOW_PLACEHOLDERS = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+
+function bindIndustryFundFlow(stmt: D1PreparedStatement, row: IndustryFundFlowRow): D1PreparedStatement {
+  return stmt.bind(
+    row.trade_date,
+    row.board_code,
+    row.board_name,
+    row.provider,
+    row.close_price,
+    row.change_pct,
+    row.main_net_inflow,
+    row.small_net_inflow,
+    row.medium_net_inflow,
+    row.large_net_inflow,
+    row.super_large_net_inflow,
+    row.main_net_inflow_ratio,
+    row.small_net_inflow_ratio,
+    row.medium_net_inflow_ratio,
+    row.large_net_inflow_ratio,
+    row.super_large_net_inflow_ratio,
+    row.source_updated_at,
+  );
+}
+
+export async function upsertIndustryFundFlowRows(
+  db: D1Database,
+  rows: IndustryFundFlowRow[],
+): Promise<number> {
+  if (rows.length === 0) return 0;
+
+  const sql = `
+    INSERT INTO industry_fund_flow_daily (${INDUSTRY_FLOW_COLUMNS})
+    VALUES ${INDUSTRY_FLOW_PLACEHOLDERS}
+    ON CONFLICT(trade_date, board_code) DO UPDATE SET
+      board_name = excluded.board_name,
+      provider = excluded.provider,
+      close_price = excluded.close_price,
+      change_pct = excluded.change_pct,
+      main_net_inflow = excluded.main_net_inflow,
+      small_net_inflow = excluded.small_net_inflow,
+      medium_net_inflow = excluded.medium_net_inflow,
+      large_net_inflow = excluded.large_net_inflow,
+      super_large_net_inflow = excluded.super_large_net_inflow,
+      main_net_inflow_ratio = excluded.main_net_inflow_ratio,
+      small_net_inflow_ratio = excluded.small_net_inflow_ratio,
+      medium_net_inflow_ratio = excluded.medium_net_inflow_ratio,
+      large_net_inflow_ratio = excluded.large_net_inflow_ratio,
+      super_large_net_inflow_ratio = excluded.super_large_net_inflow_ratio,
+      source_updated_at = excluded.source_updated_at,
+      updated_at = CURRENT_TIMESTAMP
+  `;
+
+  const chunkSize = 100;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const statements = rows.slice(i, i + chunkSize).map((row) =>
+      bindIndustryFundFlow(db.prepare(sql), row),
+    );
+    await db.batch(statements);
+  }
+  return rows.length;
+}
+
+export async function getIndustryFundFlowRows(
+  db: D1Database,
+  startDate: string,
+  endDate: string,
+): Promise<IndustryFundFlowRow[]> {
+  const result = await db.prepare(`
+    SELECT ${INDUSTRY_FLOW_COLUMNS}
+    FROM industry_fund_flow_daily
+    WHERE trade_date BETWEEN ? AND ?
+    ORDER BY trade_date ASC, board_code ASC
+  `).bind(startDate, endDate).all();
+  return result.results as unknown as IndustryFundFlowRow[];
+}
+
+export async function getIndustryFundFlowRange(db: D1Database): Promise<{
+  count: number;
+  min_date: string | null;
+  max_date: string | null;
+}> {
+  const result = await db.prepare(`
+    SELECT COUNT(*) AS count, MIN(trade_date) AS min_date, MAX(trade_date) AS max_date
+    FROM industry_fund_flow_daily
+  `).first<{ count: number; min_date: string | null; max_date: string | null }>();
+  return result ?? { count: 0, min_date: null, max_date: null };
+}

@@ -11,7 +11,7 @@ const router = createRouter({
       component: defineAsyncComponent(() => import('./pages/ErpPage.vue')),
     },
     {
-      path: '/:tab(events|stats)?',
+      path: '/:tab(industries|events|stats)?',
       name: 'home',
       component: HomePage,
     },

@@ -4,6 +4,7 @@ import { scoreColor } from '../utils/display'
 import OverviewTab from '../components/tabs/OverviewTab.vue'
 import EventsTab from '../components/tabs/EventsTab.vue'
 import StatsTab from '../components/tabs/StatsTab.vue'
+import IndustryTab from '../components/tabs/IndustryTab.vue'
 import { useHomePage } from '../composables/useHomePage'
 
 const {
@@ -47,7 +48,7 @@ const {
     </header>
 
     <!-- 日期条 (全局 sticky) -->
-    <div class="date-strip-wrapper">
+    <div v-if="activeTab !== 'industries'" class="date-strip-wrapper">
       <button class="nav-btn nav-prev" @click="changeWeek(-1)">◀</button>
       <div class="date-strip">
         <div
@@ -92,6 +93,8 @@ const {
       @showEvents="setTab('events')"
     />
 
+    <IndustryTab v-if="activeTab === 'industries'" />
+
     <!-- ============================================ -->
     <!-- Tab: 事件                                     -->
     <!-- ============================================ -->
@@ -118,6 +121,7 @@ const {
     <!-- 底部 Tab 栏 -->
     <nav class="bottom-tab-bar">
       <div class="bottom-tab" :class="{ active: activeTab === 'overview' }" @click="setTab('overview')">今日</div>
+      <div class="bottom-tab" :class="{ active: activeTab === 'industries' }" @click="setTab('industries')">行业</div>
       <div class="bottom-tab" :class="{ active: activeTab === 'events' }" @click="setTab('events')">
         事件
         <span v-if="selectedDayEvents.length" class="tab-badge">{{ selectedDayEvents.length }}</span>

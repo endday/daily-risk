@@ -10,6 +10,7 @@ import type {
   CalendarEffects,
   MarketTemperatureResponse,
   MarketTemperatureCompactResponse,
+  IndustryRotationMatrixResponse,
 } from '../../../shared/types'
 
 export type {
@@ -33,6 +34,8 @@ export type {
   TemperatureDerived,
   MarketTemperatureResponse,
   MarketTemperatureCompactResponse,
+  IndustryRotationMatrixResponse,
+  IndustryRotationMetric,
 } from '../../../shared/types'
 
 import { getToday, getTomorrow } from '../../../shared/date-utils'
@@ -54,6 +57,14 @@ export async function fetchMarketTemperature(days = 20): Promise<MarketTemperatu
   const response = await fetch(`${API_BASE}/market-temperature?days=${days}`)
   if (!response.ok) {
     throw new Error(`Market temperature API error: ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function fetchIndustryRotation(): Promise<IndustryRotationMatrixResponse> {
+  const response = await fetch(`${API_BASE}/industry-rotation?view=logbias-v1`)
+  if (!response.ok) {
+    throw new Error(`Industry rotation API error: ${response.status}`)
   }
   return response.json()
 }

@@ -26,11 +26,12 @@
 import type { CollectorConfig, CollectorResult, MarketSnapshotRow } from './base';
 import { getBeijingDate } from '../../../shared/date-utils';
 import { http } from './http';
+import { BROAD_MARKET_INDEX_CODES } from '../market-universe';
 
 const CSINDEX_PERF_URL = 'https://www.csindex.com.cn/csindex-home/perf/index-perf';
 
 /** 目标指数 */
-const INDEX_CODES = ['000001', '000300', '000905', '399006'];
+const INDEX_CODES = BROAD_MARKET_INDEX_CODES;
 
 interface CSIndexPerfRow {
   tradeDate: string;      // e.g. "20260616"

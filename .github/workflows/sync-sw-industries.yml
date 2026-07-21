@@ -9,14 +9,10 @@ on:
         description: Calendar days of official history to replace
         required: false
         default: '0'
-      runner:
-        description: Hosted runner used for source connectivity
-        required: false
-        default: 'ubuntu-latest'
 
 jobs:
   sync:
-    runs-on: ${{ inputs.runner || 'macos-latest' }}
+    runs-on: macos-latest
     timeout-minutes: 30
     concurrency:
       group: sw-industry-production-sync

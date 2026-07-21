@@ -32,14 +32,17 @@ def build_sql(code, name, rows, updated_at):
     for offset in range(0, len(rows), 80):
         values = []
         for row in rows[offset:offset + 80]:
-            raw_date = str(row.get("date", ""))
-            trade_date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
+            trade_date = str(row.get("trade_date", ""))
+            try:
+                dt.date.fromisoformat(trade_date)
+            except ValueError as error:
+                raise ValueError(f"invalid trade date for {code}: {trade_date}") from error
             values.append("(" + ",".join([
                 sql_text(trade_date), sql_text(code), sql_text(name), sql_text("free-stockdb"),
-                sql_number(row.get("open")), sql_number(row.get("high")), sql_number(row.get("low")),
-                sql_number(row.get("close")), sql_number(row.get("pct_chg")),
+                sql_number(row.get("open_price")), sql_number(row.get("high_price")), sql_number(row.get("low_price")),
+                sql_number(row.get("close_price")), sql_number(row.get("change_pct")),
                 sql_number(row.get("volume")), sql_number(row.get("amount")),
-                str(int(row.get("stock_count") or 0)), sql_text(updated_at),
+                str(int(row.get("member_count") or 0)), sql_text(updated_at),
             ]) + ")")
         statements.append("""
 INSERT INTO sw_industry_daily (
@@ -63,9 +66,24 @@ def main():
     parser.add_argument("--source", default=str(Path(__file__).resolve().parents[3] / "free-stockdb" / "pybao"))
     parser.add_argument("--start", default="20240101")
     parser.add_argument("--end", default="N")
+    parser.add_argument(
+        "--upload-start",
+        help="Only upload rows on or after YYYYMMDD/YYYY-MM-DD; calculations still use --start.",
+    )
+    parser.add_argument(
+        "--upload-days",
+        type=int,
+        help="Upload this many calendar days ending today; useful for daily overlap updates.",
+    )
     parser.add_argument("--mode", choices=["local", "remote"], default="remote")
     parser.add_argument("--endpoint")
     args = parser.parse_args()
+
+    upload_start = args.upload_start.replace("-", "") if args.upload_start else None
+    if args.upload_days is not None:
+        if args.upload_days < 1:
+            raise SystemExit("--upload-days must be positive")
+        upload_start = (dt.date.today() - dt.timedelta(days=args.upload_days)).strftime("%Y%m%d")
 
     source = Path(args.source).resolve()
     if not source.exists():
@@ -106,9 +124,17 @@ def main():
                 "source_updated_at": updated_at,
             })
 
+        upload_rows = [
+            row for row in normalized_rows
+            if not upload_start or row["trade_date"].replace("-", "") >= upload_start
+        ]
+        if not upload_rows:
+            print(f"skip {code} {name}: no rows in upload window", flush=True)
+            continue
+
         if args.endpoint:
-            for offset in range(0, len(normalized_rows), 100):
-                body = json.dumps({"rows": normalized_rows[offset:offset + 100]}).encode("utf-8")
+            for offset in range(0, len(upload_rows), 100):
+                body = json.dumps({"rows": upload_rows[offset:offset + 100]}).encode("utf-8")
                 request = urllib.request.Request(args.endpoint, data=body, headers={
                     "Content-Type": "application/json",
                     "User-Agent": "DailyRisk-Industry-Materializer/1.0",
@@ -116,12 +142,12 @@ def main():
                 with urllib.request.urlopen(request, timeout=60) as response:
                     if response.status != 200:
                         raise RuntimeError(f"upload failed: {response.status} {response.read().decode()}")
-            total_rows += len(rows)
+            total_rows += len(upload_rows)
             completed.append(code)
-            print(f"imported {code} {name}: {len(rows)} rows, {len(symbols)} constituents", flush=True)
+            print(f"imported {code} {name}: {len(upload_rows)} rows, {len(symbols)} constituents", flush=True)
             continue
 
-        sql = build_sql(code, name, rows, updated_at)
+        sql = build_sql(code, name, upload_rows, updated_at)
         with tempfile.NamedTemporaryFile("w", suffix=".sql", encoding="utf-8", delete=False) as handle:
             handle.write(sql)
             sql_path = Path(handle.name)
@@ -144,9 +170,9 @@ def main():
         finally:
             sql_path.unlink(missing_ok=True)
 
-        total_rows += len(rows)
+        total_rows += len(upload_rows)
         completed.append(code)
-        print(f"imported {code} {name}: {len(rows)} rows, {len(symbols)} constituents", flush=True)
+        print(f"imported {code} {name}: {len(upload_rows)} rows, {len(symbols)} constituents", flush=True)
 
     print(json.dumps({"industries": len(completed), "rows": total_rows, "codes": completed}, ensure_ascii=False))
 

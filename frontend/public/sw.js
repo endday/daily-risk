@@ -6,8 +6,8 @@
  * - index.html: Network-first
  */
 
-const CACHE_NAME = 'daily-risk-v2'
-const API_CACHE_NAME = 'daily-risk-api-v2'
+const CACHE_NAME = 'daily-risk-v3'
+const API_CACHE_NAME = 'daily-risk-api-v3'
 const API_CACHE_TTL = 5 * 60 * 1000 // 5 minutes (stale-while-revalidate window)
 const API_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000 // 7 days (max offline fallback age)
 
@@ -22,7 +22,14 @@ self.addEventListener('message', (event) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(['/'])
+      return cache.addAll([
+        '/',
+        '/manifest.webmanifest',
+        '/icons/app-icon.svg',
+        '/icons/app-icon-192.png',
+        '/icons/app-icon-512.png',
+        '/icons/app-icon-maskable-512.png',
+      ])
     })
   )
   self.skipWaiting()
@@ -56,7 +63,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Static assets (with hash): Cache-first
-  if (url.pathname.match(/\.[a-f0-9]{8}\./)) {
+  if (/\/assets\/.+-[\w-]{8,}\.[^/]+$/.test(url.pathname)) {
     event.respondWith(handleCacheFirst(event.request))
     return
   }

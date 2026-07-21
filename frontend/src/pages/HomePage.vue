@@ -5,6 +5,7 @@ import OverviewTab from '../components/tabs/OverviewTab.vue'
 import EventsTab from '../components/tabs/EventsTab.vue'
 import StatsTab from '../components/tabs/StatsTab.vue'
 import IndustryTab from '../components/tabs/IndustryTab.vue'
+import PwaInstall from '../components/PwaInstall.vue'
 import { useHomePage } from '../composables/useHomePage'
 
 const {
@@ -45,6 +46,7 @@ const {
       <span class="mast-date">{{ displayDate.month }}月{{ displayDate.day }}日 {{ WEEKDAYS[displayWeekday] }}</span>
       <span class="mast-sep">·</span>
       <span class="mast-title">投资黄历</span>
+      <PwaInstall />
     </header>
 
     <!-- 日期条 (全局 sticky) -->
@@ -145,6 +147,7 @@ const {
 
 // === 报头 (极简一行) ===
 .masthead {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;

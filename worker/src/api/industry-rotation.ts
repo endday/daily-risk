@@ -100,7 +100,10 @@ export async function handleIndustryRotation(
   headers: Record<string, string>,
 ): Promise<Response> {
   try {
-    const coverage = await db.getSwIndustryDailyRange(env.DB);
+    const [coverage, latestSync] = await Promise.all([
+      db.getSwIndustryDailyRange(env.DB),
+      db.getLatestSwIndustryImportRun(env.DB),
+    ]);
     if (!coverage.max_date) {
       return new Response(JSON.stringify({
         error: 'No industry fund flow data available yet',
@@ -123,6 +126,14 @@ export async function handleIndustryRotation(
       trade_date: coverage.max_date,
       industry_count: windows.month.industries.length,
       annual_available: false,
+      sync: latestSync ? {
+        run_id: latestSync.run_id,
+        status: latestSync.status,
+        mode: latestSync.mode,
+        row_count: latestSync.expected_rows,
+        checksum: latestSync.checksum,
+        completed_at: latestSync.completed_at,
+      } : null,
       windows,
     }), {
       headers: {

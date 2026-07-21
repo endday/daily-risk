@@ -2,6 +2,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import socket
 import ssl
 import time
 import urllib.parse
@@ -13,6 +14,16 @@ from pathlib import Path
 CURRENT_URL = "https://www.swsresearch.com/institute-sw/api/index_publish/current/"
 TREND_URL = "https://www.swsresearch.com/institute-sw/api/index_publish/trend/"
 EXPECTED_COUNT = 31
+SWS_CERT_SHA256 = "c7239b7740859856e2634fddb5863aebacf0c0f9f571e2d8c0f677c9ece16310"
+
+
+def verify_source_certificate():
+    context = ssl._create_unverified_context()
+    with socket.create_connection(("www.swsresearch.com", 443), timeout=30) as raw_socket:
+        with context.wrap_socket(raw_socket, server_hostname="www.swsresearch.com") as tls_socket:
+            fingerprint = hashlib.sha256(tls_socket.getpeercert(binary_form=True)).hexdigest()
+    if fingerprint != SWS_CERT_SHA256:
+        raise RuntimeError(f"unexpected SWS certificate fingerprint: {fingerprint}")
 
 
 def fetch_json(url, params=None, verify_tls=True):
@@ -117,6 +128,8 @@ def main():
     parser.add_argument("--snapshot", default="sw-industry-snapshot.json")
     args = parser.parse_args()
 
+    verify_source_certificate()
+
     current = fetch_json(CURRENT_URL, {
         "page": 1, "page_size": 50, "indextype": "一级行业",
     }, verify_tls=False)
@@ -179,7 +192,10 @@ def main():
                 "action": "append", "run_id": run_id, "rows": rows[offset:offset + 100],
             })
         result = post_action(args.endpoint, args.token, {"action": "commit", "run_id": run_id})
-        if result.get("status") != "completed":
+        coverage = result.get("coverage", {})
+        if (result.get("status") != "completed" or result.get("industries") != EXPECTED_COUNT or
+                result.get("trade_date") != trade_date or coverage.get("industries") != EXPECTED_COUNT or
+                coverage.get("max_date") != trade_date):
             raise RuntimeError(f"commit failed: {result}")
     except Exception as error:
         if begun:

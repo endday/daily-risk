@@ -36,15 +36,9 @@ jobs:
           --token "$SW_SYNC_TOKEN"
           --history-days "$HISTORY_DAYS"
           --snapshot artifacts/sw-industry-snapshot.json
-      - name: Verify production API
-        run: >-
-          python -c "import json,urllib.request;
-          d=json.load(urllib.request.urlopen('https://daily-risk.endday.top/api/industry-rotation?universe=sw-v1&run=${{ github.run_id }}'));
-          assert d['industry_count']==31, d;
-          print(json.dumps({'trade_date':d['trade_date'],'industry_count':d['industry_count']}))"
       - name: Upload validated snapshot
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: sw-industry-${{ github.run_id }}
           path: artifacts/sw-industry-snapshot.json

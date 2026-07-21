@@ -1,10 +1,11 @@
 /**
  * Market Cap Collector — A 股总市值
  *
- * 数据源：东方财富 push2 clist 接口（免费公开，无需 API Key）
+ * 数据源：东方财富中证全指（000985）行情（免费公开，无需 API Key）
  *
- * 拉取全部沪深 A 股（m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23）的 f20（总市值，单位：元），
- * 求和得到 A 股总市值（万亿元），写入 market_snapshots.total_market_cap。
+ * 使用中证全指行情的总市值作为 A 股市场总市值代理，写入
+ * market_snapshots.total_market_cap。该口径不包含完整北交所，且受指数样本规则约束；
+ * 详细限制见 docs/market-cap-gdp-methodology.md。
  *
  * 用于巴菲特指数计算：总市值 / 中国名义 GDP。
  */
@@ -17,58 +18,37 @@ import { BROAD_MARKET_INDEX_CODES } from '../market-universe';
 /** 目标指数 — 总市值是市场级数据，写入所有指数行 */
 const INDEX_CODES = BROAD_MARKET_INDEX_CODES;
 
-const CLIST_URL = 'https://push2.eastmoney.com/api/qt/clist/get';
+const CSI_ALL_SHARE_URL = 'https://push2.eastmoney.com/api/qt/stock/get';
+const CSI_ALL_SHARE_SECID = '1.000985';
 
 /**
- * 从 push2 clist 拉取全部 A 股总市值并求和
- * @returns 总市值（万亿元人民币），null 表示拉取失败
+ * 获取中证全指总市值代理值
  */
 async function fetchTotalMarketCap(): Promise<number | null> {
   const params = new URLSearchParams({
-    pn: '1',
-    pz: '6000',       // 一次拉完（A 股约 5300 只）
-    po: '1',
-    np: '1',
-    ut: 'bd1d9ddb04089700cf9c27f6f7426281',
     fltt: '2',
     invt: '2',
-    fid: 'f20',
-    // 沪深 A 股：深主板(m:0+t:6) + 创业板(m:0+t:80) + 沪主板(m:1+t:2) + 科创板(m:1+t:23)
-    fs: 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23',
-    fields: 'f20',
+    secid: CSI_ALL_SHARE_SECID,
+    fields: 'f57,f58,f116',
   });
+  const json = await http.get(`${CSI_ALL_SHARE_URL}?${params}`, {
+    headers: { Referer: 'https://quote.eastmoney.com/center/' },
+  }).json<any>();
+  const totalYuan = json.data?.f116;
 
-  const url = `${CLIST_URL}?${params}`;
-  console.log(`[MarketCap] Fetching ${url}`);
-
-  const json = await http.get(url).json<any>();
-  if (!json.data?.diff) {
-    console.warn('[MarketCap] push2 API returned no data');
+  if (
+    json.data?.f57 !== '000985' ||
+    typeof totalYuan !== 'number' ||
+    !Number.isFinite(totalYuan) ||
+    totalYuan <= 0
+  ) {
+    console.warn('[MarketCap] Invalid CSI All Share market-cap response');
     return null;
   }
 
-  const stocks = json.data.diff;
-  let totalYuan = 0;
-  let validCount = 0;
-
-  for (const stock of stocks) {
-    const f20 = stock.f20;
-    if (f20 != null && typeof f20 === 'number' && f20 > 0) {
-      totalYuan += f20;
-      validCount++;
-    }
-  }
-
-  if (validCount === 0) {
-    console.warn('[MarketCap] No valid market cap data found');
-    return null;
-  }
-
-  // 元 → 万亿元
-  const totalWanyi = totalYuan / 1e12;
-  console.log(`[MarketCap] Total A-share market cap: ${totalWanyi.toFixed(2)} 万亿元 (${validCount} stocks)`);
-
-  return Math.round(totalWanyi * 100) / 100;
+  const totalTrillion = Math.round(totalYuan / 1e10) / 100;
+  console.log(`[MarketCap] CSI All Share proxy: ${totalTrillion.toFixed(2)} 万亿元`);
+  return totalTrillion;
 }
 
 /**
@@ -105,17 +85,17 @@ function emptyRow(tradeDate: string, indexCode: string): MarketSnapshotRow {
  * 采集 A 股总市值
  */
 export async function collectMarketCap(): Promise<MarketSnapshotRow[]> {
-  const totalCap = await fetchTotalMarketCap();
-  const tradeDate = getBeijingDate(0);
+  const totalMarketCap = await fetchTotalMarketCap();
 
-  if (totalCap === null) {
+  if (totalMarketCap === null) {
     console.warn('[MarketCap] Skipping — no data');
     return [];
   }
 
+  const tradeDate = getBeijingDate(0);
   return INDEX_CODES.map(indexCode => {
     const row = emptyRow(tradeDate, indexCode);
-    row.total_market_cap = totalCap;
+    row.total_market_cap = totalMarketCap;
     return row;
   });
 }

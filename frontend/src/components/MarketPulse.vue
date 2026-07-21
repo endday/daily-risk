@@ -142,7 +142,7 @@ const yieldCurveClass = computed(() => {
         <div class="metric-row" v-if="derived.buffett_ratio != null">
           <span class="metric-icon">巴</span>
           <span class="metric-name">巴菲特</span>
-          <span class="metric-val">市值/GDP {{ derived.buffett_ratio.toFixed(2) }}</span>
+          <span class="metric-val">市值/GDP {{ (derived.buffett_ratio * 100).toFixed(1) }}%</span>
           <span class="metric-tag" :class="buffettColorClass">{{ derived.buffett_label || '--' }}</span>
         </div>
 

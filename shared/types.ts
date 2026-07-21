@@ -356,7 +356,7 @@ export interface IndustryRotationMetric {
   board_code: string;
   board_name: string;
   trading_days: number;
-  cumulative_main_net_inflow: number;
+  avg_turnover_amount: number;
   period_return_pct: number | null;
   log_bias_20_pct: number | null;
 }

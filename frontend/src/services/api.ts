@@ -62,7 +62,7 @@ export async function fetchMarketTemperature(days = 20): Promise<MarketTemperatu
 }
 
 export async function fetchIndustryRotation(): Promise<IndustryRotationMatrixResponse> {
-  const response = await fetch(`${API_BASE}/industry-rotation?view=logbias-v1`)
+  const response = await fetch(`${API_BASE}/industry-rotation?universe=sw-v1`)
   if (!response.ok) {
     throw new Error(`Industry rotation API error: ${response.status}`)
   }

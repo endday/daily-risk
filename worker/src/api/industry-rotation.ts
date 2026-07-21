@@ -1,5 +1,5 @@
 import * as db from '../db';
-import type { IndustryFundFlowRow } from '../collectors/base';
+import type { SwIndustryDailyRow } from '../collectors/base';
 import type { Env } from '../env';
 import { offsetDate } from '../../../shared/date-utils';
 
@@ -31,7 +31,7 @@ export interface IndustryRotationItem {
   board_code: string;
   board_name: string;
   trading_days: number;
-  cumulative_main_net_inflow: number;
+  avg_turnover_amount: number;
   period_return_pct: number | null;
   log_bias_20_pct: number | null;
 }
@@ -42,20 +42,20 @@ function round(value: number, digits = 2): number {
 }
 
 export function buildIndustryRotation(
-  rows: IndustryFundFlowRow[],
+  rows: SwIndustryDailyRow[],
   tradingDays: number,
 ): IndustryRotationItem[] {
   const grouped = new Map<string, IndustryFundFlowRow[]>();
   for (const row of rows) {
-    const list = grouped.get(row.board_code) ?? [];
+    const list = grouped.get(row.industry_code) ?? [];
     list.push(row);
-    grouped.set(row.board_code, list);
+    grouped.set(row.industry_code, list);
   }
 
   const aggregates = [...grouped.entries()].map(([boardCode, boardRows]) => {
     const sorted = boardRows.sort((a, b) => a.trade_date.localeCompare(b.trade_date));
     const selected = sorted.slice(-tradingDays);
-    const flows = selected.map((row) => row.main_net_inflow).filter((value): value is number => value != null);
+    const amounts = selected.map((row) => row.amount).filter((value): value is number => value != null);
     const closes = selected.map((row) => row.close_price).filter((value): value is number => value != null);
     const logCloses = sorted
       .map((row) => row.close_price)
@@ -72,9 +72,11 @@ export function buildIndustryRotation(
 
     return {
       board_code: boardCode,
-      board_name: selected.at(-1)?.board_name ?? boardCode,
+      board_name: selected.at(-1)?.industry_name ?? boardCode,
       trading_days: selected.length,
-      cumulative_main_net_inflow: flows.reduce((sum, value) => sum + value, 0),
+      avg_turnover_amount: amounts.length > 0
+        ? amounts.reduce((sum, value) => sum + value, 0) / amounts.length
+        : 0,
       period_return_pct: periodReturn,
       log_bias_20_pct: logBias20,
     };
@@ -84,7 +86,7 @@ export function buildIndustryRotation(
     .map((item) => {
       return {
         ...item,
-        cumulative_main_net_inflow: round(item.cumulative_main_net_inflow),
+        avg_turnover_amount: round(item.avg_turnover_amount),
         period_return_pct: item.period_return_pct == null ? null : round(item.period_return_pct),
         log_bias_20_pct: item.log_bias_20_pct == null ? null : round(item.log_bias_20_pct),
       };
@@ -98,7 +100,7 @@ export async function handleIndustryRotation(
   headers: Record<string, string>,
 ): Promise<Response> {
   try {
-    const coverage = await db.getIndustryFundFlowRange(env.DB);
+    const coverage = await db.getSwIndustryDailyRange(env.DB);
     if (!coverage.max_date) {
       return new Response(JSON.stringify({
         error: 'No industry fund flow data available yet',
@@ -109,7 +111,7 @@ export async function handleIndustryRotation(
     }
 
     const startDate = offsetDate(coverage.max_date, -210);
-    const rows = await db.getIndustryFundFlowRows(env.DB, startDate, coverage.max_date);
+    const rows = await db.getSwIndustryDailyRows(env.DB, startDate, coverage.max_date);
     const windows = Object.fromEntries(
       (Object.entries(PERIOD_DAYS) as [RotationPeriod, number][]).map(([period, tradingDays]) => [
         period,

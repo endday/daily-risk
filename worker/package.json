@@ -16,7 +16,8 @@
     "db:migrate:local": "wrangler d1 migrations apply daily-risk --local",
     "init:instrument-daily:local": "node scripts/init-instrument-daily-local.mjs --mode local",
     "init:instrument-daily:remote": "node scripts/init-instrument-daily-local.mjs --mode remote",
-    "sync:instrument-daily:remote": "node scripts/init-instrument-daily-local.mjs --mode remote --days 7 --batch-size 50"
+    "sync:instrument-daily:remote": "node scripts/init-instrument-daily-local.mjs --mode remote --days 7 --batch-size 50",
+    "sync:sw-industries:remote": "python scripts/materialize-sw-industries.py --mode remote"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260608.0",

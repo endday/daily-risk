@@ -261,7 +261,7 @@ function parseEventRow(row: any): any {
 // Market Snapshots
 // ============================================
 
-import type { IndustryFundFlowRow, InstrumentDailyRow, MarketSnapshotRow } from './collectors/base';
+import type { IndustryFundFlowRow, InstrumentDailyRow, MarketSnapshotRow, SwIndustryDailyRow } from './collectors/base';
 
 const SNAPSHOT_COLUMNS = `
   trade_date, index_code,
@@ -594,4 +594,79 @@ export async function getIndustryFundFlowRange(db: D1Database): Promise<{
     FROM industry_fund_flow_daily
   `).first<{ count: number; min_date: string | null; max_date: string | null }>();
   return result ?? { count: 0, min_date: null, max_date: null };
+}
+
+// ============================================
+// Complete Shenwan level-1 industry daily data
+// ============================================
+
+const SW_INDUSTRY_COLUMNS = `
+  trade_date, industry_code, industry_name, provider, open_price, high_price,
+  low_price, close_price, change_pct, volume, amount, member_count, source_updated_at
+`;
+
+const SW_INDUSTRY_PLACEHOLDERS = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+
+function bindSwIndustry(stmt: D1PreparedStatement, row: SwIndustryDailyRow): D1PreparedStatement {
+  return stmt.bind(
+    row.trade_date, row.industry_code, row.industry_name, row.provider,
+    row.open_price, row.high_price, row.low_price, row.close_price,
+    row.change_pct, row.volume, row.amount, row.member_count, row.source_updated_at,
+  );
+}
+
+export async function upsertSwIndustryDailyRows(
+  database: D1Database,
+  rows: SwIndustryDailyRow[],
+): Promise<number> {
+  if (rows.length === 0) return 0;
+  const sql = `
+    INSERT INTO sw_industry_daily (${SW_INDUSTRY_COLUMNS})
+    VALUES ${SW_INDUSTRY_PLACEHOLDERS}
+    ON CONFLICT(trade_date, industry_code) DO UPDATE SET
+      industry_name = excluded.industry_name,
+      provider = excluded.provider,
+      open_price = excluded.open_price,
+      high_price = excluded.high_price,
+      low_price = excluded.low_price,
+      close_price = excluded.close_price,
+      change_pct = excluded.change_pct,
+      volume = excluded.volume,
+      amount = excluded.amount,
+      member_count = excluded.member_count,
+      source_updated_at = excluded.source_updated_at,
+      updated_at = CURRENT_TIMESTAMP
+  `;
+  for (let i = 0; i < rows.length; i += 100) {
+    await database.batch(rows.slice(i, i + 100).map((row) => bindSwIndustry(database.prepare(sql), row)));
+  }
+  return rows.length;
+}
+
+export async function getSwIndustryDailyRows(
+  database: D1Database,
+  startDate: string,
+  endDate: string,
+): Promise<SwIndustryDailyRow[]> {
+  const result = await database.prepare(`
+    SELECT ${SW_INDUSTRY_COLUMNS}
+    FROM sw_industry_daily
+    WHERE trade_date BETWEEN ? AND ?
+    ORDER BY trade_date ASC, industry_code ASC
+  `).bind(startDate, endDate).all();
+  return result.results as unknown as SwIndustryDailyRow[];
+}
+
+export async function getSwIndustryDailyRange(database: D1Database): Promise<{
+  count: number;
+  industries: number;
+  min_date: string | null;
+  max_date: string | null;
+}> {
+  const result = await database.prepare(`
+    SELECT COUNT(*) AS count, COUNT(DISTINCT industry_code) AS industries,
+      MIN(trade_date) AS min_date, MAX(trade_date) AS max_date
+    FROM sw_industry_daily
+  `).first<{ count: number; industries: number; min_date: string | null; max_date: string | null }>();
+  return result ?? { count: 0, industries: 0, min_date: null, max_date: null };
 }

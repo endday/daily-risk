@@ -131,6 +131,22 @@ export interface IndustryFundFlowRow {
   source_updated_at: string | null;
 }
 
+export interface SwIndustryDailyRow {
+  trade_date: string;
+  industry_code: string;
+  industry_name: string;
+  provider: string;
+  open_price: number | null;
+  high_price: number | null;
+  low_price: number | null;
+  close_price: number | null;
+  change_pct: number | null;
+  volume: number | null;
+  amount: number | null;
+  member_count: number | null;
+  source_updated_at: string | null;
+}
+
 // ============================================
 // 辅助：快速构建空结果
 // ============================================

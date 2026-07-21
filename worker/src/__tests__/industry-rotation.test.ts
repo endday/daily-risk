@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildIndustryRotation } from '../api/industry-rotation';
 import { EASTMONEY_PRIMARY_INDUSTRIES, parseIndustryFundFlowLine } from '../collectors/industry-fund-flow';
-import type { IndustryFundFlowRow } from '../collectors/base';
+import type { IndustryFundFlowRow, SwIndustryDailyRow } from '../collectors/base';
 
 function row(
   date: string,
@@ -28,6 +28,24 @@ function row(
     medium_net_inflow_ratio: null,
     large_net_inflow_ratio: null,
     super_large_net_inflow_ratio: null,
+    source_updated_at: null,
+  };
+}
+
+function swRow(date: string, code: string, name: string, amount: number, close: number): SwIndustryDailyRow {
+  return {
+    trade_date: date,
+    industry_code: code,
+    industry_name: name,
+    provider: 'free-stockdb',
+    open_price: null,
+    high_price: null,
+    low_price: null,
+    close_price: close,
+    change_pct: null,
+    volume: null,
+    amount,
+    member_count: 10,
     source_updated_at: null,
   };
 }
@@ -63,12 +81,12 @@ describe('industry fund flow parsing', () => {
 describe('industry rotation scoring', () => {
   it('sorts by transparent period return without producing an opaque score', () => {
     const rows = [
-      row('2026-07-14', 'A', '强势行业', 100, 2, 100),
-      row('2026-07-15', 'A', '强势行业', 120, 2.5, 103),
-      row('2026-07-16', 'A', '强势行业', 150, 3, 106),
-      row('2026-07-14', 'B', '弱势行业', -100, -2, 100),
-      row('2026-07-15', 'B', '弱势行业', -80, -1.5, 98),
-      row('2026-07-16', 'B', '弱势行业', 10, 0.2, 96),
+      swRow('2026-07-14', 'A', '强势行业', 100, 100),
+      swRow('2026-07-15', 'A', '强势行业', 120, 103),
+      swRow('2026-07-16', 'A', '强势行业', 150, 106),
+      swRow('2026-07-14', 'B', '弱势行业', 100, 100),
+      swRow('2026-07-15', 'B', '弱势行业', 80, 98),
+      swRow('2026-07-16', 'B', '弱势行业', 10, 96),
     ];
 
     const result = buildIndustryRotation(rows, 5);
@@ -83,7 +101,7 @@ describe('industry rotation scoring', () => {
   it('calculates mainline bias from the EMA of log closes', () => {
     const rows = Array.from({ length: 60 }, (_, index) => {
       const date = new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10);
-      return row(date, 'T', '趋势行业', 1, 1, Math.exp(index * 0.002));
+      return swRow(date, 'T', '趋势行业', 1, Math.exp(index * 0.002));
     });
 
     const result = buildIndustryRotation(rows, 20);

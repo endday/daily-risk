@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { fetchIndustryRotation } from '../../services/api'
 import type { IndustryRotationMatrixResponse, IndustryRotationMetric } from '../../services/api'
 
-const CACHE_KEY = 'daily-risk:industry-rotation:logbias-v1'
+const CACHE_KEY = 'daily-risk:industry-rotation:sw-v1'
 const data = ref<IndustryRotationMatrixResponse | null>(null)
 const loading = ref(false)
 const error = ref('')
@@ -68,7 +68,7 @@ function writeCached(value: IndustryRotationMatrixResponse) {
   }
 }
 
-function formatFlow(value: number | null | undefined): string {
+function formatAmount(value: number | null | undefined): string {
   if (value == null) return '--'
   const yi = value / 100_000_000
   return `${yi > 0 ? '+' : ''}${yi.toFixed(Math.abs(yi) >= 100 ? 0 : 1)}亿`
@@ -120,8 +120,8 @@ onMounted(() => void load())
   <div class="rotation-page" :aria-busy="loading">
     <header class="rotation-header">
       <div>
-        <p class="eyebrow">INDUSTRY FLOW & TREND</p>
-        <h1>行业资金趋势</h1>
+        <p class="eyebrow">SHENWAN INDUSTRY TREND</p>
+        <h1>申万行业趋势</h1>
       </div>
       <div class="header-meta">
         <span v-if="loading" class="loading-indicator" role="status"><i></i>更新中</span>
@@ -133,7 +133,7 @@ onMounted(() => void load())
     <div v-else-if="error && !data" class="state-line error">{{ error }}</div>
 
     <template v-if="data">
-      <p class="sort-note">按近一月涨跌排序。每个周期同时展示主力净流入与区间涨跌。</p>
+      <p class="sort-note">完整申万一级行业，按近一月涨跌排序。每个周期展示日均成交额与区间涨跌。</p>
       <div class="bias-guide" aria-label="主线乖离阈值说明">
         <span>主线乖离</span>
         <i>&lt;-5</i><i>-5~0</i><i>0~5</i><i>5~15</i><i>&gt;15</i>
@@ -154,17 +154,17 @@ onMounted(() => void load())
             <strong class="industry-name">{{ row.boardName }}</strong>
 
             <div class="period-cell">
-              <span :class="valueClass(row.week?.cumulative_main_net_inflow)">{{ formatFlow(row.week?.cumulative_main_net_inflow) }}</span>
+              <span>{{ formatAmount(row.week?.avg_turnover_amount) }}</span>
               <b :class="valueClass(row.week?.period_return_pct)">{{ formatPct(row.week?.period_return_pct) }}</b>
             </div>
 
             <div class="period-cell">
-              <span :class="valueClass(row.month.cumulative_main_net_inflow)">{{ formatFlow(row.month.cumulative_main_net_inflow) }}</span>
+              <span>{{ formatAmount(row.month.avg_turnover_amount) }}</span>
               <b :class="valueClass(row.month.period_return_pct)">{{ formatPct(row.month.period_return_pct) }}</b>
             </div>
 
             <div class="period-cell">
-              <span :class="valueClass(row.halfYear?.cumulative_main_net_inflow)">{{ formatFlow(row.halfYear?.cumulative_main_net_inflow) }}</span>
+              <span>{{ formatAmount(row.halfYear?.avg_turnover_amount) }}</span>
               <b :class="valueClass(row.halfYear?.period_return_pct)">{{ formatPct(row.halfYear?.period_return_pct) }}</b>
             </div>
 
@@ -178,7 +178,7 @@ onMounted(() => void load())
       </div>
 
       <footer class="matrix-note">
-        <span>上行 / 流入为红，下行 / 流出为绿。</span>
+        <span>每个周期上行为日均成交额，下行为区间涨跌。</span>
         <span>主线乖离 = [ln(收盘价) - EMA20(ln(收盘价))] × 100；年度数据积累中。</span>
       </footer>
 

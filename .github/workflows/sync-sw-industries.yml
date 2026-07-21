@@ -1,0 +1,30 @@
+name: Sync Shenwan industries
+
+on:
+  schedule:
+    - cron: '35 10 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      history_days:
+        description: Calendar days of official history to replace
+        required: false
+        default: '0'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Sync official Shenwan data
+        env:
+          SW_SYNC_TOKEN: ${{ secrets.SW_SYNC_TOKEN }}
+          HISTORY_DAYS: ${{ inputs.history_days || '0' }}
+        run: >-
+          python worker/scripts/sync-sw-industries-official.py
+          --endpoint https://daily-risk.endday.top/admin/import-sw-industries
+          --token "$SW_SYNC_TOKEN"
+          --history-days "$HISTORY_DAYS"

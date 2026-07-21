@@ -9,7 +9,7 @@ import { handleMarketTemperature } from './api/market-temperature';
 import { handleIndustryRotation } from './api/industry-rotation';
 import { syncIndustryFundFlows } from './collectors/industry-fund-flow';
 import { backfillSnapshots } from './collectors/backfill';
-import type { InstrumentDailyRow } from './collectors/base';
+import type { InstrumentDailyRow, SwIndustryDailyRow } from './collectors/base';
 import { syncTradingCalendar } from './trading-calendar';
 import { getBeijingDate } from '../../shared/date-utils';
 import calendarEffectsData from '../data/calendar-effects.json';
@@ -75,6 +75,10 @@ export default {
       return handleSyncIndustryFlow(request, env, corsHeaders);
     }
 
+    if (url.pathname === '/admin/import-sw-industries' && request.method === 'POST') {
+      return handleImportSwIndustries(request, env, corsHeaders);
+    }
+
     if (url.pathname === '/admin/debug-chinabond' && request.method === 'GET') {
       return handleDebugChinabond(request, env, corsHeaders);
     }
@@ -103,13 +107,6 @@ export default {
 
     if (controller.cron === '0 10 * * *') {
       ctx.waitUntil(scheduler.runDailyCollection(collectorEnv));
-    } else if (controller.cron === '15 10 * * *') {
-      ctx.waitUntil(syncIndustryFundFlows(env.DB).then((result) => {
-        console.log(
-          `[Cron] Industry flow complete: ${result.boards} boards, ` +
-          `${result.rows} rows, ${result.failedBoards.length} failures`,
-        );
-      }));
     } else if (controller.cron === '30 * * * *') {
       ctx.waitUntil(runActualValueUpdater(env));
     }
@@ -178,6 +175,81 @@ async function handleSyncIndustryFlow(
       headers: { 'Content-Type': 'application/json', ...headers },
     });
   }
+}
+
+type SwIndustryImportPayload = { rows?: SwIndustryDailyRow[] };
+
+function normalizeSwIndustryRow(raw: SwIndustryDailyRow): SwIndustryDailyRow | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.trade_date ?? '')) return null;
+  if (!/^801\d{3}\.SL$/.test(raw.industry_code ?? '')) return null;
+  if (!raw.industry_name || raw.industry_name.length > 32) return null;
+  const nullableNumber = (value: unknown): number | null => {
+    if (value == null) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  return {
+    trade_date: raw.trade_date,
+    industry_code: raw.industry_code,
+    industry_name: raw.industry_name,
+    provider: 'swsresearch',
+    open_price: nullableNumber(raw.open_price),
+    high_price: nullableNumber(raw.high_price),
+    low_price: nullableNumber(raw.low_price),
+    close_price: nullableNumber(raw.close_price),
+    change_pct: nullableNumber(raw.change_pct),
+    volume: nullableNumber(raw.volume),
+    amount: nullableNumber(raw.amount),
+    member_count: nullableNumber(raw.member_count),
+    source_updated_at: raw.source_updated_at ?? new Date().toISOString(),
+  };
+}
+
+async function handleImportSwIndustries(
+  request: Request,
+  env: Env,
+  headers: Record<string, string>,
+): Promise<Response> {
+  if (!env.SW_SYNC_TOKEN) {
+    return new Response(JSON.stringify({ error: 'Industry sync endpoint not available' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+  if (request.headers.get('Authorization') !== `Bearer ${env.SW_SYNC_TOKEN}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+
+  let payload: SwIndustryImportPayload;
+  try {
+    payload = await request.json<SwIndustryImportPayload>();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+  if (!payload.rows?.length || payload.rows.length > 100) {
+    return new Response(JSON.stringify({ error: 'rows must contain 1 to 100 items' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+  const rows = payload.rows.map(normalizeSwIndustryRow);
+  if (rows.some((row) => row == null)) {
+    return new Response(JSON.stringify({ error: 'Invalid industry row' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...headers },
+    });
+  }
+  const upserted = await db.upsertSwIndustryDailyRows(env.DB, rows as SwIndustryDailyRow[]);
+  const coverage = await db.getSwIndustryDailyRange(env.DB);
+  return new Response(JSON.stringify({ status: 'ok', upserted, coverage }), {
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
 }
 
 async function runActualValueUpdater(env: Env): Promise<void> {

@@ -670,3 +670,12 @@ export async function getSwIndustryDailyRange(database: D1Database): Promise<{
   `).first<{ count: number; industries: number; min_date: string | null; max_date: string | null }>();
   return result ?? { count: 0, industries: 0, min_date: null, max_date: null };
 }
+
+export async function getSwIndustryCodes(database: D1Database): Promise<string[]> {
+  const result = await database.prepare(`
+    SELECT DISTINCT industry_code
+    FROM sw_industry_daily
+    ORDER BY industry_code
+  `).all<{ industry_code: string }>();
+  return result.results.map((row) => row.industry_code);
+}

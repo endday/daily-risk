@@ -4,6 +4,7 @@ import chinaEventsData from '../data/china-events.json';
 export interface Env {
   DB: D1Database;
   ADMIN_TOKEN?: string;
+  SW_SYNC_TOKEN?: string;
   FRED_API_KEY?: string;
   BLS_API_KEY?: string;
   ALPHA_VANTAGE_KEY?: string;

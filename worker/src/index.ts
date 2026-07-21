@@ -177,7 +177,17 @@ async function handleSyncIndustryFlow(
   }
 }
 
-type SwIndustryImportPayload = { rows?: SwIndustryDailyRow[] };
+type SwIndustryImportPayload = {
+  action?: 'begin' | 'append' | 'commit' | 'abort';
+  run_id?: string;
+  trade_date?: string;
+  mode?: 'daily' | 'backfill';
+  expected_industries?: number;
+  expected_rows?: number;
+  checksum?: string;
+  error?: string;
+  rows?: SwIndustryDailyRow[];
+};
 
 function normalizeSwIndustryRow(raw: SwIndustryDailyRow): SwIndustryDailyRow | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.trade_date ?? '')) return null;
@@ -188,7 +198,7 @@ function normalizeSwIndustryRow(raw: SwIndustryDailyRow): SwIndustryDailyRow | n
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
   };
-  return {
+  const row = {
     trade_date: raw.trade_date,
     industry_code: raw.industry_code,
     industry_name: raw.industry_name,
@@ -203,6 +213,12 @@ function normalizeSwIndustryRow(raw: SwIndustryDailyRow): SwIndustryDailyRow | n
     member_count: nullableNumber(raw.member_count),
     source_updated_at: raw.source_updated_at ?? new Date().toISOString(),
   };
+  if (row.close_price == null || row.close_price <= 0) return null;
+  if (row.open_price != null && row.open_price <= 0) return null;
+  if (row.high_price != null && row.high_price < Math.max(row.open_price ?? 0, row.close_price)) return null;
+  if (row.low_price != null && row.low_price > Math.min(row.open_price ?? row.close_price, row.close_price)) return null;
+  if ((row.volume ?? 0) < 0 || (row.amount ?? 0) < 0) return null;
+  return row;
 }
 
 async function handleImportSwIndustries(
@@ -232,24 +248,68 @@ async function handleImportSwIndustries(
       headers: { 'Content-Type': 'application/json', ...headers },
     });
   }
-  if (!payload.rows?.length || payload.rows.length > 100) {
-    return new Response(JSON.stringify({ error: 'rows must contain 1 to 100 items' }), {
+  if (!payload.action || !payload.run_id || !/^[0-9a-f-]{36}$/.test(payload.run_id)) {
+    return new Response(JSON.stringify({ error: 'Valid action and run_id are required' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...headers },
     });
   }
-  const rows = payload.rows.map(normalizeSwIndustryRow);
-  if (rows.some((row) => row == null)) {
-    return new Response(JSON.stringify({ error: 'Invalid industry row' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json', ...headers },
+
+  if (payload.action === 'begin') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.trade_date ?? '') ||
+        !['daily', 'backfill'].includes(payload.mode ?? '') ||
+        payload.expected_industries !== 31 ||
+        !Number.isInteger(payload.expected_rows) || (payload.expected_rows ?? 0) < 31 ||
+        !/^[0-9a-f]{64}$/.test(payload.checksum ?? '')) {
+      return new Response(JSON.stringify({ error: 'Invalid import manifest' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...headers },
+      });
+    }
+    await db.beginSwIndustryImport(env.DB, {
+      run_id: payload.run_id,
+      trade_date: payload.trade_date!,
+      mode: payload.mode!,
+      expected_industries: payload.expected_industries!,
+      expected_rows: payload.expected_rows!,
+      checksum: payload.checksum!,
     });
+    return Response.json({ status: 'staging', run_id: payload.run_id }, { headers });
   }
-  const upserted = await db.upsertSwIndustryDailyRows(env.DB, rows as SwIndustryDailyRow[]);
-  const coverage = await db.getSwIndustryDailyRange(env.DB);
-  return new Response(JSON.stringify({ status: 'ok', upserted, coverage }), {
-    headers: { 'Content-Type': 'application/json', ...headers },
-  });
+
+  if (payload.action === 'append') {
+    if (!payload.rows?.length || payload.rows.length > 100) {
+      return new Response(JSON.stringify({ error: 'rows must contain 1 to 100 items' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...headers },
+      });
+    }
+    const rows = payload.rows.map(normalizeSwIndustryRow);
+    if (rows.some((row) => row == null)) {
+      return new Response(JSON.stringify({ error: 'Invalid industry row' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...headers },
+      });
+    }
+    const staged = await db.stageSwIndustryDailyRows(env.DB, payload.run_id, rows as SwIndustryDailyRow[]);
+    return Response.json({ status: 'staging', run_id: payload.run_id, staged }, { headers });
+  }
+
+  if (payload.action === 'abort') {
+    await db.failSwIndustryImport(env.DB, payload.run_id, payload.error ?? 'collector aborted');
+    return Response.json({ status: 'failed', run_id: payload.run_id }, { headers });
+  }
+
+  try {
+    const result = await db.commitSwIndustryImport(env.DB, payload.run_id);
+    const coverage = await db.getSwIndustryDailyRange(env.DB);
+    return Response.json({ status: 'completed', run_id: payload.run_id, ...result, coverage }, { headers });
+  } catch (error) {
+    return Response.json({
+      error: 'Import commit rejected',
+      detail: error instanceof Error ? error.message : String(error),
+    }, { status: 409, headers });
+  }
 }
 
 async function runActualValueUpdater(env: Env): Promise<void> {

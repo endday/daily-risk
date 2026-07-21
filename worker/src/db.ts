@@ -679,3 +679,120 @@ export async function getSwIndustryCodes(database: D1Database): Promise<string[]
   `).all<{ industry_code: string }>();
   return result.results.map((row) => row.industry_code);
 }
+
+export interface SwIndustryImportRun {
+  run_id: string;
+  trade_date: string;
+  mode: 'daily' | 'backfill';
+  expected_industries: number;
+  expected_rows: number;
+  checksum: string;
+  status: 'staging' | 'completed' | 'failed';
+  error: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function beginSwIndustryImport(
+  database: D1Database,
+  run: Pick<SwIndustryImportRun, 'run_id' | 'trade_date' | 'mode' | 'expected_industries' | 'expected_rows' | 'checksum'>,
+): Promise<void> {
+  await database.prepare(`
+    INSERT INTO sw_industry_import_runs (
+      run_id, trade_date, mode, expected_industries, expected_rows, checksum, status
+    ) VALUES (?, ?, ?, ?, ?, ?, 'staging')
+    ON CONFLICT(run_id) DO NOTHING
+  `).bind(
+    run.run_id, run.trade_date, run.mode, run.expected_industries, run.expected_rows, run.checksum,
+  ).run();
+}
+
+export async function stageSwIndustryDailyRows(
+  database: D1Database,
+  runId: string,
+  rows: SwIndustryDailyRow[],
+): Promise<number> {
+  const sql = `
+    INSERT INTO sw_industry_daily_staging (
+      run_id, ${SW_INDUSTRY_COLUMNS}
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(run_id, trade_date, industry_code) DO UPDATE SET
+      industry_name = excluded.industry_name, provider = excluded.provider,
+      open_price = excluded.open_price, high_price = excluded.high_price,
+      low_price = excluded.low_price, close_price = excluded.close_price,
+      change_pct = excluded.change_pct, volume = excluded.volume, amount = excluded.amount,
+      member_count = excluded.member_count, source_updated_at = excluded.source_updated_at
+  `;
+  await database.batch(rows.map((row) => database.prepare(sql).bind(
+    runId, row.trade_date, row.industry_code, row.industry_name, row.provider,
+    row.open_price, row.high_price, row.low_price, row.close_price, row.change_pct,
+    row.volume, row.amount, row.member_count, row.source_updated_at,
+  )));
+  return rows.length;
+}
+
+export async function commitSwIndustryImport(database: D1Database, runId: string): Promise<{
+  rows: number;
+  industries: number;
+  trade_date: string;
+}> {
+  const run = await database.prepare(`
+    SELECT * FROM sw_industry_import_runs WHERE run_id = ?
+  `).bind(runId).first<SwIndustryImportRun>();
+  if (!run) throw new Error('import run not found');
+  if (run.status === 'completed') {
+    return { rows: run.expected_rows, industries: run.expected_industries, trade_date: run.trade_date };
+  }
+  if (run.status !== 'staging') throw new Error(`import run is ${run.status}`);
+
+  const staged = await database.prepare(`
+    SELECT COUNT(*) AS rows,
+      COUNT(DISTINCT CASE WHEN trade_date = ? THEN industry_code END) AS industries
+    FROM sw_industry_daily_staging WHERE run_id = ?
+  `).bind(run.trade_date, runId).first<{ rows: number; industries: number }>();
+  if (!staged || staged.rows !== run.expected_rows || staged.industries !== run.expected_industries) {
+    throw new Error(
+      `incomplete import: expected ${run.expected_rows}/${run.expected_industries}, ` +
+      `received ${staged?.rows ?? 0}/${staged?.industries ?? 0}`,
+    );
+  }
+
+  await database.batch([
+    database.prepare(`
+      INSERT INTO sw_industry_daily (${SW_INDUSTRY_COLUMNS})
+      SELECT ${SW_INDUSTRY_COLUMNS}
+      FROM sw_industry_daily_staging WHERE run_id = ?
+      ON CONFLICT(trade_date, industry_code) DO UPDATE SET
+        industry_name = excluded.industry_name, provider = excluded.provider,
+        open_price = excluded.open_price, high_price = excluded.high_price,
+        low_price = excluded.low_price, close_price = excluded.close_price,
+        change_pct = excluded.change_pct, volume = excluded.volume, amount = excluded.amount,
+        member_count = excluded.member_count, source_updated_at = excluded.source_updated_at,
+        updated_at = CURRENT_TIMESTAMP
+    `).bind(runId),
+    database.prepare(`
+      UPDATE sw_industry_import_runs
+      SET status = 'completed', completed_at = CURRENT_TIMESTAMP, error = NULL
+      WHERE run_id = ?
+    `).bind(runId),
+    database.prepare('DELETE FROM sw_industry_daily_staging WHERE run_id = ?').bind(runId),
+  ]);
+  return { rows: staged.rows, industries: staged.industries, trade_date: run.trade_date };
+}
+
+export async function failSwIndustryImport(database: D1Database, runId: string, error: string): Promise<void> {
+  await database.batch([
+    database.prepare(`
+      UPDATE sw_industry_import_runs SET status = 'failed', error = ? WHERE run_id = ? AND status = 'staging'
+    `).bind(error.slice(0, 500), runId),
+    database.prepare('DELETE FROM sw_industry_daily_staging WHERE run_id = ?').bind(runId),
+  ]);
+}
+
+export async function getLatestSwIndustryImportRun(database: D1Database): Promise<SwIndustryImportRun | null> {
+  return database.prepare(`
+    SELECT * FROM sw_industry_import_runs
+    WHERE status = 'completed'
+    ORDER BY completed_at DESC LIMIT 1
+  `).first<SwIndustryImportRun>();
+}

@@ -16,11 +16,14 @@ on:
 
 jobs:
   sync:
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner || 'macos-latest' }}
     timeout-minutes: 30
+    concurrency:
+      group: sw-industry-production-sync
+      cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Sync official Shenwan data
@@ -32,3 +35,18 @@ jobs:
           --endpoint https://daily-risk.endday.top/admin/import-sw-industries
           --token "$SW_SYNC_TOKEN"
           --history-days "$HISTORY_DAYS"
+          --snapshot artifacts/sw-industry-snapshot.json
+      - name: Verify production API
+        run: >-
+          python -c "import json,urllib.request;
+          d=json.load(urllib.request.urlopen('https://daily-risk.endday.top/api/industry-rotation?universe=sw-v1&run=${{ github.run_id }}'));
+          assert d['industry_count']==31, d;
+          print(json.dumps({'trade_date':d['trade_date'],'industry_count':d['industry_count']}))"
+      - name: Upload validated snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sw-industry-${{ github.run_id }}
+          path: artifacts/sw-industry-snapshot.json
+          if-no-files-found: warn
+          retention-days: 30

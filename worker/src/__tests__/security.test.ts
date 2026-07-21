@@ -82,6 +82,35 @@ describe('Admin Endpoint Security', () => {
     const body = await response.json()
     expect(body.status).toBe('accepted')
   })
+
+  it('rejects industry imports when the dedicated token is unavailable', async () => {
+    const { default: handler } = await import('../index')
+    const response = await handler.fetch(new Request('http://localhost/admin/import-sw-industries', {
+      method: 'POST',
+    }), mockEnv, {} as ExecutionContext)
+    expect(response.status).toBe(503)
+  })
+
+  it('rejects industry imports with the wrong dedicated token', async () => {
+    mockEnv.SW_SYNC_TOKEN = 'industry-secret'
+    const { default: handler } = await import('../index')
+    const response = await handler.fetch(new Request('http://localhost/admin/import-sw-industries', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer wrong' },
+    }), mockEnv, {} as ExecutionContext)
+    expect(response.status).toBe(401)
+  })
+
+  it('validates the industry import manifest before staging data', async () => {
+    mockEnv.SW_SYNC_TOKEN = 'industry-secret'
+    const { default: handler } = await import('../index')
+    const response = await handler.fetch(new Request('http://localhost/admin/import-sw-industries', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer industry-secret', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'begin', run_id: 'invalid' }),
+    }), mockEnv, {} as ExecutionContext)
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('API Event Format', () => {

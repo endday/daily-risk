@@ -11,7 +11,15 @@ const router = createRouter({
       component: defineAsyncComponent(() => import('./pages/ErpPage.vue')),
     },
     {
-      path: '/:tab(industries|events|stats)?',
+      path: '/styles',
+      redirect: (to) => ({ path: '/trends', query: { ...to.query, view: 'index' } }),
+    },
+    {
+      path: '/industries',
+      redirect: (to) => ({ path: '/trends', query: { ...to.query, view: 'industry' } }),
+    },
+    {
+      path: '/:tab(trends|events|stats)?',
       name: 'home',
       component: HomePage,
     },

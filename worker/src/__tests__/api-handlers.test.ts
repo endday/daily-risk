@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleEvents } from '../api/events';
 import { handleMarketTemperature } from '../api/market-temperature';
+import { handleRelativeStrength } from '../api/relative-strength';
 import type { Env } from '../env';
 
 function createMockPreparedStatement(results: any) {
@@ -271,5 +272,41 @@ describe('handleMarketTemperature', () => {
     });
 
     latestSpy.mockRestore();
+  });
+});
+
+describe('handleRelativeStrength', () => {
+  it('rejects an unsupported base index', async () => {
+    const response = await handleRelativeStrength(
+      new Request('http://localhost/api/relative-strength?base=INVALID'),
+      { DB: {} as D1Database } as Env,
+      {},
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('returns quality and pair metrics from instrument daily history', async () => {
+    const dbModule = await import('../db');
+    const historySpy = vi.spyOn(dbModule, 'getInstrumentDailyByDateRange').mockImplementation(async (_, code) => (
+      Array.from({ length: 280 }, (_, index) => ({
+        trade_date: new Date(Date.UTC(2024, 0, index + 1)).toISOString().slice(0, 10),
+        instrument_code: code,
+        instrument_name: code,
+        close_price: code === '399006' ? 100 + index : 100 + index / 2,
+      })) as any
+    ));
+
+    const response = await handleRelativeStrength(
+      new Request('http://localhost/api/relative-strength'),
+      { DB: {} as D1Database } as Env,
+      {},
+    );
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.quality).toHaveLength(5);
+    expect(body.pairs).toHaveLength(4);
+    expect(body.pairs[0].relative_return_20d).not.toBeNull();
+    expect(body.pairs[0].aligned_sample_count).toBe(280);
+    historySpy.mockRestore();
   });
 });

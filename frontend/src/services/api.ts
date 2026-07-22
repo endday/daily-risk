@@ -11,6 +11,7 @@ import type {
   MarketTemperatureResponse,
   MarketTemperatureCompactResponse,
   IndustryRotationMatrixResponse,
+  RelativeStrengthResponse,
 } from '../../../shared/types'
 
 export type {
@@ -36,6 +37,11 @@ export type {
   MarketTemperatureCompactResponse,
   IndustryRotationMatrixResponse,
   IndustryRotationMetric,
+  RelativeStrengthResponse,
+  RelativeStrengthPair,
+  RelativeStrengthState,
+  InstrumentQualityStats,
+  RelativeForwardStats,
 } from '../../../shared/types'
 
 import { getToday, getTomorrow } from '../../../shared/date-utils'
@@ -65,6 +71,14 @@ export async function fetchIndustryRotation(): Promise<IndustryRotationMatrixRes
   const response = await fetch(`${API_BASE}/industry-rotation?universe=sw-v1`)
   if (!response.ok) {
     throw new Error(`Industry rotation API error: ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function fetchRelativeStrength(): Promise<RelativeStrengthResponse> {
+  const response = await fetch(`${API_BASE}/relative-strength`)
+  if (!response.ok) {
+    throw new Error(`Relative strength API error: ${response.status}`)
   }
   return response.json()
 }

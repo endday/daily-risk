@@ -7,6 +7,7 @@ import * as scheduler from './scheduler';
 import { handleEvents } from './api/events';
 import { handleMarketTemperature } from './api/market-temperature';
 import { handleIndustryRotation } from './api/industry-rotation';
+import { handleRelativeStrength } from './api/relative-strength';
 import { syncIndustryFundFlows } from './collectors/industry-fund-flow';
 import { backfillSnapshots } from './collectors/backfill';
 import type { InstrumentDailyRow, SwIndustryDailyRow } from './collectors/base';
@@ -49,6 +50,10 @@ export default {
 
     if (url.pathname === '/api/industry-rotation') {
       return handleIndustryRotation(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/relative-strength') {
+      return handleRelativeStrength(request, env, corsHeaders);
     }
 
     if (url.pathname === '/admin/collect' && request.method === 'POST') {

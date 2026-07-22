@@ -373,6 +373,67 @@ export interface IndustryRotationMatrixResponse {
   windows: Record<RotationPeriod, IndustryRotationWindow>;
 }
 
+export type RelativeStrengthState = 'normal' | 'strong' | 'overheated' | 'weak' | 'oversold';
+
+export interface InstrumentQualityStats {
+  instrument_code: string;
+  instrument_name: string;
+  row_count: number;
+  valid_close_count: number;
+  missing_close_count: number;
+  non_positive_close_count: number;
+  duplicate_date_count: number;
+  first_date: string | null;
+  latest_date: string | null;
+  return_20d: number | null;
+  return_60d: number | null;
+  return_120d: number | null;
+  return_252d: number | null;
+  volatility_20d: number | null;
+  max_drawdown_pct: number | null;
+  window_available: Record<'20' | '60' | '120' | '242' | '252', boolean>;
+}
+
+export interface RelativeForwardStats {
+  horizon_days: 5 | 20 | 60;
+  sample_count: number;
+  avg_relative_return_pct: number | null;
+  positive_probability: number | null;
+  max_favorable_pct: number | null;
+  max_adverse_pct: number | null;
+}
+
+export interface RelativeStrengthPair {
+  pair_key: string;
+  numerator_code: string;
+  numerator_name: string;
+  denominator_code: string;
+  denominator_name: string;
+  trade_date: string | null;
+  aligned_sample_count: number;
+  first_aligned_date: string | null;
+  relative_return_20d: number | null;
+  relative_return_60d: number | null;
+  relative_return_120d: number | null;
+  relative_return_252d: number | null;
+  spread_return_40d: number | null;
+  log_bias_20_pct: number | null;
+  rsi_14: number | null;
+  zscore_242: number | null;
+  historical_percentile: number | null;
+  state: RelativeStrengthState;
+  state_changed_at: string | null;
+  forward_stats: RelativeForwardStats[];
+}
+
+export interface RelativeStrengthResponse {
+  trade_date: string | null;
+  generated_at: string;
+  base_code: string | null;
+  quality: InstrumentQualityStats[];
+  pairs: RelativeStrengthPair[];
+}
+
 export interface ChinaGdpData {
   data: Record<string, number>;
 }

@@ -257,7 +257,10 @@ export async function handleMarketTemperature(
   const maxPointsParam = parseInt(url.searchParams.get('maxPoints') || '', 10);
   const maxPoints = Number.isFinite(maxPointsParam) ? Math.max(60, Math.min(maxPointsParam, 1200)) : null;
   const maxDays = compact ? 3650 : 365;
-  const days = Math.min(parseInt(daysParam) || 20, maxDays);
+  const parsedDays = Number(daysParam);
+  const days = Number.isInteger(parsedDays) && parsedDays > 0
+    ? Math.min(parsedDays, maxDays)
+    : 20;
 
   try {
     const latest = await db.getLatestSnapshots(env.DB);

@@ -13,6 +13,13 @@ const DEFAULT_PAIRS = [
 
 const SUPPORTED = MARKET_INSTRUMENTS.filter((instrument) => instrument.type === 'broad_index');
 const SUPPORTED_BY_CODE = new Map(SUPPORTED.map((instrument) => [instrument.code, instrument]));
+const ANALYSIS_LOOKBACK_DAYS = 12 * 365;
+
+function analysisStartDate(now = new Date()): string {
+  return new Date(now.getTime() - ANALYSIS_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
 
 export async function handleRelativeStrength(
   request: Request,
@@ -32,11 +39,12 @@ export async function handleRelativeStrength(
     ? SUPPORTED.filter((instrument) => instrument.code !== baseCode).map((instrument) => [instrument.code, baseCode] as const)
     : DEFAULT_PAIRS;
   const neededCodes = [...new Set(pairCodes.flat())];
+  const startDate = analysisStartDate();
 
   try {
     const seriesEntries = await Promise.all(neededCodes.map(async (code) => {
       const instrument = SUPPORTED_BY_CODE.get(code)!;
-      const rows = await db.getInstrumentDailyByDateRange(env.DB, code, '1990-01-01', '9999-12-31');
+      const rows = await db.getInstrumentDailyClosesByDateRange(env.DB, code, startDate, '9999-12-31');
       return [code, {
         code,
         name: instrument.name,
@@ -62,14 +70,13 @@ export async function handleRelativeStrength(
       pairs,
     };
     return Response.json(payload, {
-      headers: { 'Cache-Control': 'public, max-age=300', ...headers },
+      headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300', ...headers },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const status = /no such table|no such column/i.test(message) ? 503 : 500;
     return Response.json({
       error: status === 503 ? 'Instrument daily data store is not ready' : 'Relative strength calculation failed',
-      detail: message,
     }, { status, headers });
   }
 }

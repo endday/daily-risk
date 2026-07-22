@@ -373,7 +373,7 @@ export interface IndustryRotationMatrixResponse {
   windows: Record<RotationPeriod, IndustryRotationWindow>;
 }
 
-export type RelativeStrengthState = 'normal' | 'strong' | 'overheated' | 'weak' | 'oversold';
+export type RelativeStrengthState = 'unavailable' | 'normal' | 'strong' | 'overheated' | 'weak' | 'oversold';
 
 export interface InstrumentQualityStats {
   instrument_code: string;

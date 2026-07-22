@@ -18,6 +18,7 @@ export function useHomePage() {
   const temperature = ref<MarketTemperatureResponse | null>(null)
   const selectedDate = ref(today)
   const loadingDay = ref(false)
+  let selectedDateRequestId = 0
   const lastCalendar = ref<CalendarEffects | null>(null)
   const baseMonday = ref(getMonday(today))
 
@@ -95,10 +96,14 @@ export function useHomePage() {
   }
 
   async function selectDate(date: string) {
+    const requestId = ++selectedDateRequestId
     selectedDate.value = date
     loadingDay.value = true
-    await fetchDateEvents(date)
-    loadingDay.value = false
+    try {
+      await fetchDateEvents(date)
+    } finally {
+      if (requestId === selectedDateRequestId) loadingDay.value = false
+    }
   }
 
   async function handleCalendarDateSelect(date: string) {

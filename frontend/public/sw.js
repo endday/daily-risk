@@ -58,7 +58,7 @@ self.addEventListener('fetch', (event) => {
 
   // API requests: Stale-while-revalidate
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(handleApiRequest(event.request))
+    event.respondWith(handleApiRequest(event))
     return
   }
 
@@ -72,7 +72,8 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(handleNetworkFirst(event.request))
 })
 
-async function handleApiRequest(request) {
+async function handleApiRequest(event) {
+  const { request } = event
   const cache = await caches.open(API_CACHE_NAME)
   const cached = await cache.match(request)
 
@@ -82,7 +83,7 @@ async function handleApiRequest(request) {
 
     if (age < API_CACHE_TTL) {
       // Fresh cache: return immediately, revalidate in background
-      fetchAndCache(request, cache)
+      event.waitUntil(fetchAndCache(request, cache))
       return cached
     }
 
@@ -93,7 +94,7 @@ async function handleApiRequest(request) {
         if (response.ok) {
           const headers = new Headers(response.headers)
           headers.set('x-cache-time', Date.now().toString())
-          cache.put(request, new Response(response.clone().body, { headers }))
+          await cache.put(request, new Response(response.clone().body, { headers }))
           return response
         }
       } catch {
@@ -109,7 +110,7 @@ async function handleApiRequest(request) {
     if (response.ok) {
       const headers = new Headers(response.headers)
       headers.set('x-cache-time', Date.now().toString())
-      cache.put(request, new Response(response.clone().body, { headers }))
+      await cache.put(request, new Response(response.clone().body, { headers }))
     }
     return response
   } catch {
@@ -130,7 +131,7 @@ async function fetchAndCache(request, cache) {
       const headers = new Headers(responseToCache.headers)
       headers.set('x-cache-time', Date.now().toString())
       const cachedResponse = new Response(responseToCache.body, { headers })
-      cache.put(request, cachedResponse)
+      await cache.put(request, cachedResponse)
     }
   } catch {
     // Network error, ignore

@@ -28,6 +28,7 @@ describe('backfill audit helpers', () => {
   it('should validate ISO date strings', () => {
     expect(isIsoDate('2026-06-27')).toBe(true);
     expect(isIsoDate('2026/06/27')).toBe(false);
+    expect(isIsoDate('2026-02-30')).toBe(false);
   });
 
   it('should reject oversized backfill windows', () => {

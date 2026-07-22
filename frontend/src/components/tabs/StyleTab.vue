@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { fetchRelativeStrength } from '../../services/api'
+import { useResponseCache } from '../../composables/useResponseCache'
 import type {
   InstrumentQualityStats,
   RelativeStrengthPair,
@@ -8,13 +9,13 @@ import type {
   RelativeStrengthState,
 } from '../../services/api'
 
-const CACHE_KEY = 'daily-risk:relative-strength:v1'
-const CACHE_MS = 5 * 60 * 1000
 const data = ref<RelativeStrengthResponse | null>(null)
 const loading = ref(false)
 const error = ref('')
+const cache = useResponseCache<RelativeStrengthResponse>('daily-risk:relative-strength:v1')
 
 const stateMeta: Record<RelativeStrengthState, { label: string; detail: string }> = {
+  unavailable: { label: '样本不足', detail: '暂不生成信号' },
   overheated: { label: '相对过热', detail: '追涨风险上升' },
   strong: { label: '相对走强', detail: '趋势占优' },
   normal: { label: '均衡', detail: '未见极端' },
@@ -30,26 +31,6 @@ const weakest = computed(() => [...sortedPairs.value].reverse().find((pair) => p
 const extremeCount = computed(() => data.value?.pairs.filter(
   (pair) => pair.state === 'overheated' || pair.state === 'oversold',
 ).length ?? 0)
-
-function readCache(): RelativeStrengthResponse | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    if (!raw) return null
-    const cached = JSON.parse(raw) as { expiresAt: number; data: RelativeStrengthResponse }
-    if (cached.expiresAt <= Date.now()) return null
-    return cached.data
-  } catch {
-    return null
-  }
-}
-
-function writeCache(value: RelativeStrengthResponse) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ expiresAt: Date.now() + CACHE_MS, data: value }))
-  } catch {
-    // Storage availability should not block live data.
-  }
-}
 
 function formatPct(value: number | null, digits = 2): string {
   if (value == null) return '--'
@@ -79,7 +60,7 @@ function meanReversionRate(pair: RelativeStrengthPair): string {
 }
 
 async function load() {
-  const cached = readCache()
+  const cached = cache.read()
   if (cached) {
     data.value = cached
     return
@@ -89,7 +70,7 @@ async function load() {
   try {
     const response = await fetchRelativeStrength()
     data.value = response
-    writeCache(response)
+    cache.write(response, Date.now() + 5 * 60 * 1000)
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '风格数据加载失败'
   } finally {

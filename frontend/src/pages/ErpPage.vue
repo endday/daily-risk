@@ -17,16 +17,19 @@ const router = useRouter()
 const loading = ref(true)
 const data = ref<MarketTemperatureCompactResponse | null>(null)
 const selectedYears = ref<(typeof ERP_HISTORY_OPTIONS)[number]['years']>(8)
+let erpRequestId = 0
 
 async function loadErpHistory() {
+  const requestId = ++erpRequestId
   loading.value = true
   try {
-    data.value = await fetchErpHistory(selectedYears.value, '000300', ERP_MAX_POINTS)
+    const response = await fetchErpHistory(selectedYears.value, '000300', ERP_MAX_POINTS)
+    if (requestId === erpRequestId) data.value = response
   } catch (e) {
     console.error('Failed to fetch ERP data:', e)
-    data.value = null
+    if (requestId === erpRequestId) data.value = null
   } finally {
-    loading.value = false
+    if (requestId === erpRequestId) loading.value = false
   }
 }
 

@@ -496,6 +496,22 @@ export async function getInstrumentDailyByDateRange(
   return result.results as InstrumentDailyRow[];
 }
 
+export async function getInstrumentDailyClosesByDateRange(
+  db: D1Database,
+  instrumentCode: string,
+  startDate: string,
+  endDate: string,
+): Promise<Array<{ trade_date: string; close_price: number | null }>> {
+  const result = await db.prepare(`
+    SELECT trade_date, close_price
+    FROM instrument_daily
+    WHERE instrument_code = ? AND trade_date BETWEEN ? AND ?
+    ORDER BY trade_date ASC
+  `).bind(instrumentCode, startDate, endDate).all();
+
+  return result.results as Array<{ trade_date: string; close_price: number | null }>;
+}
+
 // ============================================
 // Industry Fund Flow Daily
 // ============================================

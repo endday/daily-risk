@@ -273,6 +273,25 @@ describe('handleMarketTemperature', () => {
 
     latestSpy.mockRestore();
   });
+
+  it('clamps invalid history days to the default window', async () => {
+    const dbModule = await import('../db');
+    const latestRows = [{ trade_date: '2026-06-20', index_code: '000300' }];
+    const latestSpy = vi.spyOn(dbModule, 'getLatestSnapshots').mockResolvedValue(latestRows as any);
+    const historySpy = vi.spyOn(dbModule, 'getSnapshotsByDateRange').mockResolvedValue([] as any);
+
+    const response = await handleMarketTemperature(
+      new Request('http://localhost/api/market-temperature?days=-10'),
+      env,
+      headers,
+      { data: {} },
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).history_days).toBe(20);
+    latestSpy.mockRestore();
+    historySpy.mockRestore();
+  });
 });
 
 describe('handleRelativeStrength', () => {
@@ -287,7 +306,7 @@ describe('handleRelativeStrength', () => {
 
   it('returns quality and pair metrics from instrument daily history', async () => {
     const dbModule = await import('../db');
-    const historySpy = vi.spyOn(dbModule, 'getInstrumentDailyByDateRange').mockImplementation(async (_, code) => (
+    const historySpy = vi.spyOn(dbModule, 'getInstrumentDailyClosesByDateRange').mockImplementation(async (_, code) => (
       Array.from({ length: 280 }, (_, index) => ({
         trade_date: new Date(Date.UTC(2024, 0, index + 1)).toISOString().slice(0, 10),
         instrument_code: code,
@@ -307,6 +326,25 @@ describe('handleRelativeStrength', () => {
     expect(body.pairs).toHaveLength(4);
     expect(body.pairs[0].relative_return_20d).not.toBeNull();
     expect(body.pairs[0].aligned_sample_count).toBe(280);
+    historySpy.mockRestore();
+  });
+
+  it('does not expose database errors to API callers', async () => {
+    const dbModule = await import('../db');
+    const historySpy = vi
+      .spyOn(dbModule, 'getInstrumentDailyClosesByDateRange')
+      .mockRejectedValue(new Error('no such table: instrument_daily'));
+
+    const response = await handleRelativeStrength(
+      new Request('http://localhost/api/relative-strength'),
+      { DB: {} as D1Database } as Env,
+      {},
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Instrument daily data store is not ready',
+    });
     historySpy.mockRestore();
   });
 });

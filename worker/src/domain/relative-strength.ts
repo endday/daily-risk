@@ -162,6 +162,7 @@ function stateAt(values: number[]): RelativeStrengthState {
 }
 
 function findStateChangedAt(points: { trade_date: string; log_relative: number }[], state: RelativeStrengthState): string | null {
+  if (state === 'unavailable') return null;
   if (points.length === 0) return null;
   for (let index = points.length - 2; index >= 0; index -= 1) {
     const windowStart = Math.max(0, index - 241);
@@ -214,7 +215,7 @@ export function buildRelativeStrengthPair(
   const rsi = calculateRsi(values);
   const z = zscore(values, 242);
   const return20 = relativeReturn(values, 20);
-  const state = classifyState(rsi, z, return20);
+  const state = return20 == null ? 'unavailable' : classifyState(rsi, z, return20);
 
   return {
     pair_key: `${numerator.code}_${denominator.code}`,

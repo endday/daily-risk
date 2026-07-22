@@ -65,7 +65,7 @@ describe('relative strength domain', () => {
     expect(result.relative_return_20d).toBeNull();
     expect(result.rsi_14).toBeNull();
     expect(result.zscore_242).toBeNull();
-    expect(result.state).toBe('normal');
+    expect(result.state).toBe('unavailable');
   });
 
   it('aligns mismatched trading dates instead of comparing row positions', () => {

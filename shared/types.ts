@@ -350,6 +350,55 @@ export interface MarketTemperatureCompactResponse {
   sample_step?: number;
 }
 
+export type MarketRiskLevel = 'unavailable' | 'calm' | 'balanced' | 'fragile' | 'elevated';
+export type MarketRiskSignalState = 'unavailable' | 'supportive' | 'neutral' | 'watch' | 'elevated';
+
+export interface MarketRiskBreadth {
+  state: MarketRiskSignalState;
+  summary: string;
+  as_of_date: string | null;
+  industry_count: number;
+  above_ma20_ratio: number | null;
+  breadth_change_5d: number | null;
+  concentration_top5_pct: number | null;
+}
+
+export interface MarketRiskLiquidity {
+  state: MarketRiskSignalState;
+  summary: string;
+  turnover_5d_vs_20d_pct: number | null;
+  turnover_percentile_60d: number | null;
+  margin_change_20d_pct: number | null;
+}
+
+export interface MarketRiskTail {
+  state: MarketRiskSignalState;
+  summary: string;
+  max_drawdown_60d_pct: number | null;
+  downside_volatility_20d: number | null;
+  expected_shortfall_5pct: number | null;
+}
+
+export interface MarketRiskValuation {
+  state: MarketRiskSignalState;
+  summary: string;
+  erp: number | null;
+  erp_percentile: number | null;
+  sample_count: number;
+}
+
+export interface MarketRiskResponse {
+  trade_date: string | null;
+  generated_at: string;
+  state: MarketRiskLevel;
+  summary: string;
+  available_component_count: number;
+  breadth: MarketRiskBreadth;
+  liquidity: MarketRiskLiquidity;
+  tail: MarketRiskTail;
+  valuation: MarketRiskValuation;
+}
+
 export type RotationPeriod = 'week' | 'month' | 'half_year';
 
 export interface IndustryRotationMetric {
@@ -432,6 +481,34 @@ export interface RelativeStrengthResponse {
   base_code: string | null;
   quality: InstrumentQualityStats[];
   pairs: RelativeStrengthPair[];
+}
+
+export type ValuationCategory = 'broad' | 'industry' | 'theme' | 'strategy';
+export type ValuationRankState = 'low' | 'below_average' | 'fair' | 'high' | 'unavailable';
+
+export interface ValuationRankingItem {
+  rank: number | null;
+  code: string;
+  name: string;
+  category: ValuationCategory;
+  pe_history_supported: boolean;
+  state: ValuationRankState;
+  latest_pe_ttm: number | null;
+  pe_percentile: number | null;
+  pe_sample_count: number;
+  return_20d_pct: number | null;
+  max_drawdown_60d_pct: number | null;
+  latest_close_price: number | null;
+  as_of_date: string | null;
+}
+
+export interface ValuationRankingResponse {
+  trade_date: string | null;
+  generated_at: string;
+  methodology: 'pe_ttm_historical_percentile';
+  minimum_pe_samples: number;
+  rankable_count: number;
+  items: ValuationRankingItem[];
 }
 
 export interface ChinaGdpData {

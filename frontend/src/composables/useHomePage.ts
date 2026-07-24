@@ -4,7 +4,7 @@ import { fetchEventsByDate, fetchMarketTemperature } from '../services/api'
 import type { CalendarEffects, MarketTemperatureResponse, RiskEvent } from '../services/api'
 import type { HolidayEntry } from '../../../shared/types'
 import { getMonday, getToday, dateShort, formatDateParts, offsetDate } from '../../../shared/date-utils'
-export type TabName = 'overview' | 'trends' | 'events' | 'stats'
+export type TabName = 'overview' | 'trends' | 'valuation' | 'events' | 'stats'
 
 export function useHomePage() {
   const route = useRoute()
@@ -129,7 +129,8 @@ export function useHomePage() {
   onMounted(async () => {
     void fetchDateEvents(today)
     try {
-      temperature.value = await fetchMarketTemperature()
+      // 45 calendar days ensures the 20-session turnover comparison has enough trade days.
+      temperature.value = await fetchMarketTemperature(45)
     } catch (error) {
       console.error('Failed to fetch market temperature:', error)
     }

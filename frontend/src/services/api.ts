@@ -10,8 +10,10 @@ import type {
   CalendarEffects,
   MarketTemperatureResponse,
   MarketTemperatureCompactResponse,
+  MarketRiskResponse,
   IndustryRotationMatrixResponse,
   RelativeStrengthResponse,
+  ValuationRankingResponse,
 } from '../../../shared/types'
 
 export type {
@@ -35,6 +37,13 @@ export type {
   TemperatureDerived,
   MarketTemperatureResponse,
   MarketTemperatureCompactResponse,
+  MarketRiskResponse,
+  MarketRiskLevel,
+  MarketRiskSignalState,
+  MarketRiskBreadth,
+  MarketRiskLiquidity,
+  MarketRiskTail,
+  MarketRiskValuation,
   IndustryRotationMatrixResponse,
   IndustryRotationMetric,
   RelativeStrengthResponse,
@@ -42,6 +51,10 @@ export type {
   RelativeStrengthState,
   InstrumentQualityStats,
   RelativeForwardStats,
+  ValuationCategory,
+  ValuationRankState,
+  ValuationRankingItem,
+  ValuationRankingResponse,
 } from '../../../shared/types'
 
 import { getToday, getTomorrow } from '../../../shared/date-utils'
@@ -67,6 +80,14 @@ export async function fetchMarketTemperature(days = 20): Promise<MarketTemperatu
   return response.json()
 }
 
+export async function fetchMarketRisk(): Promise<MarketRiskResponse> {
+  const response = await fetch(`${API_BASE}/market-risk`)
+  if (!response.ok) {
+    throw new Error(`Market risk API error: ${response.status}`)
+  }
+  return response.json()
+}
+
 export async function fetchIndustryRotation(): Promise<IndustryRotationMatrixResponse> {
   const response = await fetch(`${API_BASE}/industry-rotation?universe=sw-v1`)
   if (!response.ok) {
@@ -79,6 +100,14 @@ export async function fetchRelativeStrength(): Promise<RelativeStrengthResponse>
   const response = await fetch(`${API_BASE}/relative-strength`)
   if (!response.ok) {
     throw new Error(`Relative strength API error: ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function fetchValuationRanking(): Promise<ValuationRankingResponse> {
+  const response = await fetch(`${API_BASE}/valuation-ranking`)
+  if (!response.ok) {
+    throw new Error(`Valuation ranking API error: ${response.status}`)
   }
   return response.json()
 }

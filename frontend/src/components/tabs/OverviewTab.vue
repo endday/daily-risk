@@ -63,7 +63,6 @@ const emit = defineEmits<{
       v-if="temperature"
       :derived="temperature.derived"
       :latest="temperature.latest"
-      :history="temperature.history"
     />
 
     <div class="rule-thin"></div>

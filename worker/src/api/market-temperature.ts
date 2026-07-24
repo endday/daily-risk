@@ -55,6 +55,33 @@ function formatInstrumentDailyForAPI(row: InstrumentDailyRow): MarketSnapshotRow
   };
 }
 
+function mergeCompactHistory(
+  snapshotHistory: MarketSnapshotRowLike[],
+  instrumentHistory: InstrumentDailyRow[],
+): MarketSnapshotRowLike[] {
+  const byDate = new Map(snapshotHistory.map((row) => [row.trade_date, formatSnapshotForAPI(row)]));
+
+  for (const row of instrumentHistory) {
+    const instrument = formatInstrumentDailyForAPI(row);
+    const snapshot = byDate.get(instrument.trade_date);
+    byDate.set(instrument.trade_date, {
+      ...instrument,
+      ...snapshot,
+      trade_date: instrument.trade_date,
+      index_code: instrument.index_code,
+      close_price: instrument.close_price ?? snapshot?.close_price ?? null,
+      change_pct: instrument.change_pct ?? snapshot?.change_pct ?? null,
+      turnover_amount: instrument.turnover_amount ?? snapshot?.turnover_amount ?? null,
+      turnover_rate: instrument.turnover_rate ?? snapshot?.turnover_rate ?? null,
+      pe_ttm: instrument.pe_ttm ?? snapshot?.pe_ttm ?? null,
+      pb: instrument.pb ?? snapshot?.pb ?? null,
+      total_market_cap: instrument.total_market_cap ?? snapshot?.total_market_cap ?? null,
+    });
+  }
+
+  return [...byDate.values()].sort((a, b) => b.trade_date.localeCompare(a.trade_date));
+}
+
 /**
  * 获取最近一年的中国名义 GDP（万亿元人民币）
  * 从 china-gdp.json 读取，按年份降序取最新的非零值
@@ -187,7 +214,7 @@ function computeDerivedMetrics(
       .filter((value): value is number => value != null && value > 0)
       .sort((a, b) => a - b);
 
-    if (peValues.length >= 5) {
+    if (peValues.length >= 240) {
       const rank = peValues.filter((value) => value <= pe).length;
       result.pe_percentile = Math.round(rank / peValues.length * 100);
       result.pe_label =
@@ -298,29 +325,9 @@ export async function handleMarketTemperature(
         latestDate,
       );
 
-      if (instrumentHistory.length > 0) {
-        const snapshotsByDate = new Map(
-          snapshotHistory.map((row) => [row.trade_date, formatSnapshotForAPI(row)]),
-        );
-        rawHistory = instrumentHistory.map((row) => {
-          const instrument = formatInstrumentDailyForAPI(row);
-          const snapshot = snapshotsByDate.get(row.trade_date);
-          return {
-            ...snapshot,
-            ...instrument,
-            pe_ttm: instrument.pe_ttm ?? snapshot?.pe_ttm ?? null,
-            pb: instrument.pb ?? snapshot?.pb ?? null,
-            bond_yield_10y: snapshot?.bond_yield_10y ?? null,
-            us_2y_yield: snapshot?.us_2y_yield ?? null,
-            fed_funds_rate: snapshot?.fed_funds_rate ?? null,
-            usd_index: snapshot?.usd_index ?? null,
-            oil_wti: snapshot?.oil_wti ?? null,
-            us_yield_spread: snapshot?.us_yield_spread ?? null,
-          };
-        });
-      } else {
-        rawHistory = snapshotHistory;
-      }
+      rawHistory = instrumentHistory.length > 0
+        ? mergeCompactHistory(snapshotHistory, instrumentHistory)
+        : snapshotHistory;
     } else {
       rawHistory = await db.getSnapshotsByDateRange(env.DB, startDateStr, latestDate);
     }

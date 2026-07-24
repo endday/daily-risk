@@ -11,6 +11,7 @@ import type { CollectorEnv } from './collectors/base';
 import { runAllCollectors } from './collectors/runner';
 import { syncTradingCalendar } from './trading-calendar';
 import { initializeInstrumentDaily } from './collectors/instrument-daily-init';
+import { syncIndexValuationDaily } from './collectors/index-valuation';
 import { getBeijingDate, offsetDate } from '../../shared/date-utils';
 
 // 事件类采集器
@@ -81,6 +82,20 @@ export async function runDailyCollection(env: CollectorEnv): Promise<void> {
     );
   } catch (error) {
     console.warn(`[Scheduler] Instrument daily sync failed (non-fatal): ${(error as Error).message}`);
+  }
+
+  // 中证官网同时提供指数收盘价与滚动 PE；拉取较长窗口以覆盖交易日错位。
+  try {
+    const endDate = getBeijingDate(0);
+    const startDate = offsetDate(endDate, -15);
+    const valuationResult = await syncIndexValuationDaily(env.DB, startDate, endDate);
+    console.log(
+      `[Scheduler] Valuation index sync complete: ` +
+      `${valuationResult.valuationIndices} PE series, ` +
+      `${valuationResult.rows} rows, ${startDate} -> ${endDate}`,
+    );
+  } catch (error) {
+    console.warn(`[Scheduler] Valuation index sync failed (non-fatal): ${(error as Error).message}`);
   }
 
   console.log(

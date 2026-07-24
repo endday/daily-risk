@@ -34,15 +34,15 @@
 
 1. 应用远程迁移，确保 `instrument_daily` 已存在。
 2. 部署包含 `/api/valuation-ranking` 和 `/admin/init-instrument-daily` 的 Worker。
-3. 设置 `ADMIN_TOKEN`，执行已有的 `worker/scripts/backfill-index-valuation.mjs`：
+3. 直接写入远程 D1，执行初始化脚本（无需在本机持有 `ADMIN_TOKEN`）：
 
 ```powershell
-$env:ADMIN_TOKEN = '<管理员令牌>'
-node worker/scripts/backfill-index-valuation.mjs `
-  --api-base https://daily-risk.endday.top `
-  --start-date 2020-01-01 `
+npm --prefix worker run init:valuation:remote -- `
+  --start-date 2020-07-24 `
   --end-date 2026-07-24
 ```
+
+该脚本只写入 `valuation-universe.ts` 中已验证的 25 条中证／国证指数，并使用 D1 主键幂等更新。管理员接口版 `backfill-index-valuation.mjs` 保留给具备 `ADMIN_TOKEN` 的 CI 或运维环境使用。
 
 4. 保留现有 15 天增量同步，覆盖节假日、采集失败重试和源端迟到数据。
 

@@ -6,35 +6,39 @@ import type {
   InstrumentQualityStats,
   RelativeStrengthPair,
   RelativeStrengthResponse,
-  RelativeStrengthState,
 } from '../../services/api'
 
 const data = ref<RelativeStrengthResponse | null>(null)
 const loading = ref(false)
 const error = ref('')
-const cache = useResponseCache<RelativeStrengthResponse>('daily-risk:relative-strength:v1')
+const cache = useResponseCache<RelativeStrengthResponse>('daily-risk:relative-strength:v2')
 
-const stateMeta: Record<RelativeStrengthState, { label: string; detail: string }> = {
-  unavailable: { label: '样本不足', detail: '暂不生成信号' },
-  overheated: { label: '相对过热', detail: '追涨风险上升' },
-  strong: { label: '相对走强', detail: '趋势占优' },
-  normal: { label: '均衡', detail: '未见极端' },
-  weak: { label: '相对走弱', detail: '趋势落后' },
-  oversold: { label: '相对超卖', detail: '反转尚待确认' },
-}
+const styleMeta = {
+  '399006_000300': {
+    label: '成长 vs 价值',
+    numeratorLabel: '成长',
+    denominatorLabel: '价值',
+    detail: '成长看创业板指，价值看沪深300',
+  },
+  '000905_000300': {
+    label: '小盘 vs 大盘',
+    numeratorLabel: '小盘',
+    denominatorLabel: '大盘',
+    detail: '小盘看中证500，大盘看沪深300',
+  },
+} as const
 
-const sortedPairs = computed(() => [...(data.value?.pairs ?? [])].sort(
-  (a, b) => (b.relative_return_60d ?? -Infinity) - (a.relative_return_60d ?? -Infinity),
-))
-const strongest = computed(() => sortedPairs.value.find((pair) => pair.relative_return_60d != null) ?? null)
-const weakest = computed(() => [...sortedPairs.value].reverse().find((pair) => pair.relative_return_60d != null) ?? null)
-const extremeCount = computed(() => data.value?.pairs.filter(
-  (pair) => pair.state === 'overheated' || pair.state === 'oversold',
-).length ?? 0)
+const focusPairs = computed(() => {
+  const byKey = new Map((data.value?.pairs ?? []).map((pair) => [pair.pair_key, pair]))
+  return Object.keys(styleMeta)
+    .map((key) => byKey.get(key))
+    .filter((pair): pair is RelativeStrengthPair => pair != null)
+})
 
-function formatPct(value: number | null, digits = 2): string {
+function formatPct(value: number | null, digits = 1, withSign = true): string {
   if (value == null) return '--'
-  return `${value > 0 ? '+' : ''}${value.toFixed(digits)}%`
+  const sign = withSign && value > 0 ? '+' : ''
+  return `${sign}${value.toFixed(digits)}%`
 }
 
 function valueClass(value: number | null): string {
@@ -42,8 +46,39 @@ function valueClass(value: number | null): string {
   return value > 0 ? 'up' : 'down'
 }
 
-function stateClass(state: RelativeStrengthState): string {
-  return `state-${state}`
+function pairMeta(pair: RelativeStrengthPair) {
+  return styleMeta[pair.pair_key as keyof typeof styleMeta] ?? {
+    label: `${pair.numerator_name} vs ${pair.denominator_name}`,
+    numeratorLabel: pair.numerator_name,
+    denominatorLabel: pair.denominator_name,
+    detail: `${pair.numerator_name} / ${pair.denominator_name}`,
+  }
+}
+
+function winner(pair: RelativeStrengthPair, value: number | null = pair.relative_return_60d): string | null {
+  if (value == null || Math.abs(value) < 0.005) return null
+  const meta = pairMeta(pair)
+  return value > 0 ? meta.numeratorLabel : meta.denominatorLabel
+}
+
+function comparison(pair: RelativeStrengthPair, value: number | null = pair.relative_return_60d): string {
+  if (value == null) return '数据积累中'
+  if (!winner(pair, value)) return `${pair.numerator_name}和${pair.denominator_name}表现接近`
+  const winnerName = value > 0 ? pair.numerator_name : pair.denominator_name
+  const loserName = value > 0 ? pair.denominator_name : pair.numerator_name
+  return `${winnerName}比${loserName}多涨 ${Math.abs(value).toFixed(1)}%`
+}
+
+function verdict(pair: RelativeStrengthPair): string {
+  const winnerName = winner(pair)
+  if (!winnerName) return pair.relative_return_60d == null ? '暂不下结论' : '两类风格表现接近'
+  return `${winnerName}更强`
+}
+
+function gapNote(pair: RelativeStrengthPair): string {
+  if (pair.state === 'unavailable' || pair.relative_return_60d == null) return ''
+  if (pair.state === 'overheated' || pair.state === 'oversold') return '短期差距较大，留意波动'
+  return ''
 }
 
 function coverageLabel(item: InstrumentQualityStats): string {
@@ -51,12 +86,6 @@ function coverageLabel(item: InstrumentQualityStats): string {
   if (!item.window_available['252']) return '积累中'
   if (item.missing_close_count || item.non_positive_close_count || item.duplicate_date_count) return '需检查'
   return '完整'
-}
-
-function meanReversionRate(pair: RelativeStrengthPair): string {
-  const stat = pair.forward_stats.find((item) => item.horizon_days === 20)
-  if (!stat || stat.positive_probability == null) return '--'
-  return `${stat.positive_probability.toFixed(0)}%`
 }
 
 async function load() {
@@ -82,175 +111,138 @@ onMounted(() => void load())
 </script>
 
 <template>
-  <div class="style-page" :aria-busy="loading">
+  <section class="style-page" :aria-busy="loading">
     <header class="style-header">
       <div>
-        <p class="eyebrow">RELATIVE MARKET STRUCTURE</p>
-        <h1>风格强弱</h1>
+        <p class="eyebrow">STYLE COMPARISON</p>
+        <h2>风格表现</h2>
       </div>
-      <div class="header-meta">
-        <span v-if="loading" class="loading-indicator" role="status"><i></i>更新中</span>
-        <span v-if="data" class="as-of">数据截至 {{ data.trade_date }}</span>
-      </div>
+      <span v-if="loading" class="loading-indicator" role="status">更新中</span>
+      <span v-else-if="data" class="as-of">数据截至 {{ data.trade_date }}</span>
     </header>
 
-    <div v-if="loading && !data" class="state-line">正在计算相对强弱...</div>
-    <div v-else-if="error && !data" class="state-line error">{{ error }}</div>
+    <p v-if="loading && !data" class="state-line">正在更新风格数据...</p>
+    <p v-else-if="error && !data" class="state-line error">{{ error }}</p>
 
     <template v-if="data">
-      <section class="signal-strip" aria-label="风格概览">
-        <div class="signal-primary">
-          <span class="signal-label">60日领先</span>
-          <strong>{{ strongest?.numerator_name || '--' }}</strong>
-          <span v-if="strongest" :class="valueClass(strongest.relative_return_60d)">{{ formatPct(strongest.relative_return_60d) }}</span>
-        </div>
-        <div class="signal-item">
-          <span>60日落后</span>
-          <b>{{ weakest?.numerator_name || '--' }}</b>
-        </div>
-        <div class="signal-item">
-          <span>极端组合</span>
-          <b>{{ extremeCount }} / {{ data.pairs.length }}</b>
-        </div>
-        <div class="signal-item">
-          <span>样本覆盖</span>
-          <b>{{ Math.min(...data.quality.map(item => item.valid_close_count)) }} 日</b>
-        </div>
-      </section>
+      <p class="style-intro">成长、价值、小盘和大盘的近期相对表现。</p>
 
-      <section class="pair-section">
-        <div class="section-heading">
-          <h2>指数配对</h2>
-          <span>按60日相对收益排序</span>
-        </div>
-        <div class="pair-table">
-          <div class="pair-head">
-            <span>组合</span><span>20日</span><span>60日</span><span>252日</span><span title="相对比值的14日RSI">RSI14</span><span title="相对比值在242日窗口中的标准分">Z242</span><span>状态</span>
+      <div class="style-cards">
+        <article v-for="pair in focusPairs" :key="pair.pair_key" class="style-card">
+          <header>
+            <div>
+              <h3>{{ pairMeta(pair).label }}</h3>
+              <p>{{ pairMeta(pair).detail }}</p>
+            </div>
+          </header>
+
+          <div class="main-data">
+            <span>近 3 个月相对表现</span>
+            <strong :class="valueClass(pair.relative_return_60d)">{{ comparison(pair) }}</strong>
           </div>
-          <article v-for="pair in sortedPairs" :key="pair.pair_key" class="pair-row">
-            <div class="pair-name">
-              <strong>{{ pair.numerator_name }}</strong>
-              <span>/ {{ pair.denominator_name }}</span>
+
+          <div class="period-data" aria-label="不同周期相对表现">
+            <div>
+              <span>近 1 个月</span>
+              <b :class="valueClass(pair.relative_return_20d)">{{ formatPct(pair.relative_return_20d) }}</b>
             </div>
-            <b data-label="20日" :class="valueClass(pair.relative_return_20d)">{{ formatPct(pair.relative_return_20d) }}</b>
-            <b data-label="60日" :class="valueClass(pair.relative_return_60d)">{{ formatPct(pair.relative_return_60d) }}</b>
-            <b data-label="252日" :class="valueClass(pair.relative_return_252d)">{{ formatPct(pair.relative_return_252d) }}</b>
-            <span class="numeric">{{ pair.rsi_14?.toFixed(1) ?? '--' }}</span>
-            <span class="numeric">{{ pair.zscore_242?.toFixed(2) ?? '--' }}</span>
-            <div class="pair-state" :class="stateClass(pair.state)">
-              <b>{{ stateMeta[pair.state].label }}</b>
-              <span>{{ stateMeta[pair.state].detail }}</span>
+            <div>
+              <span>近 3 个月</span>
+              <b :class="valueClass(pair.relative_return_60d)">{{ formatPct(pair.relative_return_60d) }}</b>
             </div>
-            <div class="pair-foot">
-              <span>状态始于 {{ pair.state_changed_at || '--' }}</span>
-              <span>历史分位 {{ pair.historical_percentile?.toFixed(0) ?? '--' }}%</span>
-              <span title="历史极值后20日，按均值回归方向校准后的正收益比例">20日均值回归 {{ meanReversionRate(pair) }}</span>
-              <span>对齐样本 {{ pair.aligned_sample_count }}</span>
+            <div>
+              <span>近 1 年</span>
+              <b :class="valueClass(pair.relative_return_252d)">{{ formatPct(pair.relative_return_252d) }}</b>
             </div>
+          </div>
+
+          <p class="style-verdict">结论：{{ verdict(pair) }}</p>
+          <p v-if="gapNote(pair)" class="gap-note">{{ gapNote(pair) }}</p>
+        </article>
+      </div>
+
+      <details class="style-details">
+        <summary>
+          <span>详细数据</span>
+          <small>查看技术指标和数据质量</small>
+        </summary>
+        <div class="research-table">
+          <article v-for="pair in focusPairs" :key="pair.pair_key" class="research-row">
+            <strong>{{ pairMeta(pair).label }}</strong>
+            <span>相对强弱指标 {{ pair.rsi_14?.toFixed(1) ?? '--' }}</span>
+            <span>历史位置 {{ pair.historical_percentile?.toFixed(0) ?? '--' }}%</span>
+            <span>状态开始 {{ pair.state_changed_at || '--' }}</span>
+            <span>对齐样本 {{ pair.aligned_sample_count }} 日</span>
           </article>
         </div>
-      </section>
-
-      <details class="quality-section">
-        <summary>
-          <span>数据质量</span>
-          <b>{{ data.quality.filter(item => coverageLabel(item) === '完整').length }} / {{ data.quality.length }} 完整</b>
-        </summary>
         <div class="quality-table">
-          <div v-for="item in data.quality" :key="item.instrument_code" class="quality-row">
-            <div><strong>{{ item.instrument_name }}</strong><span>{{ item.instrument_code }}</span></div>
-            <div><span>覆盖</span><b>{{ item.valid_close_count }} 日</b></div>
-            <div><span>起始</span><b>{{ item.first_date || '--' }}</b></div>
-            <div><span>20日波动</span><b>{{ formatPct(item.volatility_20d, 1) }}</b></div>
-            <div><span>最大回撤</span><b :class="valueClass(item.max_drawdown_pct)">{{ formatPct(item.max_drawdown_pct, 1) }}</b></div>
-            <em :class="`coverage-${coverageLabel(item)}`">{{ coverageLabel(item) }}</em>
-          </div>
+          <article v-for="item in data.quality" :key="item.instrument_code" class="quality-row">
+            <strong>{{ item.instrument_name }}</strong>
+            <span>有效数据 {{ item.valid_close_count }} 日</span>
+            <span>近 1 个月涨跌 {{ formatPct(item.return_20d) }}</span>
+            <span>近 1 年涨跌 {{ formatPct(item.return_252d) }}</span>
+            <b :class="`coverage-${coverageLabel(item)}`">{{ coverageLabel(item) }}</b>
+          </article>
         </div>
       </details>
+
+      <p class="style-disclaimer">仅反映市场表现，不构成交易建议。</p>
     </template>
-  </div>
+  </section>
 </template>
 
 <style lang="scss" scoped>
 @use '../../styles/theme' as *;
 
-.style-page { max-width: 1080px; margin: 0 auto; padding: $space-xl 0 96px; font-family: $font-sans; }
+.style-page { padding: $space-xl 0 96px; font-family: $font-sans; }
 .style-header { display: flex; align-items: end; justify-content: space-between; padding-bottom: $space-md; border-bottom: 2px solid $text-primary; }
 .eyebrow { margin: 0 0 4px; color: $color-info; font-size: $text-xs; font-weight: $weight-bold; }
-h1 { margin: 0; font-family: $font-serif; font-size: 28px; letter-spacing: 0; }
-.header-meta { display: flex; flex-direction: column; align-items: end; gap: 4px; }
-.as-of { color: $text-tertiary; font-size: $text-xs; }
-.loading-indicator { display: inline-flex; align-items: center; gap: 5px; color: $color-info; font-size: $text-xs; }
-.loading-indicator i { width: 9px; height: 9px; border: 1px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: style-spin .7s linear infinite; }
+h2 { margin: 0; font-family: $font-serif; font-size: 28px; }
+.as-of, .loading-indicator { color: $text-tertiary; font-size: $text-xs; }
 .state-line { padding: 72px 0; color: $text-tertiary; text-align: center; }
-.state-line.error { color: $color-up; }
+.state-line.error { color: $color-down; }
+.style-intro { margin: $space-md 0; color: $text-secondary; font-size: $text-sm; }
 
-.signal-strip { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); border-bottom: 1px solid $border-heavy; }
-.signal-primary, .signal-item { min-height: 96px; padding: $space-lg $space-md; border-right: 1px solid $border; }
-.signal-item:last-child { border-right: 0; }
-.signal-primary { display: grid; grid-template-columns: 1fr auto; align-content: center; gap: 4px $space-md; }
-.signal-label, .signal-item span { color: $text-tertiary; font-size: $text-xs; }
-.signal-primary strong { font-family: $font-serif; font-size: 22px; }
-.signal-primary > span:last-child { align-self: end; font-size: $text-lg; font-weight: $weight-bold; }
-.signal-item { display: flex; flex-direction: column; justify-content: center; gap: 7px; }
-.signal-item b { font-size: $text-md; font-variant-numeric: tabular-nums; }
+.style-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid $border-heavy; border-bottom: 1px solid $border-heavy; }
+.style-card { min-width: 0; padding: $space-lg; border-right: 1px solid $border; }
+.style-card:last-child { border-right: 0; }
+.style-card header { display: flex; justify-content: space-between; }
+.style-card h3 { margin: 0; font-family: $font-serif; font-size: $text-lg; }
+.style-card header p { margin: 4px 0 0; color: $text-tertiary; font-size: $text-xs; }
+.main-data { margin-top: $space-lg; }
+.main-data span { display: block; color: $text-tertiary; font-size: $text-xs; }
+.main-data strong { display: block; margin-top: 5px; font-size: $text-md; font-weight: $weight-semibold; line-height: 1.45; }
+.period-data { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: $space-md; border-top: 1px solid $border-light; border-bottom: 1px solid $border-light; }
+.period-data > div { min-width: 0; padding: $space-sm 0; border-right: 1px solid $border-light; text-align: center; }
+.period-data > div:last-child { border-right: 0; }
+.period-data span { display: block; color: $text-tertiary; font-size: 10px; }
+.period-data b { display: block; margin-top: 4px; font-size: $text-xs; font-variant-numeric: tabular-nums; }
+.style-verdict { margin: $space-md 0 0; color: $text-primary; font-size: $text-sm; font-weight: $weight-semibold; }
+.gap-note { margin: 5px 0 0; color: $color-warn; font-size: $text-xs; }
+.up { color: $color-up; }
+.down { color: $color-down; }
+.neutral { color: $text-secondary; }
 
-.pair-section { margin-top: $space-xl; }
-.section-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: $space-sm; }
-.section-heading h2 { margin: 0; font-family: $font-serif; font-size: $text-lg; }
-.section-heading span { color: $text-tertiary; font-size: $text-xs; }
-.pair-table { border-top: 1px solid $border-heavy; }
-.pair-head, .pair-row { display: grid; grid-template-columns: minmax(170px, 1.45fr) repeat(3, minmax(64px, .7fr)) repeat(2, minmax(56px, .55fr)) minmax(112px, 1fr); align-items: center; }
-.pair-head { min-height: 38px; background: $bg-muted; color: $text-secondary; font-size: $text-xs; font-weight: $weight-bold; text-align: center; }
-.pair-head span:first-child { padding-left: $space-md; text-align: left; }
-.pair-row { min-height: 76px; border-bottom: 1px solid $border; }
-.pair-row:hover { background: $bg-hover; }
-.pair-name { display: flex; flex-direction: column; gap: 3px; padding-left: $space-md; }
-.pair-name strong { font-size: $text-sm; }
-.pair-name span { color: $text-tertiary; font-size: $text-xs; }
-.pair-row > b, .numeric { text-align: center; font-size: $text-sm; font-variant-numeric: tabular-nums; }
-.pair-state { display: flex; flex-direction: column; gap: 3px; padding-left: $space-sm; }
-.pair-state b { font-size: $text-xs; }
-.pair-state span { color: $text-tertiary; font-size: 10px; }
-.pair-foot { grid-column: 1 / -1; display: flex; gap: $space-lg; padding: 0 $space-md $space-sm; color: $text-tertiary; font-size: 10px; }
-.up, .state-strong b { color: $color-up; }
-.down, .state-weak b { color: $color-down; }
-.neutral, .state-normal b { color: $text-secondary; }
-.state-overheated b { color: $color-warn; }
-.state-oversold b { color: $color-info; }
-
-.quality-section { margin-top: $space-xl; border-top: 1px solid $border-heavy; border-bottom: 1px solid $border; }
-.quality-section summary { display: flex; justify-content: space-between; padding: $space-md; cursor: pointer; font-size: $text-sm; }
-.quality-section summary b { color: $text-secondary; font-size: $text-xs; }
-.quality-table { border-top: 1px solid $border; }
-.quality-row { display: grid; grid-template-columns: 1.3fr repeat(4, 1fr) 60px; align-items: center; min-height: 54px; padding: 0 $space-md; border-bottom: 1px solid $border-light; font-size: $text-xs; }
-.quality-row:last-child { border-bottom: 0; }
-.quality-row > div { display: flex; flex-direction: column; gap: 3px; }
-.quality-row span { color: $text-tertiary; }
-.quality-row em { font-style: normal; font-weight: $weight-bold; text-align: right; }
+.style-details { margin-top: $space-xl; border-top: 1px solid $border-heavy; border-bottom: 1px solid $border; }
+.style-details summary { display: flex; align-items: center; justify-content: space-between; padding: $space-md; cursor: pointer; font-size: $text-sm; }
+.style-details summary small { color: $text-tertiary; font-size: $text-xs; }
+.research-table, .quality-table { border-top: 1px solid $border; }
+.research-row, .quality-row { display: grid; grid-template-columns: 1.3fr repeat(4, minmax(0, 1fr)); gap: $space-sm; align-items: center; padding: $space-md; border-bottom: 1px solid $border-light; font-size: $text-xs; }
+.research-row:last-child, .quality-row:last-child { border-bottom: 0; }
+.research-row span, .quality-row span { color: $text-secondary; font-variant-numeric: tabular-nums; }
+.quality-row b { text-align: right; }
 .coverage-完整 { color: $color-up; }
 .coverage-积累中 { color: $color-warn; }
 .coverage-需检查, .coverage-无数据 { color: $color-down; }
-
-@keyframes style-spin { to { transform: rotate(360deg); } }
+.style-disclaimer { margin: $space-md 0 0; color: $text-tertiary; font-size: $text-xs; text-align: center; }
 
 @media (max-width: 720px) {
   .style-page { padding: $space-lg 0 88px; }
-  .signal-strip { grid-template-columns: 1fr 1fr; }
-  .signal-primary, .signal-item { min-height: 82px; padding: $space-md $space-sm; border-bottom: 1px solid $border; }
-  .signal-strip > :nth-child(2) { border-right: 0; }
-  .signal-primary strong { font-size: $text-lg; }
-  .pair-table { overflow-x: visible; }
-  .pair-head { display: none; }
-  .pair-row { grid-template-columns: minmax(92px, 1.35fr) repeat(3, minmax(0, .62fr)) minmax(68px, .9fr); min-height: 86px; padding-top: $space-sm; }
-  .pair-row > .numeric { display: none; }
-  .pair-name { min-width: 0; padding-left: $space-sm; overflow: hidden; }
-  .pair-name strong, .pair-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pair-row > b { min-width: 0; font-size: 10px; }
-  .pair-row > b::before { content: attr(data-label); display: block; margin-bottom: 3px; color: $text-tertiary; font-size: 9px; font-weight: $weight-medium; }
-  .pair-state { min-width: 0; padding-left: 4px; }
-  .pair-foot { gap: $space-sm; overflow-x: auto; padding: 5px $space-sm $space-sm; white-space: nowrap; }
-  .quality-row { grid-template-columns: 1.1fr 1fr 1fr 52px; padding: $space-sm; }
-  .quality-row > div:nth-child(3), .quality-row > div:nth-child(4) { display: none; }
+  .style-cards { grid-template-columns: 1fr; }
+  .style-card { padding: $space-lg 0; border-right: 0; border-bottom: 1px solid $border; }
+  .style-card:last-child { border-bottom: 0; }
+  .research-row, .quality-row { grid-template-columns: 1fr 1fr; padding: $space-sm 0; }
+  .research-row strong, .quality-row strong { grid-column: 1 / -1; }
+  .quality-row b { text-align: left; }
 }
 </style>

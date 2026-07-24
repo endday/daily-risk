@@ -6,9 +6,7 @@ import type { RelativeStrengthResponse } from '../../../shared/types';
 
 const DEFAULT_PAIRS = [
   ['399006', '000300'],
-  ['000688', '399006'],
   ['000905', '000300'],
-  ['000300', '000001'],
 ] as const;
 
 const SUPPORTED = MARKET_INSTRUMENTS.filter((instrument) => instrument.type === 'broad_index');

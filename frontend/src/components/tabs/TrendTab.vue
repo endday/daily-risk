@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { fetchMarketRisk } from '../../services/api'
+import type { MarketRiskResponse } from '../../services/api'
 import IndustryTab from './IndustryTab.vue'
+import MarketRiskPanel from '../MarketRiskPanel.vue'
 import StyleTab from './StyleTab.vue'
 
 type TrendView = 'index' | 'industry'
@@ -9,6 +12,9 @@ type TrendView = 'index' | 'industry'
 const route = useRoute()
 const router = useRouter()
 const activeView = computed<TrendView>(() => route.query.view === 'industry' ? 'industry' : 'index')
+const marketRisk = ref<MarketRiskResponse | null>(null)
+const riskLoading = ref(false)
+const riskError = ref('')
 
 function selectView(view: TrendView) {
   if (view === activeView.value) return
@@ -17,6 +23,20 @@ function selectView(view: TrendView) {
     query: { ...route.query, view },
   })
 }
+
+async function loadMarketRisk() {
+  riskLoading.value = true
+  riskError.value = ''
+  try {
+    marketRisk.value = await fetchMarketRisk()
+  } catch (error) {
+    riskError.value = error instanceof Error ? error.message : '市场风险数据加载失败'
+  } finally {
+    riskLoading.value = false
+  }
+}
+
+onMounted(() => void loadMarketRisk())
 </script>
 
 <template>
@@ -42,7 +62,12 @@ function selectView(view: TrendView) {
       </button>
     </nav>
 
-    <StyleTab v-if="activeView === 'index'" />
+    <div v-if="activeView === 'index'" class="index-research">
+      <p v-if="riskLoading" class="risk-state-line" role="status">正在更新市场风险...</p>
+      <p v-else-if="riskError" class="risk-state-line error">{{ riskError }}</p>
+      <MarketRiskPanel v-else-if="marketRisk" :risk="marketRisk" />
+      <StyleTab />
+    </div>
     <IndustryTab v-else />
   </section>
 </template>
@@ -64,6 +89,10 @@ function selectView(view: TrendView) {
   padding-top: $space-lg;
   padding-bottom: $space-xl;
 }
+
+.index-research :deep(.style-page) { padding-top: $space-xl; }
+.risk-state-line { margin: 0; padding: $space-xl 0; color: $text-tertiary; font-family: $font-sans; font-size: $text-sm; text-align: center; }
+.risk-state-line.error { color: $color-down; }
 
 .trend-tabs {
   position: relative;

@@ -5,7 +5,6 @@ import OverviewTab from '../components/tabs/OverviewTab.vue'
 import EventsTab from '../components/tabs/EventsTab.vue'
 import StatsTab from '../components/tabs/StatsTab.vue'
 import TrendTab from '../components/tabs/TrendTab.vue'
-import ValuationTab from '../components/tabs/ValuationTab.vue'
 import PwaInstall from '../components/PwaInstall.vue'
 import { useHomePage } from '../composables/useHomePage'
 
@@ -51,7 +50,7 @@ const {
     </header>
 
     <!-- 日期条 (全局 sticky) -->
-    <div v-if="activeTab !== 'trends' && activeTab !== 'valuation'" class="date-strip-wrapper">
+    <div v-if="activeTab !== 'trends'" class="date-strip-wrapper">
       <button class="nav-btn nav-prev" @click="changeWeek(-1)">◀</button>
       <div class="date-strip">
         <div
@@ -98,8 +97,6 @@ const {
 
     <TrendTab v-if="activeTab === 'trends'" />
 
-    <ValuationTab v-if="activeTab === 'valuation'" />
-
     <!-- ============================================ -->
     <!-- Tab: 事件                                     -->
     <!-- ============================================ -->
@@ -127,7 +124,6 @@ const {
     <nav class="bottom-tab-bar">
       <div class="bottom-tab" :class="{ active: activeTab === 'overview' }" @click="setTab('overview')">今日</div>
       <div class="bottom-tab" :class="{ active: activeTab === 'trends' }" @click="setTab('trends')">趋势</div>
-      <div class="bottom-tab" :class="{ active: activeTab === 'valuation' }" @click="setTab('valuation')">估值</div>
       <div class="bottom-tab" :class="{ active: activeTab === 'events' }" @click="setTab('events')">
         事件
         <span v-if="selectedDayEvents.length" class="tab-badge">{{ selectedDayEvents.length }}</span>

@@ -6,12 +6,17 @@ import type { MarketRiskResponse } from '../../services/api'
 import IndustryTab from './IndustryTab.vue'
 import MarketRiskPanel from '../MarketRiskPanel.vue'
 import StyleTab from './StyleTab.vue'
+import ValuationTab from './ValuationTab.vue'
 
-type TrendView = 'index' | 'industry'
+type TrendView = 'index' | 'industry' | 'valuation'
 
 const route = useRoute()
 const router = useRouter()
-const activeView = computed<TrendView>(() => route.query.view === 'industry' ? 'industry' : 'index')
+const activeView = computed<TrendView>(() => {
+  if (route.query.view === 'industry') return 'industry'
+  if (route.query.view === 'valuation') return 'valuation'
+  return 'index'
+})
 const marketRisk = ref<MarketRiskResponse | null>(null)
 const riskLoading = ref(false)
 const riskError = ref('')
@@ -60,6 +65,15 @@ onMounted(() => void loadMarketRisk())
       >
         <span>行业</span>
       </button>
+      <button
+        type="button"
+        :class="{ active: activeView === 'valuation' }"
+        :aria-selected="activeView === 'valuation'"
+        role="tab"
+        @click="selectView('valuation')"
+      >
+        <span>估值</span>
+      </button>
     </nav>
 
     <div v-if="activeView === 'index'" class="index-research">
@@ -68,7 +82,8 @@ onMounted(() => void loadMarketRisk())
       <MarketRiskPanel v-else-if="marketRisk" :risk="marketRisk" />
       <StyleTab />
     </div>
-    <IndustryTab v-else />
+    <IndustryTab v-else-if="activeView === 'industry'" />
+    <ValuationTab v-else />
   </section>
 </template>
 
@@ -83,7 +98,8 @@ onMounted(() => void loadMarketRisk())
 }
 
 .trend-shell :deep(.style-page),
-.trend-shell :deep(.rotation-page) {
+.trend-shell :deep(.rotation-page),
+.trend-shell :deep(.valuation-page) {
   width: 100%;
   min-width: 0;
   padding-top: $space-lg;
@@ -97,7 +113,7 @@ onMounted(() => void loadMarketRisk())
 .trend-tabs {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   max-width: 1080px;
   border-bottom: 1px solid $border;
   background: $bg-page;
@@ -147,6 +163,7 @@ onMounted(() => void loadMarketRisk())
   .trend-tabs button::after { right: $space-md; left: $space-md; }
   .trend-tabs span { font-size: $text-sm; }
   .trend-shell :deep(.style-page),
-  .trend-shell :deep(.rotation-page) { padding-top: $space-md; padding-bottom: $space-xl; }
+  .trend-shell :deep(.rotation-page),
+  .trend-shell :deep(.valuation-page) { padding-top: $space-md; padding-bottom: $space-xl; }
 }
 </style>

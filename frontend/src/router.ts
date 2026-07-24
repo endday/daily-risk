@@ -19,7 +19,11 @@ const router = createRouter({
       redirect: (to) => ({ path: '/trends', query: { ...to.query, view: 'industry' } }),
     },
     {
-      path: '/:tab(trends|valuation|events|stats)?',
+      path: '/valuation',
+      redirect: (to) => ({ path: '/trends', query: { ...to.query, view: 'valuation' } }),
+    },
+    {
+      path: '/:tab(trends|events|stats)?',
       name: 'home',
       component: HomePage,
     },

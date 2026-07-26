@@ -17,6 +17,8 @@
     "init:instrument-daily:local": "node scripts/init-instrument-daily-local.mjs --mode local",
     "init:instrument-daily:remote": "node scripts/init-instrument-daily-local.mjs --mode remote",
     "sync:instrument-daily:remote": "node scripts/init-instrument-daily-local.mjs --mode remote --days 7 --batch-size 50",
+    "backfill:valuation:remote": "node scripts/backfill-index-valuation.mjs",
+    "init:valuation:remote": "node scripts/init-index-valuation-remote.mjs",
     "sync:sw-industries:remote": "python scripts/materialize-sw-industries.py --mode remote --start 20240101 --upload-days 45"
   },
   "devDependencies": {

@@ -111,6 +111,40 @@ describe('Admin Endpoint Security', () => {
     }), mockEnv, {} as ExecutionContext)
     expect(response.status).toBe(400)
   })
+
+  it('rejects unknown industry import actions before they can commit a run', async () => {
+    mockEnv.SW_SYNC_TOKEN = 'industry-secret'
+    const { default: handler } = await import('../index')
+    const response = await handler.fetch(new Request('http://localhost/admin/import-sw-industries', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer industry-secret', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'unexpected', run_id: '00000000-0000-0000-0000-000000000000' }),
+    }), mockEnv, {} as ExecutionContext)
+    expect(response.status).toBe(400)
+  })
+
+  it('protects the Chinabond debug endpoint', async () => {
+    const { default: handler } = await import('../index')
+    const response = await handler.fetch(new Request('http://localhost/admin/debug-chinabond'), mockEnv, {} as ExecutionContext)
+    expect(response.status).toBe(503)
+  })
+
+  it('rejects invalid backfill windows before scheduling work', async () => {
+    mockEnv.ADMIN_TOKEN = 'secret-token'
+    const { default: handler } = await import('../index')
+    const response = await handler.fetch(new Request('http://localhost/admin/backfill?startDate=2026-02-30', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer secret-token' },
+    }), mockEnv, { waitUntil: vi.fn() } as any)
+    expect(response.status).toBe(400)
+  })
+
+  it('rejects non-GET public API requests', async () => {
+    const { default: handler } = await import('../index')
+    const response = await handler.fetch(new Request('http://localhost/api/events', { method: 'POST' }), mockEnv, {} as ExecutionContext)
+    expect(response.status).toBe(405)
+    expect(response.headers.get('Allow')).toBe('GET')
+  })
 })
 
 describe('API Event Format', () => {

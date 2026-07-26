@@ -4,7 +4,7 @@ import { scoreColor } from '../utils/display'
 import OverviewTab from '../components/tabs/OverviewTab.vue'
 import EventsTab from '../components/tabs/EventsTab.vue'
 import StatsTab from '../components/tabs/StatsTab.vue'
-import IndustryTab from '../components/tabs/IndustryTab.vue'
+import TrendTab from '../components/tabs/TrendTab.vue'
 import PwaInstall from '../components/PwaInstall.vue'
 import { useHomePage } from '../composables/useHomePage'
 
@@ -50,7 +50,7 @@ const {
     </header>
 
     <!-- 日期条 (全局 sticky) -->
-    <div v-if="activeTab !== 'industries'" class="date-strip-wrapper">
+    <div v-if="activeTab !== 'trends'" class="date-strip-wrapper">
       <button class="nav-btn nav-prev" @click="changeWeek(-1)">◀</button>
       <div class="date-strip">
         <div
@@ -95,7 +95,7 @@ const {
       @showEvents="setTab('events')"
     />
 
-    <IndustryTab v-if="activeTab === 'industries'" />
+    <TrendTab v-if="activeTab === 'trends'" />
 
     <!-- ============================================ -->
     <!-- Tab: 事件                                     -->
@@ -123,7 +123,7 @@ const {
     <!-- 底部 Tab 栏 -->
     <nav class="bottom-tab-bar">
       <div class="bottom-tab" :class="{ active: activeTab === 'overview' }" @click="setTab('overview')">今日</div>
-      <div class="bottom-tab" :class="{ active: activeTab === 'industries' }" @click="setTab('industries')">行业</div>
+      <div class="bottom-tab" :class="{ active: activeTab === 'trends' }" @click="setTab('trends')">趋势</div>
       <div class="bottom-tab" :class="{ active: activeTab === 'events' }" @click="setTab('events')">
         事件
         <span v-if="selectedDayEvents.length" class="tab-badge">{{ selectedDayEvents.length }}</span>
@@ -191,6 +191,9 @@ const {
   left: 0;
   right: 0;
   display: flex;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   background: $bg-page;
   border-top: 1px solid $border;
   z-index: 200;
@@ -199,6 +202,7 @@ const {
 
 .bottom-tab {
   flex: 1;
+  min-width: 0;
   text-align: center;
   padding: $space-md 0;
   font-family: $font-sans;

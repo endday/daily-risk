@@ -6,11 +6,15 @@ import * as db from './db';
 import * as scheduler from './scheduler';
 import { handleEvents } from './api/events';
 import { handleMarketTemperature } from './api/market-temperature';
+import { handleMarketRisk } from './api/market-risk';
 import { handleIndustryRotation } from './api/industry-rotation';
+import { handleRelativeStrength } from './api/relative-strength';
+import { handleValuationRanking } from './api/valuation-ranking';
 import { syncIndustryFundFlows } from './collectors/industry-fund-flow';
 import { backfillSnapshots } from './collectors/backfill';
 import type { InstrumentDailyRow, SwIndustryDailyRow } from './collectors/base';
 import { syncTradingCalendar } from './trading-calendar';
+import { isIsoDate, validateBackfillWindow } from './backfill-audit';
 import { getBeijingDate } from '../../shared/date-utils';
 import calendarEffectsData from '../data/calendar-effects.json';
 import chinaGdpData from '../data/china-gdp.json';
@@ -34,21 +38,40 @@ export default {
     }
 
     if (url.pathname === '/health') {
+      if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
       return new Response(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
     if (url.pathname === '/api/events') {
+      if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
       return handleEvents(request, env, corsHeaders);
     }
 
     if (url.pathname === '/api/market-temperature') {
+      if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
       return handleMarketTemperature(request, env, corsHeaders, chinaGdpData);
     }
 
+    if (url.pathname === '/api/market-risk') {
+      if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
+      return handleMarketRisk(request, env, corsHeaders);
+    }
+
     if (url.pathname === '/api/industry-rotation') {
+      if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
       return handleIndustryRotation(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/relative-strength') {
+      if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
+      return handleRelativeStrength(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/valuation-ranking') {
+      if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
+      return handleValuationRanking(request, env, corsHeaders);
     }
 
     if (url.pathname === '/admin/collect' && request.method === 'POST') {
@@ -147,6 +170,13 @@ async function handleCollect(request: Request, env: Env, ctx: ExecutionContext, 
   });
 }
 
+function methodNotAllowed(headers: Record<string, string>, allow: string): Response {
+  return Response.json(
+    { error: 'Method Not Allowed' },
+    { status: 405, headers: { Allow: allow, ...headers } },
+  );
+}
+
 async function handleSyncIndustryFlow(
   request: Request,
   env: Env,
@@ -190,7 +220,7 @@ type SwIndustryImportPayload = {
 };
 
 function normalizeSwIndustryRow(raw: SwIndustryDailyRow): SwIndustryDailyRow | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.trade_date ?? '')) return null;
+  if (!isIsoDate(raw.trade_date ?? '')) return null;
   if (!/^801\d{3}\.SL$/.test(raw.industry_code ?? '')) return null;
   if (!raw.industry_name || raw.industry_name.length > 32) return null;
   const nullableNumber = (value: unknown): number | null => {
@@ -248,7 +278,12 @@ async function handleImportSwIndustries(
       headers: { 'Content-Type': 'application/json', ...headers },
     });
   }
-  if (!payload.action || !payload.run_id || !/^[0-9a-f-]{36}$/.test(payload.run_id)) {
+  if (
+    !payload.action ||
+    !['begin', 'append', 'commit', 'abort'].includes(payload.action) ||
+    !payload.run_id ||
+    !/^[0-9a-f-]{36}$/.test(payload.run_id)
+  ) {
     return new Response(JSON.stringify({ error: 'Valid action and run_id are required' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json', ...headers },
@@ -256,7 +291,7 @@ async function handleImportSwIndustries(
   }
 
   if (payload.action === 'begin') {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.trade_date ?? '') ||
+    if (!isIsoDate(payload.trade_date ?? '') ||
         !['daily', 'backfill'].includes(payload.mode ?? '') ||
         payload.expected_industries !== 31 ||
         !Number.isInteger(payload.expected_rows) || (payload.expected_rows ?? 0) < 31 ||
@@ -423,25 +458,17 @@ async function handleBackfill(
   ctx: ExecutionContext,
   headers: Record<string, string>,
 ): Promise<Response> {
-  if (!env.ADMIN_TOKEN) {
-    return new Response(JSON.stringify({ error: 'Admin endpoint not available' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json', ...headers },
-    });
-  }
-
-  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-  if (token !== env.ADMIN_TOKEN) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json', ...headers },
-    });
-  }
+  const authError = assertAdminToken(request, env, headers);
+  if (authError) return authError;
 
   const url = new URL(request.url);
   const startDate = url.searchParams.get('startDate') || '2025-01-01';
   const endDate = url.searchParams.get('endDate') || getBeijingDate(0);
   const syncMode = url.searchParams.get('sync') === '1';
+  const window = validateBackfillWindow(startDate, endDate);
+  if (!window.ok) {
+    return Response.json({ error: window.error }, { status: 400, headers });
+  }
 
   const runBackfill = async () => {
     try {
@@ -574,6 +601,9 @@ async function handleDebugChinabond(
   env: Env,
   headers: Record<string, string>,
 ): Promise<Response> {
+  const authError = assertAdminToken(request, env, headers);
+  if (authError) return authError;
+
   const url = new URL(request.url);
   const startDate = url.searchParams.get('startDate') || '2026-06-01';
   const endDate = url.searchParams.get('endDate') || '2026-06-17';
@@ -633,25 +663,16 @@ async function handleSyncHolidays(
   env: Env,
   headers: Record<string, string>,
 ): Promise<Response> {
-  // ADMIN_TOKEN 校验
-  if (!env.ADMIN_TOKEN) {
-    return new Response(JSON.stringify({ error: 'Admin endpoint not available' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json', ...headers },
-    });
-  }
-  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-  if (token !== env.ADMIN_TOKEN) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json', ...headers },
-    });
-  }
+  const authError = assertAdminToken(request, env, headers);
+  if (authError) return authError;
 
   const url = new URL(request.url);
   const yearParam = url.searchParams.get('year');
   const currentYear = new Date().getFullYear();
-  const year = yearParam ? parseInt(yearParam, 10) : currentYear;
+  const year = yearParam ? Number(yearParam) : currentYear;
+  if (!Number.isInteger(year) || year < 2000 || year > currentYear + 1) {
+    return Response.json({ error: 'year must be between 2000 and next year' }, { status: 400, headers });
+  }
 
   try {
     const count = await syncTradingCalendar(env.DB, year);

@@ -1,4 +1,4 @@
-name = "daily-risk-frontend"
+name = "daily-risk"
 pages_build_output_dir = "dist"
 
 [vars]

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { fetchIndustryRotation } from '../../services/api'
+import { useResponseCache } from '../../composables/useResponseCache'
 import type { IndustryRotationMatrixResponse, IndustryRotationMetric } from '../../services/api'
 
-const CACHE_KEY = 'daily-risk:industry-rotation:sw-v1'
 const data = ref<IndustryRotationMatrixResponse | null>(null)
 const loading = ref(false)
 const error = ref('')
+const cache = useResponseCache<IndustryRotationMatrixResponse>('daily-risk:industry-rotation:sw-v1')
 
 type MatrixRow = {
   boardCode: string
@@ -45,29 +46,6 @@ function nextRefreshAt(now = new Date()): number {
   return refreshAt
 }
 
-function readCached(): IndustryRotationMatrixResponse | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    if (!raw) return null
-    const cached = JSON.parse(raw) as { expiresAt: number; data: IndustryRotationMatrixResponse }
-    if (cached.expiresAt <= Date.now()) {
-      localStorage.removeItem(CACHE_KEY)
-      return null
-    }
-    return cached.data
-  } catch {
-    return null
-  }
-}
-
-function writeCached(value: IndustryRotationMatrixResponse) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ expiresAt: nextRefreshAt(), data: value }))
-  } catch {
-    // Private browsing or a full storage quota should not block the page.
-  }
-}
-
 function formatAmount(value: number | null | undefined): string {
   if (value == null) return '--'
   const yi = value / 100_000_000
@@ -95,7 +73,7 @@ function logBiasClass(value: number | null | undefined) {
 
 async function load() {
   error.value = ''
-  const cached = readCached()
+  const cached = cache.read()
   if (cached) {
     data.value = cached
     return
@@ -105,7 +83,7 @@ async function load() {
   try {
     const response = await fetchIndustryRotation()
     data.value = response
-    writeCached(response)
+    cache.write(response, nextRefreshAt())
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '行业数据加载失败'
   } finally {

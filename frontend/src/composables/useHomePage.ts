@@ -4,7 +4,7 @@ import { fetchEventsByDate, fetchMarketTemperature } from '../services/api'
 import type { CalendarEffects, MarketTemperatureResponse, RiskEvent } from '../services/api'
 import type { HolidayEntry } from '../../../shared/types'
 import { getMonday, getToday, dateShort, formatDateParts, offsetDate } from '../../../shared/date-utils'
-export type TabName = 'overview' | 'industries' | 'events' | 'stats'
+export type TabName = 'overview' | 'trends' | 'events' | 'stats'
 
 export function useHomePage() {
   const route = useRoute()
@@ -18,6 +18,7 @@ export function useHomePage() {
   const temperature = ref<MarketTemperatureResponse | null>(null)
   const selectedDate = ref(today)
   const loadingDay = ref(false)
+  let selectedDateRequestId = 0
   const lastCalendar = ref<CalendarEffects | null>(null)
   const baseMonday = ref(getMonday(today))
 
@@ -95,10 +96,14 @@ export function useHomePage() {
   }
 
   async function selectDate(date: string) {
+    const requestId = ++selectedDateRequestId
     selectedDate.value = date
     loadingDay.value = true
-    await fetchDateEvents(date)
-    loadingDay.value = false
+    try {
+      await fetchDateEvents(date)
+    } finally {
+      if (requestId === selectedDateRequestId) loadingDay.value = false
+    }
   }
 
   async function handleCalendarDateSelect(date: string) {
@@ -124,7 +129,8 @@ export function useHomePage() {
   onMounted(async () => {
     void fetchDateEvents(today)
     try {
-      temperature.value = await fetchMarketTemperature()
+      // 45 calendar days ensures the 20-session turnover comparison has enough trade days.
+      temperature.value = await fetchMarketTemperature(45)
     } catch (error) {
       console.error('Failed to fetch market temperature:', error)
     }

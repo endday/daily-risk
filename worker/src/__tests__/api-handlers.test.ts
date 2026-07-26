@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleEvents } from '../api/events';
 import { handleMarketTemperature } from '../api/market-temperature';
+import { handleMarketRisk } from '../api/market-risk';
+import { handleRelativeStrength } from '../api/relative-strength';
 import type { Env } from '../env';
 
 function createMockPreparedStatement(results: any) {
@@ -149,6 +151,7 @@ describe('handleMarketTemperature', () => {
     expect(body.latest).toHaveLength(1);
     expect(body.history).toHaveLength(1);
     expect(body.derived.advance_decline_ratio).toBeDefined();
+    expect(body.derived.pe_percentile).toBeNull();
 
     latestSpy.mockRestore();
     historySpy.mockRestore();
@@ -200,6 +203,39 @@ describe('handleMarketTemperature', () => {
 
     latestSpy.mockRestore();
     historySpy.mockRestore();
+  });
+
+  it('keeps newer snapshots when instrument daily history is delayed', async () => {
+    const dbModule = await import('../db');
+    const latestRows = [{
+      trade_date: '2026-07-21', index_code: '000300', close_price: 4739.23, change_pct: 3.06,
+      pe_ttm: 14.29, bond_yield_10y: 1.745,
+    }];
+    const snapshotHistory = [
+      { ...latestRows[0] },
+      { trade_date: '2026-07-16', index_code: '000300', close_price: 4743.28, change_pct: -0.91, pe_ttm: 14.57, bond_yield_10y: 1.7437 },
+    ];
+    const instrumentHistory = [{
+      trade_date: '2026-07-16', instrument_code: '000300', instrument_name: '沪深300', instrument_type: 'broad_index', provider: 'eastmoney',
+      close_price: 4743.28, change_pct: -0.91, pe_ttm: 14.57, pb: null, amount: null, turnover_rate: null, total_market_cap: null,
+    }];
+    const latestSpy = vi.spyOn(dbModule, 'getLatestSnapshots').mockResolvedValue(latestRows as any);
+    const snapshotSpy = vi.spyOn(dbModule, 'getSnapshotsByDateRangeAndIndex').mockResolvedValue(snapshotHistory as any);
+    const instrumentSpy = vi.spyOn(dbModule, 'getInstrumentDailyByDateRange').mockResolvedValue(instrumentHistory as any);
+
+    const response = await handleMarketTemperature(
+      new Request('http://localhost/api/market-temperature?days=30&compact=1&indexCode=000300'),
+      env,
+      headers,
+      { data: {} },
+    );
+
+    const body = await response.json();
+    expect(body.history.map((row: { trade_date: string }) => row.trade_date)).toEqual(['2026-07-21', '2026-07-16']);
+    expect(body.history[0]).toMatchObject({ pe_ttm: 14.29, bond_yield_10y: 1.745 });
+    latestSpy.mockRestore();
+    snapshotSpy.mockRestore();
+    instrumentSpy.mockRestore();
   });
 
   it('should sample compact history when maxPoints is provided', async () => {
@@ -271,5 +307,125 @@ describe('handleMarketTemperature', () => {
     });
 
     latestSpy.mockRestore();
+  });
+
+  it('clamps invalid history days to the default window', async () => {
+    const dbModule = await import('../db');
+    const latestRows = [{ trade_date: '2026-06-20', index_code: '000300' }];
+    const latestSpy = vi.spyOn(dbModule, 'getLatestSnapshots').mockResolvedValue(latestRows as any);
+    const historySpy = vi.spyOn(dbModule, 'getSnapshotsByDateRange').mockResolvedValue([] as any);
+
+    const response = await handleMarketTemperature(
+      new Request('http://localhost/api/market-temperature?days=-10'),
+      env,
+      headers,
+      { data: {} },
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).history_days).toBe(20);
+    latestSpy.mockRestore();
+    historySpy.mockRestore();
+  });
+});
+
+describe('handleMarketRisk', () => {
+  it('returns a partial but explicit risk state when industry data is unavailable', async () => {
+    const dbModule = await import('../db');
+    const dates = Array.from({ length: 60 }, (_, index) =>
+      new Date(Date.UTC(2025, 0, index + 1)).toISOString().slice(0, 10),
+    );
+    const rowsFor = (code: string) => dates.map((trade_date, index) => ({
+      trade_date,
+      index_code: code,
+      close_price: code === '000300' ? 4000 + index : null,
+      turnover_amount: code === '000001' ? 1e12 : null,
+      margin_balance: code === '000001' ? 19000 : null,
+      pe_ttm: null,
+      bond_yield_10y: null,
+    }));
+    const latestSpy = vi.spyOn(dbModule, 'getLatestSnapshots').mockResolvedValue([
+      { trade_date: dates.at(-1)!, index_code: '000300' },
+    ] as any);
+    const snapshotsSpy = vi.spyOn(dbModule, 'getSnapshotsByDateRangeAndIndex').mockImplementation(
+      async (_, code) => rowsFor(code) as any,
+    );
+    const industriesSpy = vi.spyOn(dbModule, 'getSwIndustryDailyRows').mockResolvedValue([]);
+    const flowsSpy = vi.spyOn(dbModule, 'getIndustryFundFlowRows').mockResolvedValue([]);
+
+    const response = await handleMarketRisk(
+      new Request('http://localhost/api/market-risk'),
+      { DB: {} as D1Database } as Env,
+      {},
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.breadth.state).toBe('unavailable');
+    expect(body.tail.state).toBe('supportive');
+    expect(body.available_component_count).toBe(2);
+    latestSpy.mockRestore();
+    snapshotsSpy.mockRestore();
+    industriesSpy.mockRestore();
+    flowsSpy.mockRestore();
+  });
+});
+
+describe('handleRelativeStrength', () => {
+  it('rejects an unsupported base index', async () => {
+    const response = await handleRelativeStrength(
+      new Request('http://localhost/api/relative-strength?base=INVALID'),
+      { DB: {} as D1Database } as Env,
+      {},
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('returns quality and pair metrics from instrument daily history', async () => {
+    const dbModule = await import('../db');
+    const historySpy = vi.spyOn(dbModule, 'getInstrumentDailyClosesByDateRange').mockImplementation(async (_, code) => (
+      Array.from({ length: 280 }, (_, index) => ({
+        trade_date: new Date(Date.UTC(2024, 0, index + 1)).toISOString().slice(0, 10),
+        instrument_code: code,
+        instrument_name: code,
+        close_price: code === '399006' ? 100 + index : 100 + index / 2,
+      })) as any
+    ));
+
+    const response = await handleRelativeStrength(
+      new Request('http://localhost/api/relative-strength'),
+      { DB: {} as D1Database } as Env,
+      {},
+    );
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.quality).toHaveLength(3);
+    expect(body.pairs).toHaveLength(2);
+    expect(body.pairs.map((pair: { pair_key: string }) => pair.pair_key)).toEqual([
+      '399006_000300',
+      '000905_000300',
+    ]);
+    expect(body.pairs[0].relative_return_20d).not.toBeNull();
+    expect(body.pairs[0].aligned_sample_count).toBe(280);
+    historySpy.mockRestore();
+  });
+
+  it('does not expose database errors to API callers', async () => {
+    const dbModule = await import('../db');
+    const historySpy = vi
+      .spyOn(dbModule, 'getInstrumentDailyClosesByDateRange')
+      .mockRejectedValue(new Error('no such table: instrument_daily'));
+
+    const response = await handleRelativeStrength(
+      new Request('http://localhost/api/relative-strength'),
+      { DB: {} as D1Database } as Env,
+      {},
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Instrument daily data store is not ready',
+    });
+    historySpy.mockRestore();
   });
 });

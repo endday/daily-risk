@@ -19,7 +19,14 @@ import { SNAPSHOT_MARKET_INSTRUMENTS } from '../market-universe';
 const INDEX_CONFIG = SNAPSHOT_MARKET_INSTRUMENTS;
 
 /** 请求的 push2 字段列表 */
-const FIELDS = 'f2,f3,f5,f6,f8,f104,f105,f106,f12,f14';
+const FIELDS = 'f2,f3,f5,f6,f8,f104,f105,f106,f12,f14,f124';
+
+function quoteDate(raw: any): string {
+  if (typeof raw.f124 === 'number' && Number.isFinite(raw.f124) && raw.f124 > 0) {
+    return new Date((raw.f124 + 8 * 60 * 60) * 1000).toISOString().slice(0, 10);
+  }
+  return getBeijingDate(0);
+}
 
 /**
  * 从 push2 获取三指数实时行情
@@ -40,7 +47,7 @@ async function fetchPush2Data(): Promise<any[]> {
  * 将 push2 原始数据转换为 MarketSnapshotRow
  */
 function parseSnapshotRow(raw: any, config: typeof INDEX_CONFIG[number]): MarketSnapshotRow {
-  const tradeDate = getBeijingDate(0);
+  const tradeDate = quoteDate(raw);
 
   return {
     trade_date: tradeDate,

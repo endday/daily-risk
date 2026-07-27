@@ -81,7 +81,6 @@ async function fetchIndexPE(indexCode: string): Promise<{ date: string; pe_ttm: 
  * 采集三指数估值数据，生成 snapshot 行（只填 pe_ttm 字段）
  */
 export async function collectValuation(): Promise<MarketSnapshotRow[]> {
-  const tradeDate = getBeijingDate(0);
   const snapshots: MarketSnapshotRow[] = [];
 
   for (const index_code of INDEX_CODES) {
@@ -95,7 +94,7 @@ export async function collectValuation(): Promise<MarketSnapshotRow[]> {
     console.log(`[Valuation] ${index_code}: PE(TTM)=${data.pe_ttm} on ${data.date}`);
 
     snapshots.push({
-      trade_date: tradeDate,
+      trade_date: data.date,
       index_code,
       close_price: null,
       change_pct: null,

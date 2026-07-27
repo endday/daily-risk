@@ -24,12 +24,12 @@ const CSI_ALL_SHARE_SECID = '1.000985';
 /**
  * 获取中证全指总市值代理值
  */
-async function fetchTotalMarketCap(): Promise<number | null> {
+async function fetchTotalMarketCap(): Promise<{ tradeDate: string; totalMarketCap: number } | null> {
   const params = new URLSearchParams({
     fltt: '2',
     invt: '2',
     secid: CSI_ALL_SHARE_SECID,
-    fields: 'f57,f58,f116',
+    fields: 'f57,f58,f116,f124',
   });
   const json = await http.get(`${CSI_ALL_SHARE_URL}?${params}`, {
     headers: { Referer: 'https://quote.eastmoney.com/center/' },
@@ -47,8 +47,11 @@ async function fetchTotalMarketCap(): Promise<number | null> {
   }
 
   const totalTrillion = Math.round(totalYuan / 1e10) / 100;
+  const tradeDate = typeof json.data?.f124 === 'number' && json.data.f124 > 0
+    ? new Date((json.data.f124 + 8 * 60 * 60) * 1000).toISOString().slice(0, 10)
+    : getBeijingDate(0);
   console.log(`[MarketCap] CSI All Share proxy: ${totalTrillion.toFixed(2)} 万亿元`);
-  return totalTrillion;
+  return { tradeDate, totalMarketCap: totalTrillion };
 }
 
 /**
@@ -85,17 +88,16 @@ function emptyRow(tradeDate: string, indexCode: string): MarketSnapshotRow {
  * 采集 A 股总市值
  */
 export async function collectMarketCap(): Promise<MarketSnapshotRow[]> {
-  const totalMarketCap = await fetchTotalMarketCap();
+  const data = await fetchTotalMarketCap();
 
-  if (totalMarketCap === null) {
+  if (data === null) {
     console.warn('[MarketCap] Skipping — no data');
     return [];
   }
 
-  const tradeDate = getBeijingDate(0);
   return INDEX_CODES.map(indexCode => {
-    const row = emptyRow(tradeDate, indexCode);
-    row.total_market_cap = totalMarketCap;
+    const row = emptyRow(data.tradeDate, indexCode);
+    row.total_market_cap = data.totalMarketCap;
     return row;
   });
 }

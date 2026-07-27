@@ -106,6 +106,8 @@ function alignRelativeSeries(numerator: ClosePoint[], denominator: ClosePoint[])
     if (denominatorClose == null) return [];
     return [{
       trade_date: row.trade_date,
+      numerator_close: row.close_price as number,
+      denominator_close: denominatorClose,
       log_relative: Math.log(row.close_price as number) - Math.log(denominatorClose),
     }];
   });
@@ -114,6 +116,14 @@ function alignRelativeSeries(numerator: ClosePoint[], denominator: ClosePoint[])
 function relativeReturn(values: number[], window: number): number | null {
   if (values.length <= window) return null;
   return (Math.exp(values.at(-1)! - values[values.length - 1 - window]) - 1) * 100;
+}
+
+function spreadReturn(numeratorValues: number[], denominatorValues: number[], window: number): number | null {
+  const numeratorReturn = priceReturn(numeratorValues, window);
+  const denominatorReturn = priceReturn(denominatorValues, window);
+  return numeratorReturn == null || denominatorReturn == null
+    ? null
+    : numeratorReturn - denominatorReturn;
 }
 
 function ema(values: number[], period: number): number | null {
@@ -211,6 +221,8 @@ export function buildRelativeStrengthPair(
 ): RelativeStrengthPair {
   const points = alignRelativeSeries(numerator.rows, denominator.rows);
   const values = points.map((point) => point.log_relative);
+  const numeratorCloses = points.map((point) => point.numerator_close);
+  const denominatorCloses = points.map((point) => point.denominator_close);
   const currentEma = ema(values, 20);
   const rsi = calculateRsi(values);
   const z = zscore(values, 242);
@@ -230,7 +242,7 @@ export function buildRelativeStrengthPair(
     relative_return_60d: round(relativeReturn(values, 60)),
     relative_return_120d: round(relativeReturn(values, 120)),
     relative_return_252d: round(relativeReturn(values, 252)),
-    spread_return_40d: round(relativeReturn(values, 40)),
+    spread_return_40d: round(spreadReturn(numeratorCloses, denominatorCloses, 40)),
     log_bias_20_pct: round(currentEma == null || values.length === 0 ? null : (values.at(-1)! - currentEma) * 100),
     rsi_14: round(rsi),
     zscore_242: round(z),

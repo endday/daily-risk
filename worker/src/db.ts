@@ -369,7 +369,11 @@ export async function getSnapshotsByDateRangeAndIndex(
 export async function getLatestSnapshots(db: D1Database): Promise<MarketSnapshotRow[]> {
   const result = await db.prepare(`
     SELECT * FROM market_snapshots
-    WHERE trade_date = (SELECT MAX(trade_date) FROM market_snapshots)
+    WHERE trade_date = (
+      SELECT MAX(trade_date)
+      FROM market_snapshots
+      WHERE close_price IS NOT NULL
+    )
     ORDER BY index_code ASC
   `).all();
   return result.results as MarketSnapshotRow[];

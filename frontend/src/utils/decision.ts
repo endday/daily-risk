@@ -214,12 +214,12 @@ function generateReasons(
     const nextAvg = nextStat.avg_change_pct
 
     // 平均涨跌（verdict 说了概率，这里补涨跌幅度）
-    if (nextAvg > 0.005) {
-      reasons.push(`历史平均涨幅 +${pct(nextAvg)}，有赚头`)
+    if (nextAvg > 0.5) {
+      reasons.push(`历史平均涨幅 +${pctPoint(nextAvg)}，有赚头`)
     } else if (nextAvg > 0) {
-      reasons.push(`历史平均小幅上涨 +${pct(nextAvg)}`)
-    } else if (nextAvg < -0.005) {
-      reasons.push(`历史平均跌幅 ${pct(nextAvg)}，注意仓位`)
+      reasons.push(`历史平均小幅上涨 +${pctPoint(nextAvg)}`)
+    } else if (nextAvg < -0.5) {
+      reasons.push(`历史平均跌幅 ${pctPoint(nextAvg)}，注意仓位`)
     }
 
     // 样本量
@@ -229,12 +229,12 @@ function generateReasons(
   } else if (intent === 'sell' && nextStat) {
     const nextAvg = nextStat.avg_change_pct
 
-    if (nextAvg < -0.005) {
-      reasons.push(`历史平均跌幅 ${pct(nextAvg)}，离场有依据`)
+    if (nextAvg < -0.5) {
+      reasons.push(`历史平均跌幅 ${pctPoint(nextAvg)}，离场有依据`)
     } else if (nextAvg < 0) {
-      reasons.push(`历史平均小幅下跌 ${pct(nextAvg)}`)
-    } else if (nextAvg < 0.003) {
-      reasons.push(`历史平均涨幅不大（+${pct(nextAvg)}），持有意义有限`)
+      reasons.push(`历史平均小幅下跌 ${pctPoint(nextAvg)}`)
+    } else if (nextAvg < 0.3) {
+      reasons.push(`历史平均涨幅不大（+${pctPoint(nextAvg)}），持有意义有限`)
     }
 
     if (nextStat.sample_count >= 15) {
@@ -279,4 +279,9 @@ function generateCaveat(intent: Intent, stat: CalendarDayStat): string {
 /** 小数 → 百分比文本 (0.567 → "57%") */
 function pct(v: number): string {
   return `${Math.round(v * 100)}%`
+}
+
+/** 百分点 → 百分比文本 (0.12 → "0.12%") */
+function pctPoint(v: number): string {
+  return `${v.toFixed(2)}%`
 }

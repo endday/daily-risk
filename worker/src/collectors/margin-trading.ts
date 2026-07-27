@@ -90,11 +90,9 @@ export async function collectMarginTrading(): Promise<MarketSnapshotRow[]> {
     `投资者=${data.investor_num}`
   );
 
-  const tradeDate = getBeijingDate(0);
-
   // 为每个指数生成一行（只填 margin_balance，其余为 null）
   return INDEX_CODES.map(index_code => ({
-    trade_date: tradeDate,
+    trade_date: data.date,
     index_code,
     close_price: null,
     change_pct: null,

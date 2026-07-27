@@ -11,7 +11,6 @@
  */
 
 import type { CollectorConfig, CollectorResult, MarketSnapshotRow } from './base';
-import { getBeijingDate } from '../../../shared/date-utils';
 import { httpText } from './http';
 import { BROAD_MARKET_INDEX_CODES } from '../market-universe';
 
@@ -88,11 +87,9 @@ export async function collectChinaBond(): Promise<MarketSnapshotRow[]> {
 
   console.log(`[ChinaBond] 10Y yield: ${bondData.yield_10y}% on ${bondData.date}`);
 
-  const tradeDate = getBeijingDate(0);
-
   // 为每个指数生成一行（只填 bond_yield_10y，其余为 null）
   return INDEX_CODES.map(index_code => ({
-    trade_date: tradeDate,
+    trade_date: bondData.date,
     index_code,
     close_price: null,
     change_pct: null,

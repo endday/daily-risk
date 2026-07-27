@@ -100,6 +100,7 @@ function getLatestChinaGDP(chinaGdpData: ChinaGdpData): number | null {
 }
 
 type SnapshotMetricKey = 'turnover_amount' | 'northbound_amt' | 'usd_index';
+const VALUATION_LOOKBACK_DAYS = 6 * 365;
 
 function avgField(rows: MarketSnapshotRowLike[], field: SnapshotMetricKey): number | null {
   const values = rows.map((row) => row[field]).filter((value): value is number => value != null);
@@ -158,6 +159,7 @@ function computeDerivedMetrics(
   hs300History: MarketSnapshotRowLike[],
   latest300: MarketSnapshotRowLike | undefined,
   chinaGdpData: ChinaGdpData,
+  hs300ValuationHistory: Pick<InstrumentDailyRow, 'pe_ttm'>[] = [],
 ): TemperatureDerived {
   const latest = history[0];
   const result = createEmptyDerived();
@@ -211,6 +213,7 @@ function computeDerivedMetrics(
 
     const peValues = hs300History
       .map((item) => item.pe_ttm)
+      .concat(hs300ValuationHistory.map((item) => item.pe_ttm))
       .filter((value): value is number => value != null && value > 0)
       .sort((a, b) => a - b);
 
@@ -304,6 +307,9 @@ export async function handleMarketTemperature(
     const startDate = new Date(latestDate + 'T00:00:00Z');
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString().split('T')[0];
+    const valuationStartDate = new Date(latestDate + 'T00:00:00Z');
+    valuationStartDate.setDate(valuationStartDate.getDate() - VALUATION_LOOKBACK_DAYS);
+    const valuationStartDateStr = valuationStartDate.toISOString().split('T')[0];
 
     let rawHistory: MarketSnapshotRowLike[];
     if (compact) {
@@ -343,15 +349,39 @@ export async function handleMarketTemperature(
 
     const shHistory = historyByIndex['000001'] || [];
     const hs300History = historyByIndex['000300'] || [];
+    let hs300ValuationHistory: InstrumentDailyRow[] = [];
+    try {
+      hs300ValuationHistory = await db.getInstrumentDailyByDateRange(
+        env.DB,
+        '000300',
+        valuationStartDateStr,
+        latestDate,
+      );
+    } catch (error) {
+      console.warn('[MarketTemp] instrument_daily valuation history unavailable:', error);
+    }
+    const latestValuationPe = hs300ValuationHistory
+      .find((row) => row.pe_ttm != null && row.pe_ttm > 0)
+      ?.pe_ttm ?? null;
     const latest300Snapshot = latest.find((row) => row.index_code === '000300') || latest[0];
-    const latest300 = {
+    const latest300Base = {
       ...(hs300History[0] || {}),
       ...latest300Snapshot,
+    } as MarketSnapshotRowLike;
+    const latest300 = {
+      ...latest300Base,
+      pe_ttm: latest300Base.pe_ttm ?? latestValuationPe,
     } as MarketSnapshotRowLike;
     const primaryHistory = compact
       ? historyByIndex[indexCode] || history
       : shHistory;
-    const derived = computeDerivedMetrics(primaryHistory, hs300History, latest300, chinaGdpData);
+    const derived = computeDerivedMetrics(
+      primaryHistory,
+      hs300History,
+      latest300,
+      chinaGdpData,
+      hs300ValuationHistory,
+    );
     const latestPayload = compact
       ? latest.filter((row) => row.index_code === indexCode)
       : latest;

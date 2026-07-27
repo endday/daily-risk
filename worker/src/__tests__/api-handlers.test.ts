@@ -157,6 +157,81 @@ describe('handleMarketTemperature', () => {
     historySpy.mockRestore();
   });
 
+  it('uses the latest available valuation PE when quote snapshots are newer than valuation rows', async () => {
+    const dbModule = await import('../db');
+    const latestRows = [{
+      trade_date: '2026-06-20',
+      index_code: '000001',
+      close_price: 3200,
+      change_pct: 0.5,
+      rise_count: 3200,
+      fall_count: 1800,
+      flat_count: 200,
+      turnover_amount: 1.1e12,
+      turnover_rate: 1.5,
+      volatility_20d: 18,
+      northbound_amt: null,
+      pe_ttm: null,
+      pb: null,
+      margin_balance: 19000,
+      bond_yield_10y: 2,
+      us_2y_yield: null,
+      fed_funds_rate: null,
+      usd_index: null,
+      oil_wti: null,
+      us_yield_spread: null,
+      total_market_cap: null,
+    }, {
+      trade_date: '2026-06-20',
+      index_code: '000300',
+      close_price: 4000,
+      change_pct: 0.8,
+      rise_count: null,
+      fall_count: null,
+      flat_count: null,
+      turnover_amount: 1.1e12,
+      turnover_rate: 1.5,
+      volatility_20d: 18,
+      northbound_amt: 250000,
+      pe_ttm: null,
+      pb: 1.4,
+      margin_balance: 19000,
+      bond_yield_10y: 2,
+      us_2y_yield: null,
+      fed_funds_rate: null,
+      usd_index: null,
+      oil_wti: null,
+      us_yield_spread: null,
+      total_market_cap: null,
+    }];
+    const valuationRows = Array.from({ length: 240 }, (_, index) => ({
+      trade_date: `2025-${String(12 - Math.floor(index / 20)).padStart(2, '0')}-${String(28 - (index % 20)).padStart(2, '0')}`,
+      instrument_code: '000300',
+      pe_ttm: index === 0 ? 12 : 10,
+    }));
+
+    const latestSpy = vi.spyOn(dbModule, 'getLatestSnapshots').mockResolvedValue(latestRows as any);
+    const historySpy = vi.spyOn(dbModule, 'getSnapshotsByDateRange').mockResolvedValue(latestRows as any);
+    const instrumentSpy = vi.spyOn(dbModule, 'getInstrumentDailyByDateRange').mockResolvedValue(valuationRows as any);
+
+    const response = await handleMarketTemperature(
+      new Request('http://localhost/api/market-temperature?days=20'),
+      env,
+      headers,
+      { data: { 2025: 134.9 } },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.derived.pe_ttm).toBe(12);
+    expect(body.derived.pe_percentile).not.toBeNull();
+    expect(body.derived.erp).toBe(6.33);
+
+    latestSpy.mockRestore();
+    historySpy.mockRestore();
+    instrumentSpy.mockRestore();
+  });
+
   it('should return compact history for ERP detail requests', async () => {
     const dbModule = await import('../db');
     const latestRows = [{

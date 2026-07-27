@@ -54,9 +54,11 @@ export function buildIndustryRotation(
 
   const aggregates = [...grouped.entries()].map(([boardCode, boardRows]) => {
     const sorted = boardRows.sort((a, b) => a.trade_date.localeCompare(b.trade_date));
+    const hasFullReturnWindow = sorted.length > tradingDays;
     const selected = sorted.slice(-tradingDays);
+    const returnWindow = hasFullReturnWindow ? sorted.slice(-(tradingDays + 1)) : selected;
     const amounts = selected.map((row) => row.amount).filter((value): value is number => value != null);
-    const closes = selected.map((row) => row.close_price).filter((value): value is number => value != null);
+    const closes = returnWindow.map((row) => row.close_price).filter((value): value is number => value != null);
     const logCloses = sorted
       .map((row) => row.close_price)
       .filter((value): value is number => value != null && value > 0)
@@ -73,7 +75,7 @@ export function buildIndustryRotation(
     return {
       board_code: boardCode,
       board_name: selected.at(-1)?.industry_name ?? boardCode,
-      trading_days: selected.length,
+      trading_days: hasFullReturnWindow ? Math.max(0, closes.length - 1) : selected.length,
       avg_turnover_amount: amounts.length > 0
         ? amounts.reduce((sum, value) => sum + value, 0) / amounts.length
         : 0,

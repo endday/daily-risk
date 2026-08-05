@@ -11,6 +11,16 @@ const router = createRouter({
       component: defineAsyncComponent(() => import('./pages/ErpPage.vue')),
     },
     {
+      path: '/temperature/:dimensionKey',
+      name: 'temperature-dimension',
+      component: defineAsyncComponent(() => import('./pages/TemperatureDimensionPage.vue')),
+    },
+    {
+      path: '/temperature',
+      name: 'temperature',
+      redirect: '/temperature/advance_decline',
+    },
+    {
       path: '/styles',
       redirect: (to) => ({ path: '/trends', query: { ...to.query, view: 'index' } }),
     },

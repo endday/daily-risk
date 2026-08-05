@@ -10,8 +10,12 @@ import { handleMarketRisk } from './api/market-risk';
 import { handleIndustryRotation } from './api/industry-rotation';
 import { handleRelativeStrength } from './api/relative-strength';
 import { handleValuationRanking } from './api/valuation-ranking';
+import { handleDataHealth } from './api/data-health';
 import { syncIndustryFundFlows } from './collectors/industry-fund-flow';
+import { syncMarketSentiment } from './collectors/market-sentiment';
 import { backfillSnapshots } from './collectors/backfill';
+import { marketSnapshotCollector } from './collectors/market-snapshot';
+import { runCollector } from './collectors/runner';
 import type { InstrumentDailyRow, SwIndustryDailyRow } from './collectors/base';
 import { syncTradingCalendar } from './trading-calendar';
 import { isIsoDate, validateBackfillWindow } from './backfill-audit';
@@ -74,8 +78,18 @@ export default {
       return handleValuationRanking(request, env, corsHeaders);
     }
 
+    if (url.pathname === '/api/data-health') {
+      if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
+      return handleDataHealth(request, env, corsHeaders);
+    }
+
     if (url.pathname === '/admin/collect' && request.method === 'POST') {
       return handleCollect(request, env, ctx, corsHeaders);
+    }
+
+    if (url.pathname === '/admin/collect-market-snapshot') {
+      if (request.method !== 'POST') return methodNotAllowed(corsHeaders, 'POST');
+      return handleCollectMarketSnapshot(request, env, corsHeaders);
     }
 
     if (url.pathname === '/admin/calendar-info' && request.method === 'GET') {
@@ -96,6 +110,10 @@ export default {
 
     if (url.pathname === '/admin/sync-industry-flow' && request.method === 'POST') {
       return handleSyncIndustryFlow(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/admin/sync-market-sentiment' && request.method === 'POST') {
+      return handleSyncMarketSentiment(request, env, corsHeaders);
     }
 
     if (url.pathname === '/admin/import-sw-industries' && request.method === 'POST') {
@@ -119,17 +137,8 @@ export default {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     console.log(`[Cron] ${controller.cron} @ ${controller.scheduledTime}`);
 
-    const collectorEnv: scheduler.CollectorEnv = {
-      DB: env.DB,
-      FRED_API_KEY: env.FRED_API_KEY,
-      ALPHA_VANTAGE_KEY: env.ALPHA_VANTAGE_KEY,
-      RISK_RULES,
-      CHINA_EVENTS,
-      EARNINGS_SYMBOLS,
-    };
-
     if (controller.cron === '0 10 * * *') {
-      ctx.waitUntil(scheduler.runDailyCollection(collectorEnv));
+      ctx.waitUntil(scheduler.runDailyCollection(createCollectorEnv(env)));
     } else if (controller.cron === '30 * * * *') {
       ctx.waitUntil(runActualValueUpdater(env));
     }
@@ -154,7 +163,44 @@ async function handleCollect(request: Request, env: Env, ctx: ExecutionContext, 
     });
   }
 
-  const collectorEnv: scheduler.CollectorEnv = {
+  ctx.waitUntil(scheduler.runDailyCollection(createCollectorEnv(env)));
+
+  return new Response(JSON.stringify({ status: 'accepted', message: 'Collection started' }), {
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
+}
+
+async function handleCollectMarketSnapshot(
+  request: Request,
+  env: Env,
+  headers: Record<string, string>,
+): Promise<Response> {
+  const authError = assertAdminToken(request, env, headers);
+  if (authError) return authError;
+
+  try {
+    const result = await runCollector(marketSnapshotCollector, createCollectorEnv(env));
+    const coverage = await db.getMarketSnapshotCoverage(env.DB);
+    const failed = result.status === 'failed';
+
+    return Response.json({
+      status: failed ? 'failed' : 'completed',
+      collector: result,
+      coverage,
+    }, {
+      status: failed ? 502 : 200,
+      headers,
+    });
+  } catch (error) {
+    return Response.json({
+      status: 'failed',
+      error: error instanceof Error ? error.message : String(error),
+    }, { status: 502, headers });
+  }
+}
+
+function createCollectorEnv(env: Env): scheduler.CollectorEnv {
+  return {
     DB: env.DB,
     FRED_API_KEY: env.FRED_API_KEY,
     ALPHA_VANTAGE_KEY: env.ALPHA_VANTAGE_KEY,
@@ -162,12 +208,6 @@ async function handleCollect(request: Request, env: Env, ctx: ExecutionContext, 
     CHINA_EVENTS,
     EARNINGS_SYMBOLS,
   };
-
-  ctx.waitUntil(scheduler.runDailyCollection(collectorEnv));
-
-  return new Response(JSON.stringify({ status: 'accepted', message: 'Collection started' }), {
-    headers: { 'Content-Type': 'application/json', ...headers },
-  });
 }
 
 function methodNotAllowed(headers: Record<string, string>, allow: string): Response {
@@ -204,6 +244,31 @@ async function handleSyncIndustryFlow(
       status: 502,
       headers: { 'Content-Type': 'application/json', ...headers },
     });
+  }
+}
+
+async function handleSyncMarketSentiment(
+  request: Request,
+  env: Env,
+  headers: Record<string, string>,
+): Promise<Response> {
+  const authError = assertAdminToken(request, env, headers);
+  if (authError) return authError;
+
+  const url = new URL(request.url);
+  const requestedDays = Number(url.searchParams.get('days') ?? 1825);
+  const days = Number.isFinite(requestedDays)
+    ? Math.min(Math.max(Math.trunc(requestedDays), 10), 1825)
+    : 1825;
+
+  try {
+    const result = await syncMarketSentiment(env.DB, days);
+    return Response.json({ status: 'ok', days, ...result }, { headers });
+  } catch (error) {
+    return Response.json({
+      error: 'Market sentiment sync failed',
+      detail: error instanceof Error ? error.message : String(error),
+    }, { status: 502, headers });
   }
 }
 

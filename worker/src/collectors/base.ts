@@ -29,6 +29,8 @@ export interface CollectorResult {
   events: NormalizedEvent[];
   /** 市场快照数据，写入 market_snapshots 表（可选） */
   snapshots?: MarketSnapshotRow[];
+  /** 市场情绪数据，写入 market_sentiment_daily 表（可选） */
+  sentiments?: MarketSentimentDailyRow[];
   instrumentDailyRows?: InstrumentDailyRow[];
   /** 运行元数据 */
   meta: {
@@ -84,6 +86,22 @@ export interface MarketSnapshotRow {
   oil_wti: number | null;
   us_yield_spread: number | null;
   total_market_cap: number | null;
+}
+
+export interface MarketSentimentDailyRow {
+  trade_date: string;
+  provider: string;
+  qvix_close: number | null;
+  qvix_change_pct: number | null;
+  market_close_price: number | null;
+  market_change_pct: number | null;
+  main_net_inflow: number | null;
+  small_net_inflow: number | null;
+  medium_net_inflow: number | null;
+  large_net_inflow: number | null;
+  super_large_net_inflow: number | null;
+  main_net_inflow_ratio: number | null;
+  source_updated_at: string | null;
 }
 
 export interface InstrumentDailyRow {

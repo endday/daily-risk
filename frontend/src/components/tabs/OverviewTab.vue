@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import type { CalendarEffects, MarketTemperatureResponse, RiskEvent } from '../../services/api'
-import { signalClass, scoreColor } from '../../utils/display'
-import DecisionPanel from '../DecisionPanel.vue'
-import MarketPulse from '../MarketPulse.vue'
-import AlmanacCard from '../AlmanacCard.vue'
-import ConfidenceSummary from '../ConfidenceSummary.vue'
+import type { CalendarEffects, MarketRiskResponse, MarketTemperatureResponse, RiskEvent } from '../../services/api'
+import { scoreColor } from '../../utils/display'
+import MarketTemperaturePanel from '../MarketTemperaturePanel.vue'
+import TodayHotspotsPanel from '../TodayHotspotsPanel.vue'
 
 defineProps<{
   calendar: CalendarEffects | null
@@ -17,6 +15,7 @@ defineProps<{
   shortLabel: string
   shortRating: number | null
   temperature: MarketTemperatureResponse | null
+  marketRisk: MarketRiskResponse | null
   today: string
   topEvents: RiskEvent[]
 }>()
@@ -28,42 +27,14 @@ const emit = defineEmits<{
 
 <template>
   <div class="tab-panel">
-    <section class="headline">
-      <div class="hl-label">今日研判</div>
-      <div class="hl-signal" :class="signalClass(shortRating)">
-        <span class="hl-badge">{{ shortLabel }}</span>
-      </div>
-      <p class="hl-desc">{{ shortDesc }}</p>
-    </section>
-
-    <div class="rule-thin"></div>
-
-    <ConfidenceSummary
-      :nextDayProb="calendar?.next_trading_day?.up_probability ?? null"
-      :nextDaySampleCount="calendar?.next_trading_day?.sample_count ?? null"
-      :swingProb="calendar?.this_month?.up_probability ?? null"
-      :swingSampleCount="calendar?.next_trading_day?.sample_count ?? null"
-      :shortRating="shortRating"
+    <MarketTemperaturePanel
+      v-if="marketRisk"
+      :risk="marketRisk"
     />
 
-    <div class="rule-thin"></div>
+    <div v-if="marketRisk" class="rule-thin"></div>
 
-    <DecisionPanel
-      :dailyCalendar="dailyCalendar"
-      :calendar="calendar"
-      :events="selectedDayEvents"
-      :today="today"
-      :selectedDate="selectedDate"
-      :marketTemperature="temperature"
-    />
-
-    <div class="rule-thin"></div>
-
-    <MarketPulse
-      v-if="temperature"
-      :derived="temperature.derived"
-      :latest="temperature.latest"
-    />
+    <TodayHotspotsPanel />
 
     <div class="rule-thin"></div>
 
@@ -79,15 +50,6 @@ const emit = defineEmits<{
       </div>
     </section>
 
-    <div v-if="topEvents.length > 0" class="rule-thin"></div>
-
-    <AlmanacCard
-      v-if="calendar?.almanac_by_index"
-      :almanacByIndex="calendar.almanac_by_index"
-      :nextMonthName="nextMonthName"
-      :nextDayShort="nextDayShort"
-    />
-
     <footer class="editorial-footer">
       <div class="footer-rule"></div>
       <span>历史统计不代表未来表现 · 仅供参考，不构成投资建议</span>
@@ -98,45 +60,6 @@ const emit = defineEmits<{
 <style lang="scss" scoped>
 @use '../../styles/theme' as *;
 @use '../../styles/mixins' as *;
-
-.headline {
-  text-align: center;
-  padding: $space-xl 0 $space-lg-xl;
-}
-
-.hl-label {
-  @include editorial-label;
-  margin-bottom: $space-sm;
-}
-
-.hl-signal {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: $space-sm;
-}
-
-.hl-badge {
-  display: inline-block;
-  font-size: $text-lg;
-  font-weight: $weight-bold;
-  padding: $space-xs $space-xl;
-  border-radius: $radius-sm;
-  letter-spacing: 3px;
-
-  .bullish & { background: $color-up; color: $text-inverse; }
-  .neutral & { background: $color-neutral; color: $text-inverse; }
-  .bearish & { background: $color-down; color: $text-inverse; }
-}
-
-.hl-desc {
-  font-family: $font-serif;
-  font-size: $text-md;
-  line-height: $leading-relaxed;
-  color: $text-secondary;
-  text-align: center;
-  margin: 0;
-}
 
 .today-events {
   padding: $space-lg 0;

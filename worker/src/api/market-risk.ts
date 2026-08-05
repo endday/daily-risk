@@ -26,9 +26,10 @@ export async function handleMarketRisk(
 
     const marketStartDate = offsetCalendarDays(latestDate, MARKET_LOOKBACK_DAYS);
     const industryStartDate = offsetCalendarDays(latestDate, INDUSTRY_LOOKBACK_DAYS);
-    const [hs300Rows, marketRows, industryRows, industryFlows] = await Promise.all([
+    const [hs300Rows, marketRows, allMarketRows, industryRows, industryFlows, sentimentRows] = await Promise.all([
       db.getSnapshotsByDateRangeAndIndex(env.DB, '000300', marketStartDate, latestDate),
       db.getSnapshotsByDateRangeAndIndex(env.DB, '000001', marketStartDate, latestDate),
+      db.getSnapshotsByDateRange(env.DB, marketStartDate, latestDate),
       db.getSwIndustryDailyRows(env.DB, industryStartDate, latestDate).catch((error) => {
         console.warn('[MarketRisk] Industry daily data unavailable:', error);
         return [];
@@ -37,14 +38,20 @@ export async function handleMarketRisk(
         console.warn('[MarketRisk] Industry flow data unavailable:', error);
         return [];
       }),
+      db.getMarketSentimentRows(env.DB, marketStartDate, latestDate).catch((error) => {
+        console.warn('[MarketRisk] Market sentiment data unavailable:', error);
+        return [];
+      }),
     ]);
 
     const payload: MarketRiskResponse = {
       ...buildMarketRisk(
         hs300Rows as MarketSnapshotRowLike[],
         marketRows as MarketSnapshotRowLike[],
+        allMarketRows as MarketSnapshotRowLike[],
         industryRows,
         industryFlows,
+        sentimentRows,
       ),
       generated_at: new Date().toISOString(),
     };

@@ -425,6 +425,10 @@ describe('handleMarketRisk', () => {
     const snapshotsSpy = vi.spyOn(dbModule, 'getSnapshotsByDateRangeAndIndex').mockImplementation(
       async (_, code) => rowsFor(code) as any,
     );
+    const allSnapshotsSpy = vi.spyOn(dbModule, 'getSnapshotsByDateRange').mockResolvedValue([
+      ...rowsFor('000001'),
+      ...rowsFor('000300'),
+    ] as any);
     const industriesSpy = vi.spyOn(dbModule, 'getSwIndustryDailyRows').mockResolvedValue([]);
     const flowsSpy = vi.spyOn(dbModule, 'getIndustryFundFlowRows').mockResolvedValue([]);
 
@@ -439,8 +443,10 @@ describe('handleMarketRisk', () => {
     expect(body.breadth.state).toBe('unavailable');
     expect(body.tail.state).toBe('supportive');
     expect(body.available_component_count).toBe(2);
+    expect(body.temperature.dimensions).toHaveLength(7);
     latestSpy.mockRestore();
     snapshotsSpy.mockRestore();
+    allSnapshotsSpy.mockRestore();
     industriesSpy.mockRestore();
     flowsSpy.mockRestore();
   });

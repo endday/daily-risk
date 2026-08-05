@@ -1,7 +1,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchEventsByDate, fetchMarketTemperature } from '../services/api'
-import type { CalendarEffects, MarketTemperatureResponse, RiskEvent } from '../services/api'
+import { fetchEventsByDate, fetchMarketRisk, fetchMarketTemperature } from '../services/api'
+import type { CalendarEffects, MarketRiskResponse, MarketTemperatureResponse, RiskEvent } from '../services/api'
 import type { HolidayEntry } from '../../../shared/types'
 import { getMonday, getToday, dateShort, formatDateParts, offsetDate } from '../../../shared/date-utils'
 export type TabName = 'overview' | 'trends' | 'events' | 'stats'
@@ -16,6 +16,7 @@ export function useHomePage() {
   const dateCalendarMap = ref<Record<string, CalendarEffects | null>>({})
   const holidayMap = ref<Record<string, HolidayEntry>>({})
   const temperature = ref<MarketTemperatureResponse | null>(null)
+  const marketRisk = ref<MarketRiskResponse | null>(null)
   const selectedDate = ref(today)
   const loadingDay = ref(false)
   let selectedDateRequestId = 0
@@ -128,12 +129,13 @@ export function useHomePage() {
 
   onMounted(async () => {
     void fetchDateEvents(today)
-    try {
-      // 45 calendar days ensures the 20-session turnover comparison has enough trade days.
-      temperature.value = await fetchMarketTemperature(45)
-    } catch (error) {
-      console.error('Failed to fetch market temperature:', error)
-    }
+    // 45 calendar days ensures the 20-session turnover comparison has enough trade days.
+    void fetchMarketTemperature(45)
+      .then((data) => { temperature.value = data })
+      .catch((error) => { console.error('Failed to fetch market temperature:', error) })
+    void fetchMarketRisk()
+      .then((data) => { marketRisk.value = data })
+      .catch((error) => { console.error('Failed to fetch market risk:', error) })
   })
 
   return {
@@ -153,6 +155,7 @@ export function useHomePage() {
     holidayMap,
     lastCalendar,
     loadingDay,
+    marketRisk,
     nextDayShort,
     nextMonthName,
     selectDate,

@@ -219,11 +219,169 @@ export async function updateEventCheckStatus(db: D1Database, eventId: number, ch
 // Provider Run 日志
 // ============================================
 
-export async function logProviderRun(db: D1Database, run: any): Promise<void> {
+export interface ProviderRunLog {
+  provider: string;
+  run_type: string;
+  started_at: string;
+  finished_at?: string | null;
+  status: string;
+  events_upserted?: number;
+  records_upserted?: number;
+  error?: string | null;
+}
+
+export interface ProviderRunHealth {
+  provider: string;
+  run_type: string;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  records_upserted: number;
+  error: string | null;
+  last_success_at: string | null;
+}
+
+export interface DatasetCoverage {
+  record_count: number;
+  series_count: number;
+  min_trade_date: string | null;
+  max_trade_date: string | null;
+  source_updated_at: string | null;
+}
+
+export async function getMarketSnapshotCoverage(db: D1Database): Promise<DatasetCoverage> {
+  const result = await db.prepare(`
+    WITH latest AS (
+      SELECT MAX(trade_date) AS max_trade_date
+      FROM market_snapshots
+      WHERE index_code = '000300' AND close_price IS NOT NULL AND close_price > 0
+    )
+    SELECT
+      (SELECT COUNT(*) FROM market_snapshots WHERE close_price IS NOT NULL AND close_price > 0) AS record_count,
+      (
+        SELECT COUNT(DISTINCT index_code)
+        FROM market_snapshots
+        WHERE trade_date = latest.max_trade_date AND close_price IS NOT NULL AND close_price > 0
+      ) AS series_count,
+      (SELECT MIN(trade_date) FROM market_snapshots WHERE close_price IS NOT NULL AND close_price > 0) AS min_trade_date,
+      latest.max_trade_date,
+      (SELECT MAX(created_at) FROM market_snapshots WHERE close_price IS NOT NULL AND close_price > 0) AS source_updated_at
+    FROM latest
+  `).first<DatasetCoverage>();
+  return result ?? {
+    record_count: 0,
+    series_count: 0,
+    min_trade_date: null,
+    max_trade_date: null,
+    source_updated_at: null,
+  };
+}
+
+export async function logProviderRun(db: D1Database, run: ProviderRunLog): Promise<void> {
   await db.prepare(`
-    INSERT INTO provider_runs (provider, run_type, started_at, finished_at, status, events_upserted, error)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).bind(run.provider, run.run_type, run.started_at, run.finished_at || null, run.status, run.events_upserted, run.error || null).run();
+    INSERT INTO provider_runs (
+      provider, run_type, started_at, finished_at, status,
+      events_upserted, records_upserted, error
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    run.provider,
+    run.run_type,
+    run.started_at,
+    run.finished_at || null,
+    run.status,
+    run.events_upserted ?? 0,
+    run.records_upserted ?? run.events_upserted ?? 0,
+    run.error || null,
+  ).run();
+}
+
+export async function getProviderRunHealth(db: D1Database): Promise<ProviderRunHealth[]> {
+  const result = await db.prepare(`
+    SELECT
+      current_run.provider,
+      current_run.run_type,
+      current_run.started_at,
+      current_run.finished_at,
+      current_run.status,
+      COALESCE(current_run.records_upserted, current_run.events_upserted, 0) AS records_upserted,
+      current_run.error,
+      successes.last_success_at
+    FROM provider_runs AS current_run
+    INNER JOIN (
+      SELECT provider, MAX(id) AS latest_id
+      FROM provider_runs
+      GROUP BY provider
+    ) AS latest ON latest.latest_id = current_run.id
+    LEFT JOIN (
+      SELECT provider, MAX(finished_at) AS last_success_at
+      FROM provider_runs
+      WHERE status = 'success'
+      GROUP BY provider
+    ) AS successes ON successes.provider = current_run.provider
+    ORDER BY current_run.provider ASC
+  `).all();
+  return result.results as unknown as ProviderRunHealth[];
+}
+
+export async function getInstrumentValuationCoverage(
+  db: D1Database,
+  instrumentCodes: string[],
+): Promise<DatasetCoverage> {
+  if (instrumentCodes.length === 0) {
+    return { record_count: 0, series_count: 0, min_trade_date: null, max_trade_date: null, source_updated_at: null };
+  }
+
+  const placeholders = instrumentCodes.map(() => '?').join(', ');
+  const result = await db.prepare(`
+    WITH valuation_rows AS (
+      SELECT instrument_code, trade_date, source_updated_at
+      FROM instrument_daily
+      WHERE instrument_code IN (${placeholders}) AND pe_ttm IS NOT NULL
+    ),
+    latest AS (
+      SELECT MAX(trade_date) AS max_trade_date
+      FROM valuation_rows
+    )
+    SELECT
+      (SELECT COUNT(*) FROM valuation_rows) AS record_count,
+      (
+        SELECT COUNT(DISTINCT instrument_code)
+        FROM valuation_rows
+        WHERE trade_date = latest.max_trade_date
+      ) AS series_count,
+      (SELECT MIN(trade_date) FROM valuation_rows) AS min_trade_date,
+      latest.max_trade_date AS max_trade_date,
+      (SELECT MAX(source_updated_at) FROM valuation_rows) AS source_updated_at
+    FROM latest
+  `).bind(...instrumentCodes).first<DatasetCoverage>();
+  return result ?? { record_count: 0, series_count: 0, min_trade_date: null, max_trade_date: null, source_updated_at: null };
+}
+
+export async function getIndustryFundFlowCoverage(db: D1Database): Promise<DatasetCoverage> {
+  const result = await db.prepare(`
+    SELECT
+      COUNT(*) AS record_count,
+      COUNT(DISTINCT board_code) AS series_count,
+      MIN(trade_date) AS min_trade_date,
+      MAX(trade_date) AS max_trade_date,
+      MAX(source_updated_at) AS source_updated_at
+    FROM industry_fund_flow_daily
+  `).first<DatasetCoverage>();
+  return result ?? { record_count: 0, series_count: 0, min_trade_date: null, max_trade_date: null, source_updated_at: null };
+}
+
+export async function getMarketSentimentCoverage(db: D1Database): Promise<DatasetCoverage> {
+  const result = await db.prepare(`
+    SELECT
+      COUNT(*) AS record_count,
+      COUNT(DISTINCT CASE WHEN qvix_close IS NOT NULL THEN 'qvix' END) +
+        COUNT(DISTINCT CASE WHEN main_net_inflow IS NOT NULL THEN 'market_flow' END) AS series_count,
+      MIN(trade_date) AS min_trade_date,
+      MAX(trade_date) AS max_trade_date,
+      MAX(source_updated_at) AS source_updated_at
+    FROM market_sentiment_daily
+  `).first<DatasetCoverage>();
+  return result ?? { record_count: 0, series_count: 0, min_trade_date: null, max_trade_date: null, source_updated_at: null };
 }
 
 // ============================================
@@ -261,7 +419,13 @@ function parseEventRow(row: any): any {
 // Market Snapshots
 // ============================================
 
-import type { IndustryFundFlowRow, InstrumentDailyRow, MarketSnapshotRow, SwIndustryDailyRow } from './collectors/base';
+import type {
+  IndustryFundFlowRow,
+  InstrumentDailyRow,
+  MarketSentimentDailyRow,
+  MarketSnapshotRow,
+  SwIndustryDailyRow,
+} from './collectors/base';
 
 const SNAPSHOT_COLUMNS = `
   trade_date, index_code,
@@ -370,13 +534,106 @@ export async function getLatestSnapshots(db: D1Database): Promise<MarketSnapshot
   const result = await db.prepare(`
     SELECT * FROM market_snapshots
     WHERE trade_date = (
-      SELECT MAX(trade_date)
-      FROM market_snapshots
-      WHERE close_price IS NOT NULL
+      SELECT COALESCE(
+        (
+          SELECT MAX(trade_date)
+          FROM market_snapshots
+          WHERE index_code = '000300' AND close_price IS NOT NULL AND close_price > 0
+        ),
+        (
+          SELECT MAX(trade_date)
+          FROM market_snapshots
+          WHERE close_price IS NOT NULL AND close_price > 0
+        )
+      )
     )
+    AND close_price IS NOT NULL AND close_price > 0
     ORDER BY index_code ASC
   `).all();
   return result.results as MarketSnapshotRow[];
+}
+
+const MARKET_SENTIMENT_COLUMNS = `
+  trade_date, provider, qvix_close, qvix_change_pct,
+  market_close_price, market_change_pct,
+  main_net_inflow, small_net_inflow, medium_net_inflow,
+  large_net_inflow, super_large_net_inflow,
+  main_net_inflow_ratio, source_updated_at
+`;
+
+const MARKET_SENTIMENT_PLACEHOLDERS = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+
+const MARKET_SENTIMENT_CONFLICT = `
+  ON CONFLICT(trade_date) DO UPDATE SET
+    provider = excluded.provider,
+    qvix_close = COALESCE(excluded.qvix_close, market_sentiment_daily.qvix_close),
+    qvix_change_pct = COALESCE(excluded.qvix_change_pct, market_sentiment_daily.qvix_change_pct),
+    market_close_price = COALESCE(excluded.market_close_price, market_sentiment_daily.market_close_price),
+    market_change_pct = COALESCE(excluded.market_change_pct, market_sentiment_daily.market_change_pct),
+    main_net_inflow = COALESCE(excluded.main_net_inflow, market_sentiment_daily.main_net_inflow),
+    small_net_inflow = COALESCE(excluded.small_net_inflow, market_sentiment_daily.small_net_inflow),
+    medium_net_inflow = COALESCE(excluded.medium_net_inflow, market_sentiment_daily.medium_net_inflow),
+    large_net_inflow = COALESCE(excluded.large_net_inflow, market_sentiment_daily.large_net_inflow),
+    super_large_net_inflow = COALESCE(excluded.super_large_net_inflow, market_sentiment_daily.super_large_net_inflow),
+    main_net_inflow_ratio = COALESCE(excluded.main_net_inflow_ratio, market_sentiment_daily.main_net_inflow_ratio),
+    source_updated_at = COALESCE(excluded.source_updated_at, market_sentiment_daily.source_updated_at),
+    updated_at = datetime('now')
+`;
+
+function bindMarketSentiment(
+  stmt: D1PreparedStatement,
+  row: MarketSentimentDailyRow,
+): D1PreparedStatement {
+  return stmt.bind(
+    row.trade_date,
+    row.provider,
+    row.qvix_close,
+    row.qvix_change_pct,
+    row.market_close_price,
+    row.market_change_pct,
+    row.main_net_inflow,
+    row.small_net_inflow,
+    row.medium_net_inflow,
+    row.large_net_inflow,
+    row.super_large_net_inflow,
+    row.main_net_inflow_ratio,
+    row.source_updated_at,
+  );
+}
+
+export async function upsertMarketSentimentRows(
+  db: D1Database,
+  rows: MarketSentimentDailyRow[],
+): Promise<number> {
+  if (rows.length === 0) return 0;
+
+  const sql = `
+    INSERT INTO market_sentiment_daily (${MARKET_SENTIMENT_COLUMNS})
+    VALUES ${MARKET_SENTIMENT_PLACEHOLDERS}
+    ${MARKET_SENTIMENT_CONFLICT}
+  `;
+  const chunkSize = 100;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    await db.batch(rows.slice(i, i + chunkSize).map((row) => bindMarketSentiment(
+      db.prepare(sql),
+      row,
+    )));
+  }
+  return rows.length;
+}
+
+export async function getMarketSentimentRows(
+  db: D1Database,
+  startDate: string,
+  endDate: string,
+): Promise<MarketSentimentDailyRow[]> {
+  const result = await db.prepare(`
+    SELECT ${MARKET_SENTIMENT_COLUMNS}
+    FROM market_sentiment_daily
+    WHERE trade_date BETWEEN ? AND ?
+    ORDER BY trade_date DESC
+  `).bind(startDate, endDate).all();
+  return result.results as unknown as MarketSentimentDailyRow[];
 }
 
 // ============================================

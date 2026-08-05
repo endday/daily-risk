@@ -80,7 +80,8 @@ export async function isTradingDay(
   db: D1Database,
   dateStr: string,
 ): Promise<boolean> {
-  const d = new Date(dateStr + 'T00:00:00+08:00');
+  // dateStr is a calendar date, so evaluate its weekday without shifting it across time zones.
+  const d = new Date(dateStr + 'T00:00:00Z');
   const dow = d.getUTCDay();
   if (dow === 0 || dow === 6) return false;
 

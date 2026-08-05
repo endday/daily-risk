@@ -21,6 +21,7 @@ const {
   handleCalendarDateSelect,
   holidayMap,
   loadingDay,
+  marketRisk,
   nextDayShort,
   nextMonthName,
   selectDate,
@@ -90,6 +91,7 @@ const {
       :shortLabel="shortLabel"
       :shortRating="shortRating"
       :temperature="temperature"
+      :marketRisk="marketRisk"
       :today="today"
       :topEvents="topEvents"
       @showEvents="setTab('events')"

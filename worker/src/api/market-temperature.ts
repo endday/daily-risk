@@ -1,6 +1,6 @@
 import * as db from '../db';
 import type { Env } from '../env';
-import type { InstrumentDailyRow } from '../collectors/base';
+import type { InstrumentDailyRow, MarketSentimentDailyRow } from '../collectors/base';
 import type { ChinaGdpData, MarketSnapshotRowLike, TemperatureDerived } from '../../../shared/types';
 
 function formatSnapshotForAPI(row: MarketSnapshotRowLike): MarketSnapshotRowLike {
@@ -119,6 +119,13 @@ function createEmptyDerived(): TemperatureDerived {
     northbound_20d_avg: null,
     northbound_trend: null,
     volatility_label: null,
+    qvix_close: null,
+    qvix_change_pct: null,
+    qvix_percentile: null,
+    qvix_label: null,
+    market_net_inflow: null,
+    market_net_inflow_5d_avg: null,
+    market_flow_label: null,
     margin_balance_yi: null,
     pe_ttm: null,
     pe_percentile: null,
@@ -160,6 +167,7 @@ function computeDerivedMetrics(
   latest300: MarketSnapshotRowLike | undefined,
   chinaGdpData: ChinaGdpData,
   hs300ValuationHistory: Pick<InstrumentDailyRow, 'pe_ttm'>[] = [],
+  sentimentHistory: MarketSentimentDailyRow[] = [],
 ): TemperatureDerived {
   const latest = history[0];
   const result = createEmptyDerived();
@@ -191,14 +199,42 @@ function computeDerivedMetrics(
   if (nb5 && nb20 && nb20 > 0) {
     result.northbound_5d_avg = Math.round(nb5 / 10000);
     result.northbound_20d_avg = Math.round(nb20 / 10000);
-    result.northbound_trend = nb5 > nb20 * 1.2 ? '外资放量' :
-      nb5 < nb20 * 0.8 ? '外资缩量' : '外资平稳';
+    result.northbound_trend = nb5 > nb20 * 1.2 ? '北向成交放量' :
+      nb5 < nb20 * 0.8 ? '北向成交缩量' : '北向成交平稳';
   }
 
   if (latest.volatility_20d != null) {
     result.volatility_label =
       latest.volatility_20d > 25 ? '高波动' :
       latest.volatility_20d > 15 ? '正常波动' : '低波动';
+  }
+
+  const qvixRows = sentimentHistory
+    .filter((row) => row.qvix_close != null && row.qvix_close > 0)
+    .sort((a, b) => a.trade_date.localeCompare(b.trade_date));
+  const latestQvix = qvixRows.at(-1);
+  if (latestQvix?.qvix_close != null) {
+    result.qvix_close = latestQvix.qvix_close;
+    result.qvix_change_pct = latestQvix.qvix_change_pct;
+    result.qvix_percentile = Math.round(
+      qvixRows.filter((row) => (row.qvix_close ?? 0) <= latestQvix.qvix_close!).length / qvixRows.length * 100,
+    );
+    result.qvix_label = latestQvix.qvix_close >= 35 ? '恐慌' :
+      latestQvix.qvix_close >= 25 ? '市场担忧' :
+        latestQvix.qvix_close >= 15 ? '正常波动' : '市场平静';
+  }
+
+  const flowRows = sentimentHistory
+    .filter((row) => row.main_net_inflow != null)
+    .sort((a, b) => a.trade_date.localeCompare(b.trade_date));
+  const latestFlow = flowRows.at(-1);
+  if (latestFlow?.main_net_inflow != null) {
+    result.market_net_inflow = latestFlow.main_net_inflow;
+    const recent = flowRows.slice(-5).map((row) => row.main_net_inflow).filter((value): value is number => value != null);
+    if (recent.length > 0) {
+      result.market_net_inflow_5d_avg = Math.round(recent.reduce((sum, value) => sum + value, 0) / recent.length);
+    }
+    result.market_flow_label = latestFlow.main_net_inflow > 0 ? '主力净流入' : '主力净流出';
   }
 
   if (latest.margin_balance != null) {
@@ -372,6 +408,14 @@ export async function handleMarketTemperature(
       ...latest300Base,
       pe_ttm: latest300Base.pe_ttm ?? latestValuationPe,
     } as MarketSnapshotRowLike;
+    const sentimentHistory = await db.getMarketSentimentRows(
+      env.DB,
+      valuationStartDateStr,
+      latestDate,
+    ).catch((error) => {
+      console.warn('[MarketTemp] sentiment history unavailable:', error);
+      return [];
+    });
     const primaryHistory = compact
       ? historyByIndex[indexCode] || history
       : shHistory;
@@ -381,6 +425,7 @@ export async function handleMarketTemperature(
       latest300,
       chinaGdpData,
       hs300ValuationHistory,
+      sentimentHistory,
     );
     const latestPayload = compact
       ? latest.filter((row) => row.index_code === indexCode)
@@ -392,6 +437,7 @@ export async function handleMarketTemperature(
       derived,
       history: history.map(formatSnapshotForAPI),
       history_days: days,
+      sentiment_history: sentimentHistory,
       ...(compact ? {
         compact: true,
         index_code: indexCode,

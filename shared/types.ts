@@ -302,6 +302,22 @@ export interface MarketSnapshot extends MarketSnapshotRowLike {
   northbound_num?: number | null;
 }
 
+export interface MarketSentimentDailyRow {
+  trade_date: string;
+  provider: string;
+  qvix_close: number | null;
+  qvix_change_pct: number | null;
+  market_close_price: number | null;
+  market_change_pct: number | null;
+  main_net_inflow: number | null;
+  small_net_inflow: number | null;
+  medium_net_inflow: number | null;
+  large_net_inflow: number | null;
+  super_large_net_inflow: number | null;
+  main_net_inflow_ratio: number | null;
+  source_updated_at: string | null;
+}
+
 export interface TemperatureDerived {
   advance_decline_ratio: number | null;
   advance_decline_label: string | null;
@@ -312,6 +328,13 @@ export interface TemperatureDerived {
   northbound_20d_avg: number | null;
   northbound_trend: string | null;
   volatility_label: string | null;
+  qvix_close: number | null;
+  qvix_change_pct: number | null;
+  qvix_percentile: number | null;
+  qvix_label: string | null;
+  market_net_inflow: number | null;
+  market_net_inflow_5d_avg: number | null;
+  market_flow_label: string | null;
   margin_balance_yi: number | null;
   pe_ttm: number | null;
   pe_percentile: number | null;
@@ -336,6 +359,7 @@ export interface MarketTemperatureResponse {
   derived: TemperatureDerived;
   history: MarketSnapshot[];
   history_days: number;
+  sentiment_history?: MarketSentimentDailyRow[];
 }
 
 export interface MarketTemperatureCompactResponse {
@@ -348,10 +372,42 @@ export interface MarketTemperatureCompactResponse {
   index_code: string;
   sampled?: boolean;
   sample_step?: number;
+  sentiment_history?: MarketSentimentDailyRow[];
 }
 
 export type MarketRiskLevel = 'unavailable' | 'calm' | 'balanced' | 'fragile' | 'elevated';
 export type MarketRiskSignalState = 'unavailable' | 'supportive' | 'neutral' | 'watch' | 'elevated';
+export type MarketTemperatureBand = 'unavailable' | 'cold' | 'cool' | 'neutral' | 'warm' | 'hot';
+export type MarketMetricStatus = 'available' | 'missing';
+
+export interface MarketRiskMetric {
+  key: string;
+  label: string;
+  value: number | string | boolean | null;
+  display_value: string;
+  status: MarketMetricStatus;
+  description?: string;
+}
+
+export interface MarketRiskDimension {
+  key: string;
+  label: string;
+  score: number | null;
+  band: MarketTemperatureBand;
+  summary: string;
+  metrics: MarketRiskMetric[];
+}
+
+export interface MarketRiskTemperature {
+  score: number | null;
+  band: MarketTemperatureBand;
+  label: string;
+  summary: string;
+  available_dimension_count: number;
+  total_dimension_count: number;
+  missing_metric_count: number;
+  dimensions: MarketRiskDimension[];
+}
 
 export interface MarketRiskBreadth {
   state: MarketRiskSignalState;
@@ -393,6 +449,7 @@ export interface MarketRiskResponse {
   state: MarketRiskLevel;
   summary: string;
   available_component_count: number;
+  temperature?: MarketRiskTemperature;
   breadth: MarketRiskBreadth;
   liquidity: MarketRiskLiquidity;
   tail: MarketRiskTail;
@@ -509,6 +566,45 @@ export interface ValuationRankingResponse {
   minimum_pe_samples: number;
   rankable_count: number;
   items: ValuationRankingItem[];
+}
+
+export type DataHealthState = 'healthy' | 'partial' | 'stale' | 'unavailable';
+
+export interface DataHealthDataset {
+  key: string;
+  label: string;
+  source: string;
+  source_url: string;
+  state: DataHealthState;
+  record_count: number;
+  min_trade_date: string | null;
+  latest_trade_date: string | null;
+  source_updated_at: string | null;
+  trading_days_behind: number | null;
+  expected_series_count?: number;
+  available_series_count?: number;
+  last_run_status: string | null;
+  last_success_at: string | null;
+  last_records_upserted: number | null;
+  error: string | null;
+}
+
+export interface DataHealthCollector {
+  provider: string;
+  run_type: string;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+  last_success_at: string | null;
+  records_upserted: number;
+  error: string | null;
+}
+
+export interface DataHealthResponse {
+  generated_at: string;
+  expected_latest_trading_date: string;
+  datasets: DataHealthDataset[];
+  collectors: DataHealthCollector[];
 }
 
 export interface ChinaGdpData {

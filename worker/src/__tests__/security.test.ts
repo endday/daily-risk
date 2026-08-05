@@ -83,6 +83,37 @@ describe('Admin Endpoint Security', () => {
     expect(body.status).toBe('accepted')
   })
 
+  it('should reject market snapshot trigger when ADMIN_TOKEN is not configured', async () => {
+    const { default: handler } = await import('../index')
+
+    const response = await handler.fetch(new Request('http://localhost/admin/collect-market-snapshot', {
+      method: 'POST',
+    }), mockEnv, {} as ExecutionContext)
+
+    expect(response.status).toBe(503)
+  })
+
+  it('should reject market snapshot trigger with an invalid token', async () => {
+    mockEnv.ADMIN_TOKEN = 'secret-token'
+    const { default: handler } = await import('../index')
+
+    const response = await handler.fetch(new Request('http://localhost/admin/collect-market-snapshot', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer wrong-token' },
+    }), mockEnv, {} as ExecutionContext)
+
+    expect(response.status).toBe(401)
+  })
+
+  it('should enforce POST for market snapshot trigger', async () => {
+    const { default: handler } = await import('../index')
+
+    const response = await handler.fetch(new Request('http://localhost/admin/collect-market-snapshot'), mockEnv, {} as ExecutionContext)
+
+    expect(response.status).toBe(405)
+    expect(response.headers.get('Allow')).toBe('POST')
+  })
+
   it('rejects industry imports when the dedicated token is unavailable', async () => {
     const { default: handler } = await import('../index')
     const response = await handler.fetch(new Request('http://localhost/admin/import-sw-industries', {

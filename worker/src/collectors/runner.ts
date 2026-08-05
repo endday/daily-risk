@@ -9,7 +9,7 @@
  */
 
 import type { CollectorConfig, CollectorEnv, CollectorResult } from './base';
-import { upsertEvents, upsertSnapshots, logProviderRun } from '../db';
+import { upsertEvents, upsertMarketSentimentRows, upsertSnapshots, logProviderRun } from '../db';
 
 // ============================================
 // 重试
@@ -64,6 +64,7 @@ export interface RunResult {
   status: 'success' | 'skipped' | 'failed';
   events_upserted: number;
   snapshots_upserted: number;
+  sentiments_upserted: number;
   duration_ms: number;
   error?: string;
 }
@@ -85,6 +86,7 @@ export async function runCollector(
       status: 'skipped',
       events_upserted: 0,
       snapshots_upserted: 0,
+      sentiments_upserted: 0,
       duration_ms: Date.now() - startTime,
     };
   }
@@ -109,6 +111,11 @@ export async function runCollector(
       }
     }
 
+    let sentimentsUpserted = 0;
+    if (result.sentiments && result.sentiments.length > 0) {
+      sentimentsUpserted = await upsertMarketSentimentRows(env.DB, result.sentiments);
+    }
+
     const duration = Date.now() - startTime;
 
     // 记录成功日志
@@ -119,12 +126,14 @@ export async function runCollector(
       finished_at: new Date().toISOString(),
       status: result.meta.warnings.length > 0 ? 'partial_success' : 'success',
       events_upserted: eventsUpserted,
+      records_upserted: eventsUpserted + snapshotsUpserted + sentimentsUpserted,
       error: result.meta.warnings.length > 0 ? result.meta.warnings.join('; ') : undefined,
     });
 
     console.log(
       `[Runner] ${collector.name}: ${eventsUpserted} events, ` +
-      `${result.snapshots?.length ?? 0} snapshots, ${duration}ms` +
+      `${result.snapshots?.length ?? 0} snapshots, ` +
+      `${result.sentiments?.length ?? 0} sentiment rows, ${duration}ms` +
       (result.meta.warnings.length ? ` (${result.meta.warnings.length} warnings)` : '')
     );
 
@@ -133,6 +142,7 @@ export async function runCollector(
       status: 'success',
       events_upserted: eventsUpserted,
       snapshots_upserted: snapshotsUpserted,
+      sentiments_upserted: sentimentsUpserted,
       duration_ms: duration,
     };
   } catch (error) {
@@ -148,9 +158,10 @@ export async function runCollector(
         run_type: 'daily_collection',
         started_at: new Date(startTime).toISOString(),
         finished_at: new Date().toISOString(),
-        status: 'failed',
-        events_upserted: 0,
-        error: message,
+      status: 'failed',
+      events_upserted: 0,
+      records_upserted: 0,
+      error: message,
       });
     } catch (logError) {
       console.error(`[Runner] Failed to log error for ${collector.name}:`, logError);
@@ -161,6 +172,7 @@ export async function runCollector(
       status: 'failed',
       events_upserted: 0,
       snapshots_upserted: 0,
+      sentiments_upserted: 0,
       duration_ms: duration,
       error: message,
     };

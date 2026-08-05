@@ -23,10 +23,10 @@ describe('market sentiment collector', () => {
 
   it('parses 300ETF QVIX daily CSV and skips missing observations', () => {
     const rows = parseQvixCsv([
-      ',2,3,4,5,6,7,8,9,10,11,12,13',
-      '2026/08/01,18,19,17,18,,,,,20,21,19,20',
-      '2026/08/02,18,19,17,18,,,,,.,.,.,.',
-      '2026/08/03,18,19,17,18,,,,,21,22,20,21.84',
+      ',open,high,low,close',
+      '2026/08/01,18,19,17,20',
+      '2026/08/02,18,19,17,.',
+      '2026/08/03,20,21,19,21.84',
     ].join('\n'));
 
     expect(rows).toEqual([

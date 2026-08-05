@@ -50,7 +50,7 @@ export function parseQvixCsv(csv: string): QvixPoint[] {
   for (const line of lines.slice(1)) {
     const fields = line.split(',');
     const date = parseQvixDate(fields[0]);
-    const value = nullableNumber(fields[12]);
+    const value = nullableNumber(fields[4]);
     if (date == null || value == null || value <= 0) continue;
     points.push({
       trade_date: date,
@@ -139,6 +139,7 @@ async function fetchMarketFlowHistory(limit: number): Promise<MarketFlowPoint[]>
     lmt: String(limit),
     klt: '101',
     secid: '1.000001',
+    ut: 'fa5fd1943c7b386172d6893dbfba10b',
     fields1: 'f1,f2,f3,f7',
     fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63',
   });

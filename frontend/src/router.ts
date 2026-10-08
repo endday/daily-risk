@@ -6,6 +6,11 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: '/accumulation',
+      name: 'accumulation',
+      component: defineAsyncComponent(() => import('./pages/AccumulationPage.vue')),
+    },
+    {
       path: '/erp',
       name: 'erp',
       component: defineAsyncComponent(() => import('./pages/ErpPage.vue')),
@@ -26,7 +31,7 @@ const router = createRouter({
     },
     {
       path: '/industries',
-      redirect: (to) => ({ path: '/trends', query: { ...to.query, view: 'industry' } }),
+      redirect: '/trends',
     },
     {
       path: '/valuation',

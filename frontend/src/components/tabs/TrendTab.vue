@@ -3,17 +3,15 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchMarketRisk } from '../../services/api'
 import type { MarketRiskResponse } from '../../services/api'
-import IndustryTab from './IndustryTab.vue'
 import MarketRiskPanel from '../MarketRiskPanel.vue'
 import StyleTab from './StyleTab.vue'
 import ValuationTab from './ValuationTab.vue'
 
-type TrendView = 'index' | 'industry' | 'valuation'
+type TrendView = 'index' | 'valuation'
 
 const route = useRoute()
 const router = useRouter()
 const activeView = computed<TrendView>(() => {
-  if (route.query.view === 'industry') return 'industry'
   if (route.query.view === 'valuation') return 'valuation'
   return 'index'
 })
@@ -56,14 +54,8 @@ onMounted(() => void loadMarketRisk())
       >
         <span>指数</span>
       </button>
-      <button
-        type="button"
-        :class="{ active: activeView === 'industry' }"
-        :aria-selected="activeView === 'industry'"
-        role="tab"
-        @click="selectView('industry')"
-      >
-        <span>行业</span>
+      <button type="button" class="add-position-link" @click="router.push('/accumulation')">
+        <span>加仓</span>
       </button>
       <button
         type="button"
@@ -82,7 +74,6 @@ onMounted(() => void loadMarketRisk())
       <MarketRiskPanel v-else-if="marketRisk" :risk="marketRisk" />
       <StyleTab />
     </div>
-    <IndustryTab v-else-if="activeView === 'industry'" />
     <ValuationTab v-else />
   </section>
 </template>

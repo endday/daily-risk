@@ -11,6 +11,7 @@ import { handleIndustryRotation } from './api/industry-rotation';
 import { handleRelativeStrength } from './api/relative-strength';
 import { handleValuationRanking } from './api/valuation-ranking';
 import { handleDataHealth } from './api/data-health';
+import { handleIndexAccumulation } from './api/index-accumulation';
 import { syncIndustryFundFlows } from './collectors/industry-fund-flow';
 import { syncMarketSentiment } from './collectors/market-sentiment';
 import { backfillSnapshots } from './collectors/backfill';
@@ -81,6 +82,11 @@ export default {
     if (url.pathname === '/api/data-health') {
       if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
       return handleDataHealth(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/index-accumulation') {
+      if (request.method !== 'GET') return methodNotAllowed(corsHeaders, 'GET');
+      return handleIndexAccumulation(request, env, corsHeaders);
     }
 
     if (url.pathname === '/admin/collect' && request.method === 'POST') {

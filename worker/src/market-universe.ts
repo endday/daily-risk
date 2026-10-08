@@ -14,6 +14,8 @@ export const MARKET_INSTRUMENTS: MarketInstrument[] = [
   { code: '000001', name: '上证指数', secid: '1.000001', type: 'broad_index', priority: 'p0', snapshotEnabled: true, dailyLineEnabled: true },
   { code: '000300', name: '沪深300', secid: '1.000300', type: 'broad_index', priority: 'p0', snapshotEnabled: true, dailyLineEnabled: true },
   { code: '000905', name: '中证500', secid: '1.000905', type: 'broad_index', priority: 'p0', snapshotEnabled: true, dailyLineEnabled: true },
+  // 红利低波用于长周期日线指标；暂不纳入实时快照核心白名单。
+  { code: '000922', name: '中证红利低波动', secid: '1.000922', type: 'broad_index', priority: 'p1', snapshotEnabled: false, dailyLineEnabled: true },
   { code: '399006', name: '创业板指', secid: '0.399006', type: 'broad_index', priority: 'p0', snapshotEnabled: true, dailyLineEnabled: true },
   { code: '000688', name: '科创50', secid: '1.000688', type: 'broad_index', priority: 'p0', snapshotEnabled: true, dailyLineEnabled: true },
   { code: '159915', name: '创业板ETF', secid: '0.159915', type: 'theme_etf', priority: 'p1', snapshotEnabled: true, dailyLineEnabled: true },

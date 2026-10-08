@@ -375,6 +375,51 @@ export interface MarketTemperatureCompactResponse {
   sentiment_history?: MarketSentimentDailyRow[];
 }
 
+export type IndexAccumulationMaSignal = 'golden_cross' | 'death_cross' | 'above' | 'below' | 'insufficient';
+export type IndexAccumulationSignal = 'strong_buy' | 'buy' | 'hold' | 'wait' | 'unavailable';
+
+export interface IndexAccumulationItem {
+  code: string;
+  name: string;
+  close: number | null;
+  ma50: number | null;
+  ma200: number | null;
+  ma_signal: IndexAccumulationMaSignal;
+  rsi14: number | null;
+  return20d: number | null;
+  return60d: number | null;
+  return252d: number | null;
+  drawdown52w: number | null;
+  score: number | null;
+  signal: IndexAccumulationSignal;
+  signals: string[];
+  chart_points: IndexAccumulationChartPoint[];
+  indicator_events: IndexAccumulationEvent[];
+}
+
+export interface IndexAccumulationChartPoint {
+  date: string;
+  close: number;
+  ma50: number | null;
+  ma200: number | null;
+  rsi14: number | null;
+  drawdown52w: number | null;
+  return20d: number | null;
+}
+
+export interface IndexAccumulationEvent {
+  date: string;
+  type: 'golden_cross' | 'death_cross' | 'oversold' | 'overbought' | 'deep_drawdown';
+  label: string;
+}
+
+export interface IndexAccumulationResponse {
+  trade_date: string | null;
+  generated_at: string;
+  primary_code: string;
+  items: IndexAccumulationItem[];
+}
+
 export type MarketRiskLevel = 'unavailable' | 'calm' | 'balanced' | 'fragile' | 'elevated';
 export type MarketRiskSignalState = 'unavailable' | 'supportive' | 'neutral' | 'watch' | 'elevated';
 export type MarketTemperatureBand = 'unavailable' | 'cold' | 'cool' | 'neutral' | 'warm' | 'hot';

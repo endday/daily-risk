@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { CalendarEffects, MarketRiskResponse, MarketTemperatureResponse, RiskEvent } from '../../services/api'
 import { scoreColor } from '../../utils/display'
-import MarketTemperaturePanel from '../MarketTemperaturePanel.vue'
-import TodayHotspotsPanel from '../TodayHotspotsPanel.vue'
 
 defineProps<{
   calendar: CalendarEffects | null
@@ -27,16 +25,17 @@ const emit = defineEmits<{
 
 <template>
   <div class="tab-panel">
-    <MarketTemperaturePanel
-      v-if="marketRisk"
-      :risk="marketRisk"
-    />
-
-    <div v-if="marketRisk" class="rule-thin"></div>
-
-    <TodayHotspotsPanel />
-
-    <div class="rule-thin"></div>
+    <section class="focus-card">
+      <div>
+        <span class="focus-kicker">宽基决策</span>
+        <h2>先看位置，再决定仓位</h2>
+        <p>趋势、估值、超买超卖和回撤集中在一个页面里。</p>
+      </div>
+      <div class="focus-actions">
+        <RouterLink to="/accumulation">看加仓指标</RouterLink>
+        <RouterLink to="/trends?view=valuation">看估值位置</RouterLink>
+      </div>
+    </section>
 
     <section v-if="topEvents.length > 0" class="today-events">
       <div class="section-label">今日要事</div>
@@ -137,5 +136,24 @@ const emit = defineEmits<{
 .rule-thin {
   height: 1px;
   background: $border;
+}
+
+.focus-card {
+  display: flex;
+  justify-content: space-between;
+  gap: $space-lg;
+  padding: $space-lg 0;
+  border-bottom: 2px solid $text-primary;
+}
+
+.focus-kicker { color: $color-up-dark; font-size: $text-xs; font-weight: $weight-bold; }
+.focus-card h2 { margin: $space-xs 0; font-family: $font-serif; font-size: $text-xl; }
+.focus-card p { margin: 0; color: $text-secondary; font-size: $text-sm; }
+.focus-actions { display: flex; flex-direction: column; gap: $space-sm; align-items: flex-end; justify-content: center; white-space: nowrap; }
+.focus-actions a { color: $color-info; font-size: $text-sm; font-weight: $weight-semibold; text-decoration: none; }
+
+@media (max-width: 520px) {
+  .focus-card { display: block; }
+  .focus-actions { align-items: flex-start; flex-direction: row; margin-top: $space-md; }
 }
 </style>

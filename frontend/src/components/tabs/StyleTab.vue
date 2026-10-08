@@ -114,8 +114,8 @@ onMounted(() => void load())
   <section class="style-page" :aria-busy="loading">
     <header class="style-header">
       <div>
-        <p class="eyebrow">STYLE COMPARISON</p>
-        <h2>风格表现</h2>
+        <p class="eyebrow">INDEX SELECTION</p>
+        <h2>指数选择</h2>
       </div>
       <span v-if="loading" class="loading-indicator" role="status">更新中</span>
       <span v-else-if="data" class="as-of">数据截至 {{ data.trade_date }}</span>
@@ -125,7 +125,7 @@ onMounted(() => void load())
     <p v-else-if="error && !data" class="state-line error">{{ error }}</p>
 
     <template v-if="data">
-      <p class="style-intro">成长、价值、小盘和大盘的近期相对表现。</p>
+      <p class="style-intro">比较成长、大盘与小盘的相对强弱，辅助决定买哪个宽基。</p>
 
       <div class="style-cards">
         <article v-for="pair in focusPairs" :key="pair.pair_key" class="style-card">

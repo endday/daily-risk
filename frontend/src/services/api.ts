@@ -14,6 +14,7 @@ import type {
   IndustryRotationMatrixResponse,
   RelativeStrengthResponse,
   ValuationRankingResponse,
+  IndexAccumulationResponse,
 } from '../../../shared/types'
 
 export type {
@@ -59,6 +60,8 @@ export type {
   ValuationRankState,
   ValuationRankingItem,
   ValuationRankingResponse,
+  IndexAccumulationResponse,
+  IndexAccumulationItem,
 } from '../../../shared/types'
 
 import { getToday, getTomorrow } from '../../../shared/date-utils'
@@ -113,6 +116,12 @@ export async function fetchValuationRanking(): Promise<ValuationRankingResponse>
   if (!response.ok) {
     throw new Error(`Valuation ranking API error: ${response.status}`)
   }
+  return response.json()
+}
+
+export async function fetchIndexAccumulation(): Promise<IndexAccumulationResponse> {
+  const response = await fetch(`${API_BASE}/index-accumulation`)
+  if (!response.ok) throw new Error(`Index accumulation API error: ${response.status}`)
   return response.json()
 }
 

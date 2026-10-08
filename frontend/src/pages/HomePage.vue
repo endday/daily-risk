@@ -130,7 +130,7 @@ const {
         事件
         <span v-if="selectedDayEvents.length" class="tab-badge">{{ selectedDayEvents.length }}</span>
       </div>
-      <div class="bottom-tab" :class="{ active: activeTab === 'stats' }" @click="setTab('stats')">统计</div>
+      <div class="bottom-tab" :class="{ active: activeTab === 'stats' }" @click="setTab('stats')">历史</div>
     </nav>
   </div>
 </template>

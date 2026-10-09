@@ -21,6 +21,14 @@ defineProps<{
 const emit = defineEmits<{
   showEvents: []
 }>()
+
+function riskStateLabel(state: string | undefined): string {
+  return ({ calm: '市场较稳', balanced: '强弱均衡', fragile: '偏弱，注意波动', elevated: '波动偏大', unavailable: '数据积累中' } as Record<string, string>)[state || 'unavailable'] || '数据积累中'
+}
+
+function formatPct(value: number | null | undefined): string {
+  return value == null ? '--' : `${value.toFixed(1)}%`
+}
 </script>
 
 <template>
@@ -35,6 +43,12 @@ const emit = defineEmits<{
         <RouterLink to="/accumulation">看加仓指标</RouterLink>
         <RouterLink to="/trends?view=valuation">看估值位置</RouterLink>
       </div>
+    </section>
+
+    <section v-if="marketRisk" class="evidence-strip" aria-label="市场状态摘要">
+      <article><span>市场状态</span><strong>{{ riskStateLabel(marketRisk.state) }}</strong><small>{{ marketRisk.summary }}</small></article>
+      <article><span>近期回撤</span><strong>{{ formatPct(marketRisk.tail.max_drawdown_60d_pct) }}</strong><small>{{ marketRisk.tail.summary }}</small></article>
+      <article><span>估值位置</span><strong>{{ marketRisk.valuation.erp_percentile == null ? '--' : `${marketRisk.valuation.erp_percentile.toFixed(0)}%` }}</strong><small>{{ marketRisk.valuation.summary }}</small></article>
     </section>
 
     <section v-if="topEvents.length > 0" class="today-events">
@@ -152,8 +166,15 @@ const emit = defineEmits<{
 .focus-actions { display: flex; flex-direction: column; gap: $space-sm; align-items: flex-end; justify-content: center; white-space: nowrap; }
 .focus-actions a { color: $color-info; font-size: $text-sm; font-weight: $weight-semibold; text-decoration: none; }
 
+.evidence-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: $space-lg 0; background: $border; border: 1px solid $border; }
+.evidence-strip article { min-width: 0; padding: $space-md; background: $bg-card; }
+.evidence-strip span, .evidence-strip small { display: block; color: $text-tertiary; font-size: $text-xs; }
+.evidence-strip strong { display: block; margin: $space-xs 0; font-family: $font-serif; font-size: $text-lg; }
+.evidence-strip small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 @media (max-width: 520px) {
   .focus-card { display: block; }
   .focus-actions { align-items: flex-start; flex-direction: row; margin-top: $space-md; }
+  .evidence-strip { grid-template-columns: 1fr; }
 }
 </style>

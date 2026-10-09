@@ -1,6 +1,7 @@
 name = "daily-risk-worker"
 main = "src/index.ts"
 compatibility_date = "2025-05-01"
+workers_dev = true
 
 # 路由配置：daily-risk.endday.top/api/* 请求转发到 Worker
 routes = [

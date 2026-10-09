@@ -67,7 +67,9 @@ export type {
 import { getToday, getTomorrow } from '../../../shared/date-utils'
 
 // API 路径：开发和生产都用相对路径（生产环境由 Cloudflare Route 转发）
-const API_BASE = '/api'
+// Pages 预览域名不会继承 Worker route，因此生产 API 使用独立 workers.dev 地址；
+// VITE_API_BASE 可在本地或其他部署环境覆盖。
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://daily-risk-worker.845426454.workers.dev/api'
 
 /** 查询单日事件 */
 export async function fetchEventsByDate(date: string): Promise<DayResponse> {
